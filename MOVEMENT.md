@@ -57,6 +57,18 @@ re-arm it. This prevents an unwanted automatic re-slide when a slide jump lands.
 Walking off a ledge also preserves momentum. Slide speed respects speed lost to
 collisions rather than restoring it on the next tick.
 
+## Bidirectional ziplines
+
+Grab a nearby zipline with the use key (E by default). Your initial velocity
+along the cable chooses the travel direction, including uphill. If you are not
+moving along it, your facing direction chooses instead; facing perpendicular
+to the cable defaults to travelling toward the farther endpoint. The direction
+stays fixed while riding, so looking around does not reverse your travel.
+
+Both ends release automatically and preserve horizontal exit momentum. Jump to
+leave early with an upward boost, or crouch to drop off. A short re-grab cooldown
+applies in either direction.
+
 ## Quick feel check
 
 1. Hold W: reach full ground speed promptly. Release to stop; press S to counter-strafe.
@@ -70,6 +82,9 @@ collisions rather than restoring it on the next tick.
    its speed into the jump. Release crouch and press it again to chain another slide.
 6. Slide sideways or backwards, steer with movement keys, and release crouch:
    steering should be smooth and slide release should not abruptly halve speed.
+7. Grab a zipline while moving toward either endpoint, including uphill. Look
+   around while riding, then check automatic release, jumping, and dropping off
+   in both directions. At rest, face along the cable to choose a direction.
 
 Browser validation covers ground speed, stopping, counter-strafing, directional
 air caps, momentum preservation, normalized diagonal input, jump ordering, slide
