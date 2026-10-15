@@ -1,7 +1,61 @@
 
 # Nuclear Sweeper
 
-Open `nuclear-sweeper-reactor.html` in a browser to play.
+## Progression
+
+Open `nuclear-sweeper-reactor.html` in a browser to play. The shelter shows
+weapon licenses, per-weapon mastery requirements, and lifetime achievements.
+
+### Weapon licenses
+
+Weapon classes unlock automatically through kills, not credits:
+
+| Unlock | Kills with the previous class |
+| --- | --- |
+| MP7 and SMG-11 (machine pistols) | 25 pistol kills |
+| 416-C and R4-C (assault rifles) | 60 machine-pistol kills |
+| Breaker (shotgun) | 90 assault-rifle kills |
+| Vector DMR (sniper / DMR) | 60 shotgun kills |
+
+Variants contribute to a shared class total. These starting values target a
+short introductory pistol phase and longer practice with automatic weapons;
+the shotgun requirement is lower because of its slower firing and reloads.
+They are initial tuning values, not a substitute for extended playtesting.
+Credits still buy station and weapon-stat upgrades.
+
+### Weapon mastery
+
+Each weapon starts at Basic. All requirements in a row must be met with that
+specific weapon; progress is cumulative and is never spent or reset on promotion.
+
+| Finish | Total kills | Glowers | Spitters | Brutes | Gunners |
+| --- | --- | --- | --- | --- | --- |
+| Tier 1: Gold | 50 | 20 | 5 | 0 | 0 |
+| Tier 2: Platin | 150 | 40 | 25 | 10 | 10 |
+| Tier 3: Polychrome | 400 | 100 | 60 | 40 | 40 |
+
+Mastery changes the weapon finish and weapon-slot border, not damage. Polychrome
+cycles through colors. Weapon slots also show mastery and kill counts on hover.
+Only the weapon delivering the killing hit receives credit. Shotgun pellets
+cannot count the same enemy twice; despawning enemies never awards kills.
+
+### Achievements and saves
+
+- Lifetime dust removed: 500, 2,500, 10,000, and 50,000 units.
+- Each enemy type: 10, 50, and 200 kills (16 achievements in total).
+- Dust counts at collection, not delivery or refining; losing tank contents
+  does not undo cleanup progress or count dust a second time.
+- Progress survives death, site changes, and reloads. Reset save clears it.
+- Existing saves retain purchased weapons. New statistics start at zero because
+  old saves did not record lifetime dust or per-weapon/per-enemy kills.
+
+### Validation
+
+Browser checks cover fresh and legacy saves, exact unlock boundaries, combined
+class counts, every mastery total/type gate, duplicate kill protection,
+achievement deduplication, save/load round trips, and removal of credit unlocks.
+For a manual check, inspect the shelter progress cards, earn kills with each
+class, and verify that newly unlocked weapons can be selected with keys 1–7.
 
 ## Heavy-weapon collateral
 
