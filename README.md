@@ -1,6 +1,23 @@
 
 # Nuclear Sweeper
 
+## HUD and shelter navigation
+
+The in-game readout groups mission progress, movement, and navigation into
+separate panels. The shelter uses category buttons for the overview, gear,
+station, weapons, licenses, mastery, achievements, workshop, movement modules,
+and radio log. Settings separates sound, aiming, and key bindings.
+
+Menus do not scroll. Use Previous / Next when a category needs more than one
+page; page sizes adapt to the available screen height. Resources and exit
+actions remain visible, and purchases keep the current category and page.
+Category and page buttons also work with Tab and Enter / Space.
+
+For a manual UI check, visit every category on desktop, portrait, and landscape
+screens. Page through achievements, mastery, and key bindings; buy an upgrade,
+equip an attachment, rebind a key, and resize with a menu open. Verify that
+content stays reachable without scrolling and that leaving / settings still work.
+
 ## Progression
 
 Open `nuclear-sweeper-reactor.html` in a browser to play. The shelter shows
