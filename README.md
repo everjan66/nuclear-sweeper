@@ -13,6 +13,17 @@ pickup sound, controlled by the existing Effects and Master volume sliders.
 See [roadmap.md](roadmap.md) for priorities, task ownership, and the workflow for
 coordinating issues and pull requests across developers.
 
+## Ammunition
+
+Each weapon starts with a loaded magazine and **3 spare reloads**. Every completed
+reload uses one spare, including partial-magazine reloads. Switching weapons
+cancels an unfinished reload without spending a spare. Only returning to the
+shelter refills magazines and reserves; remote blue depots accept dust only.
+Buy **Ammo pouch** under Gear with scrap to carry one additional reload per
+weapon per level (10 levels, up to 13 spares). Each weapon's Extended mags upgrade
+also increases the size of its spare magazines. The HUD shows spare reloads and
+warns when the selected weapon is out of ammo.
+
 ## HUD and shelter navigation
 
 The shelter header shows your three currencies and where each one comes from

@@ -51,7 +51,7 @@ function devUpgrade(id,max=false){
 }
 
 function devResupply(){
- S.hp=ST(S.L).hp;ammo=WP.map(weapon=>Math.ceil(weapon.mag*ST(S.L).mg));
+ S.hp=ST(S.L).hp;resupplyAmmo();
  rel=0;relPh=0;wcd=0;hf=0;gCd=0;dCd=0;zpCd=0;bladeCd=0;p.dashed=0;
 }
 
