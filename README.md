@@ -1,6 +1,13 @@
 
 # Nuclear Sweeper
 
+## Mouse side buttons and collection audio
+
+In **Settings / Key bindings**, select an action and press a keyboard key or
+either mouse side button (**Mouse 4 / Back**, **Mouse 5 / Forward**) to bind it.
+Left-click fire and right-click aim stay fixed. Dust collection plays a subtle
+pickup sound, controlled by the existing Effects and Master volume sliders.
+
 ## Collaboration
 
 See [roadmap.md](roadmap.md) for priorities, task ownership, and the workflow for

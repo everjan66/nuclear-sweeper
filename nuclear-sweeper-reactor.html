@@ -252,7 +252,7 @@ let CFG={fov:105,sens:1,adsm:.55,inv:false,adsT:false,mv:.8,sv:.8,mu:.5,music:tr
 function loadCfg(){try{const j=JSON.parse(localStorage.getItem('nsr_cfg'));if(j)CFG={...CFG,...j,KB:{...KBD,...(j.KB||{})}}}catch(e){}}
 function saveCfg(){try{localStorage.setItem('nsr_cfg',JSON.stringify(CFG))}catch(e){}}
 loadCfg();
-const kd=a=>!!keys[CFG.KB[a]],kn=c=>c.replace('Key','').replace('Digit','').replace('Left','').replace('Right',' R').replace('Escape','Esc').replace('Arrow','');
+const kd=a=>!!keys[CFG.KB[a]],kn=c=>({Mouse4:'Mouse 4 (Back)',Mouse5:'Mouse 5 (Forward)'})[c]||c.replace('Key','').replace('Digit','').replace('Left','').replace('Right',' R').replace('Escape','Esc').replace('Arrow','');
 const vfov=()=>2*Math.atan(Math.tan(CFG.fov*Math.PI/360)*9/16)*180/Math.PI;
 function initAudio(){if(ac)return;try{ac=new(window.AudioContext||window.webkitAudioContext)()}catch(e){ac=null;return}
  mast=ac.createGain();sbus=ac.createGain();mbus=ac.createGain();arpBus=ac.createGain();sbus.connect(mast);mbus.connect(mast);mast.connect(ac.destination);
@@ -268,6 +268,9 @@ function resumeGame(){if(shopOpen||setOpen)return;resumePending=true;syncPause()
 function lockFailed(){if(document.pointerLockElement==cv||shopOpen||setOpen)return;resumePending=true;syncPause();$('#resumeHint').textContent='Mouse capture was not granted. Click to retry, or press Esc for settings.'}
 $('#resumeButton').addEventListener('click',resumeGame);
 function snd(f,d,type='square',v=.03){if(mute||!ac)return;const o=ac.createOscillator(),n=ac.createGain();o.type=type;o.frequency.value=f;n.gain.setValueAtTime(v,ac.currentTime);n.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+d);o.connect(n);n.connect(sbus);o.start();o.stop(ac.currentTime+d)}
+let dustSoundAt=-Infinity;
+function dustSound(amount){if(amount<=0||mute||!ac||ac.state!='running'||ac.currentTime-dustSoundAt<.14)return;const now=ac.currentTime,osc=ac.createOscillator(),gain=ac.createGain(),pitch=480+Math.min(amount,2)*55;dustSoundAt=now;
+ osc.type='sine';osc.frequency.setValueAtTime(pitch,now);osc.frequency.exponentialRampToValueAtTime(pitch*1.35,now+.07);gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(.012,now+.008);gain.gain.exponentialRampToValueAtTime(.0001,now+.12);osc.connect(gain);gain.connect(sbus);osc.onended=()=>{osc.disconnect();gain.disconnect()};osc.start(now);osc.stop(now+.13)}
 // procedural techno: four-on-the-floor kick, off-beat hats, rolling bass, delayed arp, pad. Key and tempo change per site; it thickens when enemies are near.
 const MUS=[{bpm:124,root:33,prog:[0,-4,-2,-5]},{bpm:118,root:38,prog:[0,-2,-5,-7]},{bpm:112,root:40,prog:[0,-5,-4,-2]},{bpm:128,root:42,prog:[0,-4,-7,-2]}];
 const mf=n=>440*Math.pow(2,(n-69)/12);
@@ -532,7 +535,7 @@ const fmtV=c=>c=='fov'?CFG.fov+'°':(+CFG[c]).toFixed(2);
 function renderSet(){const sl=(c,l,mn,mx,st)=>`<label class=r><span>${l}</span><span><span id="v_${c}">${fmtV(c)}</span> <input type=range data-c="${c}" min="${mn}" max="${mx}" step="${st}" value="${CFG[c]}"></span></label>`,ck=(c,l)=>`<label class=r><span>${l}</span><input type=checkbox data-c="${c}" ${CFG[c]?'checked':''}></label>`;
  $('#sw').innerHTML=`<h2>SETTINGS</h2><h3>Sound</h3>${ck('music','Background music')}${ck('geiger','Geiger counter sounds')}${sl('mv','Master volume',0,1,.01)}${sl('mu','Music volume',0,1,.01)}${sl('sv','Effects volume',0,1,.01)}
  <h3>View and aiming</h3>${sl('fov','Field of view (horizontal, 16:9 equivalent)',70,120,1)}${sl('sens','Mouse sensitivity',.2,3,.05)}${sl('adsm','Aim-down-sights sensitivity',.2,1.2,.05)}${ck('inv','Invert Y axis')}${ck('adsT','Aim down sights: toggle instead of hold')}
- <h3>Key bindings (click one, then press the new key)</h3>${Object.keys(KL).map(a=>`<div class=r><span>${KL[a]}</span><button class=kbtn data-k="${a}">${listen==a?'press a key...':kn(CFG.KB[a])}</button></div>`).join('')}
+ <h3>Key bindings (click one, then press a key or mouse side button)</h3>${Object.keys(KL).map(a=>`<div class=r><span>${KL[a]}</span><button class=kbtn data-k="${a}">${listen==a?'press a key / side button...':kn(CFG.KB[a])}</button></div>`).join('')}
  <p class=j>Fixed: LMB fire · RMB aim · Esc opens and closes this menu · click to resume after closing.</p>
  <h3>Save game</h3><div class=j>Your progress lives in this browser only. Export a backup file before updates or a browser clean-up; import puts it back.</div><div class=j>Current save: Site ${S.sector} · ${Math.floor(S.cred).toLocaleString('en-US')} credits · ${S.scrap} scrap · ${S.parts} parts · ${S.kills} kills.</div><div class=r><span>Backup file</span><span><button class=kbtn id=sx>Export save file</button> <button class=kbtn id=sim>Import save file</button><input type=file id=sif accept=".json,application/json" hidden></span></div><p class=j id=smsg role=status aria-live=polite></p>
  <button class=go id=sc>CLOSE (Esc)</button><button class=go id=sk style="background:#3c4a32;color:#a9bd94">Reset key bindings</button>`;categorizeMenu($('#sw'))}
@@ -808,11 +811,13 @@ function upd(dt){tt+=dt;tickPoints(dt);const s=ST(S.L);
  else{if((kd('reload')&&ammo[wi]<mag())||ammo[wi]<=0){rel=relMax=w.rl/WS(wi).fr;relPh=0;snd(120,.1,'square',.03)}
   else for(let n=0;n<4&&ml&&wcd<=0&&ammo[wi]>0&&(w.auto||!hf);n++)shoot(s)}
  // sweeping
+ let collectedDust=0;
  if(p.st!=2&&p.st!=5){const R=s.rad,hard=1+.4*(S.sector-1),cx=p.x/TS,cz=p.z/TS,r2=R/TS+.5;
   for(let z=Math.max(0,Math.floor(cz-r2));z<=Math.min(GH-1,Math.floor(cz+r2));z++)for(let x=Math.max(0,Math.floor(cx-r2));x<=Math.min(GW-1,Math.floor(cx+r2));x++){const i=z*GW+x,v=D[i];if(v<=0||Math.abs(p.h-(M[i]==6?3.2:0))>.7)continue;
    const tx=(x+.5)*TS,tz=(z+.5)*TS,dd=Math.hypot(tx-p.x,tz-p.z);if(dd>R)continue;const room=(s.cap-S.tank)/10;if(room<=0)break;
    let t=Math.min(v,s.sw/hard*dt*(1.2-dd/R*.7),room),nv=v-t;if(nv<.02&&room-t>=nv){t=v;nv=0}
-   D[i]=nv;S.rem-=t;S.tank+=t*10;S.prog.dust+=t*10;dirty.push(i);if(P.length<260&&Math.random()<.35)P.push({x:tx+rnd(-.7,.7),y:.2,z:tz+rnd(-.7,.7),a:0})}}
+   D[i]=nv;S.rem-=t;S.tank+=t*10;S.prog.dust+=t*10;collectedDust+=t*10;dirty.push(i);if(P.length<260&&Math.random()<.35)P.push({x:tx+rnd(-.7,.7),y:.2,z:tz+rnd(-.7,.7),a:0})}}
+ dustSound(collectedDust);
  // radiation
  const safe=Math.hypot(p.x-SH.x,p.z-SH.z)<7,ti=(p.z/TS|0)*GW+(p.x/TS|0),lv=M[ti]==6?3.2:0,r=(p.h>=lv-.3?D[ti]:0)*(1+.25*(S.sector-1)),dm=(safe||p.h-lv>.5?0:Math.max(0,r*5-s.suit*.8))+(M[ti]==7&&p.h<.45?Math.max(5,24-s.suit*2.5):0);hazUpd(dt,s,ti);
  S.hp-=dm*dt;expo+=(dm-expo)*Math.min(1,dt*4);if(dm<=0&&S.hp<s.hp)S.hp=Math.min(s.hp,S.hp+(safe?25:1.5)*dt);
@@ -869,7 +874,7 @@ function draw(){const s=ST(S.L);
 function hud(){const s=ST(S.L),c=pct(),w=WP[wi],T0=[SH,...DEP].reduce((a,b)=>Math.hypot(a.x-p.x,a.z-p.z)<=Math.hypot(b.x-p.x,b.z-p.z)?a:b),dx=T0.x-p.x,dz=T0.z-p.z;let rl=Math.atan2(-dx,-dz)-p.yaw;rl=Math.atan2(Math.sin(rl),Math.cos(rl));const ar='↑↖←↙↓↘→↗'[(Math.round(rl/(Math.PI/4))+8)%8];
  $('#hud').innerHTML=`<section class="hud-category"><strong>MISSION</strong><b style="color:var(--ac)">SITE ${S.sector}</b> ${getSec(S.sector).n}<br>CLEANED ${c.toFixed(1)}%${S.clr?' <b style="color:#4f9dde">CLEARED</b>':''}<div class=bar><i style="width:${c}%;background:var(--ac)"></i></div></section><section class="hud-category"><strong>MOVEMENT</strong>${Math.hypot(p.vx,p.vz).toFixed(1)} m/s ${p.sl?'SLIDE':p.st==4?'WALLRUN':p.st==5?'WALLCLIMB':p.st==2?'HANG':p.st==1?'VAULT':p.roll>0?'ROLL':''}</section><section class="hud-category"><strong>NAVIGATION</strong>${T0===SH?"Shelter":"Depot"} ${ar} ${Math.hypot(dx,dz)|0} m${Math.hypot(p.x-SH.x,p.z-SH.z)<9?`<br>[${kn(CFG.KB.use)}] open shelter shop`:''}</section>`;$('#hud').insertAdjacentHTML('beforeend',`<section class="hud-category"><strong>COMBAT SCORE</strong>${S.score.run.toLocaleString('en-US')} <small> / BEST ${S.score.best.toLocaleString('en-US')}</small></section>`);barUpd()}
 // ---------- input ----------
-addEventListener('keydown',e=>{
+function inputDown(e){
  if(e.code=='Escape'){e.preventDefault();if(e.repeat)return;escapeDown=true;if(performance.now()<escapeUnlockUntil)return}
  if(e.code=='Enter'&&e.repeat)return;
  if(listen){e.preventDefault();if(e.code!='Escape'){for(const a in CFG.KB)if(CFG.KB[a]==e.code)CFG.KB[a]=CFG.KB[listen];CFG.KB[listen]=e.code}listen=null;saveCfg();renderSet();return}
@@ -882,8 +887,12 @@ addEventListener('keydown',e=>{
  const K=CFG.KB;if(e.code==K.jump&&!e.repeat)p.jb=.15;if((e.code==K.crouch||e.code==K.crouch2)&&!e.repeat)p.crP=tt;
  if(e.code==K.music&&!e.repeat){CFG.music=!CFG.music;saveCfg();applyVol();toast('Music '+(CFG.music?'on':'off'))}
  if(e.code==K.use){const n=p.st==0&&zpCd<=0?nearZip():null;if(n)attachZip(n);else if(Math.hypot(p.x-SH.x,p.z-SH.z)<9)openShop()}if(e.code==K.grapple&&!e.repeat)tryGrapple();if(e.code==K.dash&&!e.repeat)tryDash();
- for(let i=0;i<7;i++)if(e.code==K['w'+(i+1)])setW(i)});
+ for(let i=0;i<7;i++)if(e.code==K['w'+(i+1)])setW(i)}
+addEventListener('keydown',inputDown);
 addEventListener('keyup',e=>{keys[e.code]=0;if(e.code=='Escape'){escapeDown=false;escapeUnlockUntil=0;escapeReleased=true}});
+addEventListener('mousedown',e=>{if(e.button!=3&&e.button!=4)return;e.preventDefault();if(!listen&&!shopOpen&&(paused||e.target!=cv))return;inputDown({code:'Mouse'+(e.button+1),repeat:!!keys['Mouse'+(e.button+1)],preventDefault:()=>e.preventDefault()})},true);
+addEventListener('mouseup',e=>{if(e.button!=3&&e.button!=4)return;e.preventDefault();keys['Mouse'+(e.button+1)]=0},true);
+addEventListener('auxclick',e=>{if(e.button==3||e.button==4)e.preventDefault()},true);
 cv.addEventListener('mousedown',e=>{if(shopOpen||setOpen)return;if(!locked||document.pointerLockElement!=cv){resumeGame();return}if(paused)return;if(e.button==0)ml=1;if(e.button==2)ads=CFG.adsT?!ads:true});
 addEventListener('mouseup',e=>{if(e.button==0){ml=0;hf=0}if(e.button==2&&!CFG.adsT)ads=false});addEventListener('contextmenu',e=>e.preventDefault());
 document.addEventListener('pointerlockchange',()=>{const was=locked;locked=document.pointerLockElement==cv;if(locked){if(shopOpen||setOpen){releaseMouse();return}resumePending=false;escapeUnlockUntil=0;escapeReleased=false;syncPause()}else if(was&&!paused){escapeUnlockUntil=!escapeDown&&!escapeReleased?performance.now()+ESCAPE_UNLOCK_GRACE:0;openSet()}});document.addEventListener('pointerlockerror',lockFailed);
