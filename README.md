@@ -7,9 +7,12 @@ The shelter header shows your three currencies and where each one comes from
 (credits from refined dust, scrap from enemies, rare parts from the vault and
 the pool island). Below it, four tabs; each tab shows how many upgrades you can
 buy right now:
-- **Weapons:** the arsenal (every weapon with its silhouette, damage / fire rate /
-  magazine bars, unlock or mastery progress, and attachment toggles), plus upgrades
-  for every weapon (credits) and attachment unlocks (parts).
+- **Weapons:** a gunsmith for the selected weapon (silhouette, damage / fire rate /
+  magazine / reload bars, unlock or mastery progress), attachment unlocks (parts,
+  once for all weapons) and equip toggles, and the weapon's own upgrades (credits).
+  Weapon damage, cyclic rate and extended mags are levelled per weapon, so every
+  gun is its own upgrade track. Saves from before keep their old shared level on
+  every weapon.
 - **Gear:** gear upgrades (scrap), station upgrades (credits), and movement modules (parts).
 - **Achievements:** lifetime cleanup and combat milestones.
 - **Score:** current run, records, and the local top 5. Score is not a currency.
