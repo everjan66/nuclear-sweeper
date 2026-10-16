@@ -140,9 +140,37 @@ let tT;function toast(t){const e=$("#tst");e.textContent=t;e.style.opacity=1;cle
 function say(w,t){const l=$('#log');l.innerHTML=`<b>${w}</b><br>${t}`;l.style.display='block';clearTimeout(msgT);msgT=setTimeout(()=>l.style.display='none',9000+t.length*40)}
 function refine(dt){const s=ST(S.L);if(S.raw>0){const u=Math.min(S.raw,s.rate*dt);S.raw-=u;S.cred+=u*s.yld}}
 // ---------- map ----------
+const ROOM_DESIGNS=[
+ {n:'CARGO STORAGE',color:0xd8aa59,tint:[12,5,-10]},
+ {n:'TURBINE HALL',color:0x71c9d0,tint:[-12,7,12]},
+ {n:'SAMPLE LAB',color:0x9dd5a2,tint:[-10,12,0]},
+ {n:'SERVICE ARCHIVE',color:0xafa0dc,tint:[6,-6,14]},
+ {n:'COLLAPSED WORKS',color:0xd58b6c,tint:[12,-8,-12]},
+ {n:'TRANSFER ATRIUM',color:0xd4d6be,tint:[6,8,2]}
+];
+function designRooms(sec){const random=rng(7001+sec*193),order=ROOM_DESIGNS.map((_,index)=>index);
+ for(let index=order.length-1;index>0;index--){const swap=random()*(index+1)|0;[order[index],order[swap]]=[order[swap],order[index]]}
+ let next=0;for(const room of R){if(room.sh||room.core||room===POOLR)continue;room.design=order[next++%order.length];room.turn=random()<.5;
+  if(room.design!=1&&room.design!=4&&room.design!=5)continue;
+  for(let z=room.z0;z<=room.z1;z++)for(let x=room.x0;x<=room.x1;x++){
+   const edgeX=Math.min(x-room.x0,room.x1-x),edgeZ=Math.min(z-room.z0,room.z1-z);
+   if(Math.abs(x-room.cx)>1&&Math.abs(z-room.cz)>1&&(room.design==4?x<room.cx&&z<room.cz&&edgeX+edgeZ<3:edgeX+edgeZ<2))M[z*GW+x]=1}}}
+function furnishRoom(room,sec){const random=rng(sec*977+room.x0*61+room.z0),width=room.x1-room.x0,height=room.z1-room.z0;
+ for(let z=room.z0+1;z<room.z1;z++)for(let x=room.x0+1;x<room.x1;x++){
+  if(Math.abs(x-room.cx)<=1||Math.abs(z-room.cz)<=1||M[z*GW+x]!=0)continue;
+  const along=room.turn?z-room.z0:x-room.x0,across=room.turn?x-room.x0:z-room.z0;
+  const edge=Math.min(x-room.x0,room.x1-x,z-room.z0,room.z1-z);let tile=0;
+  if(room.design==0&&across%3==1&&edge>1)tile=2;
+  else if(room.design==1&&Math.abs(x-room.cx)==2&&Math.abs(z-room.cz)==2)tile=1;
+  else if(room.design==2&&edge==1&&along%3!=0)tile=5;
+  else if(room.design==3&&across%3==1&&along>1&&along<(room.turn?height:width)-1)tile=1;
+  else if(room.design==4&&random()<.36)tile=2;
+  M[z*GW+x]=tile}}
 function genMap(sec){const r=rng(1000+sec*77);DOORT=[];ZIP=[];POOLR=null;ISL=null;TERM=null;M=new Uint8Array(GW*GH).fill(1);D=new Float32Array(GW*GH);R=[];CO=[];
  const sl=15,carve=(x0,z0,x1,z1)=>{for(let z=z0;z<=z1;z++)for(let x=x0;x<=x1;x++)if(x>0&&z>0&&x<GW-1&&z<GH-1)M[z*GW+x]=0};
  for(let j=0;j<4;j++)for(let i=0;i<4;i++){const core=i==1&&j==1,w=core?13:7+(r()*5|0),h=core?13:7+(r()*5|0),x0=i*sl+1+(r()*(sl-w-2)|0),z0=j*sl+1+(r()*(sl-h-2)|0);R.push({x0,z0,x1:x0+w-1,z1:z0+h-1,cx:x0+(w>>1),cz:z0+(h>>1),core,sh:!i&&!j});carve(x0,z0,x0+w-1,z0+h-1)}
+ POOLR=[6,7,11,2,1,14,4,8].map(i=>R[i]).find(o=>o.x1-o.x0>=8&&o.z1-o.z0>=8)||null;
+ if(S.roomDesign)designRooms(sec);
  for(let j=0;j<4;j++)for(let i=0;i<4;i++){const a=R[j*4+i];
   if(i<3){const b=R[j*4+i+1];carve(a.cx,a.cz-1,b.cx,a.cz+1);carve(b.cx-1,Math.min(a.cz,b.cz),b.cx+1,Math.max(a.cz,b.cz));CO.push({h:1,a,b})}
   if(j<3){const b=R[(j+1)*4+i];carve(a.cx-1,a.cz,a.cx+1,b.cz);carve(Math.min(a.cx,b.cx),b.cz-1,Math.max(a.cx,b.cx),b.cz+1);CO.push({h:0,a,b})}}
@@ -150,12 +178,12 @@ function genMap(sec){const r=rng(1000+sec*77);DOORT=[];ZIP=[];POOLR=null;ISL=nul
  for(const c of CO){const{a,b}=c,g0=c.h?a.x1+1:a.z1+1,g1=c.h?b.x0-1:b.z0-1;if(g1<g0+2)continue;const gt=g0+1+(r()*(g1-g0-1)|0),gty=(a===R[12]||b===R[12])?9:(r()<.3?10:3);
   for(let k=g0;k<=g1;k++){const i=c.h?a.cz*GW+k:k*GW+a.cx;if(M[i]==0)M[i]=4}
   for(let o=-1;o<=1;o++){const i=c.h?(a.cz+o)*GW+gt:gt*GW+a.cx+o;if(M[i]==0||M[i]==4){M[i]=gty;if(gty==9)DOORT.push(i)}}}
- POOLR=[6,7,11,2,1,14,4,8].map(i=>R[i]).find(o=>o.x1-o.x0>=8&&o.z1-o.z0>=8)||null;
  if(POOLR){const o=POOLR;for(let dz=-3;dz<=3;dz++)for(let dx=-3;dx<=3;dx++)M[(o.cz+dz)*GW+o.cx+dx]=(Math.abs(dx)<=1&&Math.abs(dz)<=1)?0:7;ISL={x:(o.cx+.5)*TS,z:(o.cz+.5)*TS}}
  for(const o of R){if(o.sh)continue;const n=3+(r()*4|0);for(let k=0;k<n;k++){const len=1+(r()*3|0),hz=r()<.5,tx=o.x0+2+(r()*(o.x1-o.x0-3)|0),tz=o.z0+2+(r()*(o.z1-o.z0-3)|0);
-  for(let u=0;u<len;u++){const x=tx+(hz?u:0),z=tz+(hz?0:u);if(x>o.x0&&x<o.x1&&z>o.z0&&z<o.z1&&Math.abs(x-o.cx)>1&&Math.abs(z-o.cz)>1&&M[z*GW+x]==0)M[z*GW+x]=2}}}
+  for(let u=0;u<len;u++){const x=tx+(hz?u:0),z=tz+(hz?0:u);if(o.design===undefined&&x>o.x0&&x<o.x1&&z>o.z0&&z<o.z1&&Math.abs(x-o.cx)>1&&Math.abs(z-o.cz)>1&&M[z*GW+x]==0)M[z*GW+x]=2}}}
  for(const o of R){if(o.sh)continue;const ok=(x,z)=>x>o.x0&&x<o.x1&&z>o.z0&&z<o.z1&&Math.abs(x-o.cx)>1&&Math.abs(z-o.cz)>1;
-  for(let k=0,n=o.core?2:1+(r()<.6);k<n;k++){const len=3+(r()*4|0),hz=r()<.5,tx=o.x0+2+(r()*(o.x1-o.x0-3)|0),tz=o.z0+2+(r()*(o.z1-o.z0-3)|0);for(let u=0;u<len;u++){const x=tx+(hz?u:0),z=tz+(hz?0:u);if(ok(x,z)&&M[z*GW+x]==0)M[z*GW+x]=1}}
+  for(let k=0,n=o.core?2:1+(r()<.6);k<n;k++){const len=3+(r()*4|0),hz=r()<.5,tx=o.x0+2+(r()*(o.x1-o.x0-3)|0),tz=o.z0+2+(r()*(o.z1-o.z0-3)|0);for(let u=0;u<len;u++){const x=tx+(hz?u:0),z=tz+(hz?0:u);if(o.design===undefined&&ok(x,z)&&M[z*GW+x]==0)M[z*GW+x]=1}}
+  if(o.design!==undefined)furnishRoom(o,sec);
   if(o!==POOLR&&r()<(o.core?1:.7)){const sd=r()*4|0,hzP=sd<2,sp=hzP?o.x1-o.x0+1:o.z1-o.z0+1,len=Math.min(sp-2,5+(r()*4|0)),st0=1+(r()*(sp-len-1)|0),cells=[];
    for(let u=0;u<len;u++)for(let d=0;d<3;d++){const x=hzP?o.x0+st0+u:(sd==2?o.x0+d:o.x1-d),z=hzP?(sd==0?o.z0+d:o.z1-d):o.z0+st0+u;cells.push([x,z])}
    for(const[x,z]of cells)if(M[z*GW+x]!=1)M[z*GW+x]=6;o.pl={sd,hzP,st0,len};
@@ -232,13 +260,24 @@ const trG=new THREE.BufferGeometry(),trA=new Float32Array(48*6);trG.setAttribute
 const trL=new THREE.LineSegments(trG,new THREE.LineBasicMaterial({color:0xffe08a,fog:false}));trL.frustumCulled=false;sc.add(trL);
 const ring=(c,r,y)=>{const m=new THREE.Mesh(new THREE.RingGeometry(r-.12,r,48),new THREE.MeshBasicMaterial({color:c,side:THREE.DoubleSide}));m.rotation.x=-Math.PI/2;m.position.y=y;return m};
 function applyTheme(){const t=TH();sc.background.setHex(t.bg);sc.fog.color.setHex(t.bg);ambL.color.setHex(t.amb);ceilM.color.setHex(t.bg);const de=document.documentElement;if(de&&de.style)de.style.setProperty('--ac','#'+t.ac.toString(16).padStart(6,'0'))}
-function build3D(){applyTheme();const th=TH();if(W3)sc.remove(W3);W3=new THREE.Group();sc.add(W3);const dat=tex.image.data,wl=[],cr=[],bm=[],tc=[],pf=[],rc=[],c5=R[5],inR=(o,x,z)=>x>=o.x0&&x<=o.x1&&z>=o.z0&&z<=o.z1,inC=(x,z)=>x>=c5.cx-2&&x<=c5.cx+1&&z>=c5.cz-2&&z<=c5.cz+1;
+function buildRoomDetails(){const rooms=R.filter(room=>room.design!==undefined),details=new THREE.Group();
+ for(const room of rooms){const style=ROOM_DESIGNS[room.design],canvas=document.createElement('canvas');canvas.width=512;canvas.height=64;
+  const context=canvas.getContext('2d');context.fillStyle='#172125';context.fillRect(0,0,512,64);context.fillStyle='#'+style.color.toString(16).padStart(6,'0');context.fillRect(0,0,10,64);context.font='bold 27px monospace';context.textAlign='center';context.fillText(String(R.indexOf(room)+1).padStart(2,'0')+' / '+style.n,260,42);
+  const texture=new THREE.CanvasTexture(canvas),sign=new THREE.Mesh(new THREE.PlaneGeometry(5.6,.7),new THREE.MeshBasicMaterial({map:texture,side:THREE.DoubleSide}));
+  sign.position.set((room.cx+.5)*TS,WH-.45,(room.z0+.5)*TS);details.add(sign);
+  const rib=new THREE.Mesh(new THREE.BoxGeometry((room.x1-room.x0+1)*TS,.18,.22),new THREE.MeshLambertMaterial({color:style.color}));
+  rib.position.set((room.x0+room.x1+1)*TS/2,WH-.15,(room.cz+.5)*TS);details.add(rib)}
+ W3.add(details);W3.userData.details=details}
+function build3D(){applyTheme();const th=TH();if(W3){if(W3.userData.details)W3.userData.details.traverse(object=>{if(object.geometry)object.geometry.dispose();if(object.material){if(object.material.map)object.material.map.dispose();object.material.dispose()}});sc.remove(W3)}W3=new THREE.Group();sc.add(W3);const dat=tex.image.data,wl=[],cr=[],bm=[],tc=[],pf=[],rc=[],c5=R[5],inR=(o,x,z)=>x>=o.x0&&x<=o.x1&&z>=o.z0&&z<=o.z1,inC=(x,z)=>x>=c5.cx-2&&x<=c5.cx+1&&z>=c5.cz-2&&z<=c5.cz+1;
  for(let z=0;z<GH;z++)for(let x=0;x<GW;x++){const m=M[z*GW+x],o=((GH-1-z)*GW+x)*4;let c=th.uw;
-  if(m!=1){const h=(x*7+z*13)%5;c=[th.fl[0]-h*5,th.fl[1]-h*5,th.fl[2]-h*5];if(m==4)c=th.strip;else if(inR(R[0],x,z))c=th.sh;else if(inR(c5,x,z))c=th.co;if(m==7)c=[14,64,66]}
+  if(m!=1){const h=(x*7+z*13)%5;c=[th.fl[0]-h*5,th.fl[1]-h*5,th.fl[2]-h*5];const room=R.find(room=>room.design!==undefined&&inR(room,x,z));
+   if(room){const style=ROOM_DESIGNS[room.design];c=c.map((value,index)=>value+style.tint[index]);if((Math.abs(x-room.cx)==1||Math.abs(z-room.cz)==1)&&(x+z)%3==0)c=c.map((value,index)=>Math.round(value*.65+((style.color>>(16-index*8))&255)*.35))}
+   if(m==4)c=th.strip;else if(inR(R[0],x,z))c=th.sh;else if(inR(c5,x,z))c=th.co;if(m==7)c=[14,64,66]}
   dat[o]=c[0];dat[o+1]=c[1];dat[o+2]=c[2];dat[o+3]=255;
   if(m==1&&!inC(x,z)){let n=0;for(const[a,b]of N8){const X=x+a,Z=z+b;if(X>=0&&Z>=0&&X<GW&&Z<GH&&M[Z*GW+X]!=1)n=1}if(n)wl.push([x,z])}
   else if(m==2)cr.push([x,z]);else if(m==3)bm.push([x,z]);else if(m==5)tc.push([x,z]);else if(m==6)pf.push([x,z]);else if(m==8)rc.push([x,z])}
  tex.needsUpdate=true;
+ buildRoomDetails();
  const grp=(list,geo,mat,y,hx)=>{const im=new THREE.InstancedMesh(geo,mat,Math.max(1,list.length));im.frustumCulled=false;list.forEach((t,i)=>{dummy.position.set((t[0]+.5)*TS,y,(t[1]+.5)*TS);dummy.rotation.set(0,0,0);dummy.scale.set(1,1,1);dummy.updateMatrix();im.setMatrixAt(i,dummy.matrix);const h=(t[0]*5+t[1]*3)%4*.02;im.setColorAt(i,col.setRGB(hx[0]+h,hx[1]+h,hx[2]+h))});im.count=list.length;W3.add(im)};
  grp(wl,new THREE.BoxGeometry(TS,WH,TS),new THREE.MeshLambertMaterial(),WH/2,th.wall);
  grp(cr,new THREE.BoxGeometry(TS-.15,CH,TS-.15),new THREE.MeshLambertMaterial(),CH/2,th.crate);
@@ -294,7 +333,7 @@ function cast(o,d,mx,noE,ignored){let t=0;while(t<mx){t+=.25;if(rs(o.x+d.x*t,o.y
  for(const e of (noE?[]:E)){if(e.hp<=0||e.gone||ignored?.has(e))continue;const sc=ET[e.t].sc;for(const[cy,rr,hh]of[[.75*sc,.62*sc,0],[1.5*sc,.34*sc,1]]){const ox=e.x-o.x,oy=cy-o.y,oz=e.z-o.z,tb=ox*d.x+oy*d.y+oz*d.z,o2=ox*ox+oy*oy+oz*oz,ins=o2<rr*rr;if(!ins&&tb<0)continue;const d2=o2-tb*tb;if(ins||d2<rr*rr){const th=ins?.01:tb-Math.sqrt(rr*rr-d2);if(th>0&&(th<t||(ins&&th<=t&&hh>hd&&be===e))){t=th;be=e;hd=hh}}}}
  return{t,e:be,hd,x:o.x+d.x*t,y:o.y+d.y*t,z:o.z+d.z*t}}
 // ---------- game flow ----------
-function fresh(){return fixProgress({L:mkL(),scrap:0,cred:0,raw:0,tank:0,hp:100,sector:1,story:0,clr:0,total:1,rem:1,t:Date.now(),parts:0,att:WP.map(()=>({s:0,b:0,l:0})),unl:{s:0,b:0,l:0},mod:{gr:0,dash:0},vOpen:0,vTaken:0,iTaken:0,bossDead:0,bty:null,kills:0})}
+function fresh(){return fixProgress({roomDesign:1,L:mkL(),scrap:0,cred:0,raw:0,tank:0,hp:100,sector:1,story:0,clr:0,total:1,rem:1,t:Date.now(),parts:0,att:WP.map(()=>({s:0,b:0,l:0})),unl:{s:0,b:0,l:0},mod:{gr:0,dash:0},vOpen:0,vTaken:0,iTaken:0,bossDead:0,bty:null,kills:0})}
 function load(){try{const j=JSON.parse(localStorage.getItem(KEY));if(j&&j.d&&j.d.length==GW*GH){j.L=Object.assign(mkL(),j.L);return fixS(j)}}catch(e){}return null}
 function save(){try{S.t=Date.now();localStorage.setItem(KEY,JSON.stringify({...S,d:Array.from(D,v=>+v.toFixed(2))}))}catch(e){}}
 function placeP(){p={x:SH.x,z:SH.z+4,h:0,vx:0,vz:0,vh:0,yaw:0,pit:0,g:1,sl:0,slideLock:0,st:0,peak:0,cy:0,jb:0,roll:0,cd:0,low:0,crP:-9,rl:0,rp:0,dashed:0,gr:null,zp:null,chain:0,ss:0,sa:0,sT:0};canDock=false}
@@ -323,7 +362,7 @@ function barUpd(){const s=ST(S.L);for(let i=0;i<WP.length;i++){const e=SL[i];if(
  $('#hpt').textContent='HP '+(Math.max(0,S.hp)|0)+'/'+s.hp;$('#hpb').style.width=cl(S.hp/s.hp*100,0,100)+'%';
  $('#tkt').innerHTML='DUST '+(S.tank|0)+'/'+s.cap+(S.tank>=s.cap-.5?' <b style="color:#ff5a1f">FULL</b>':'');$('#tkb').style.width=(S.tank/s.cap*100)+'%';$('#cur').innerHTML='◆ '+(S.cred|0)+' &nbsp; ⚙ '+S.scrap+' &nbsp; ⬢ '+S.parts}
 function barReload(){for(let i=0;i<SL.length;i++){const w=i==wi&&rel>0?((1-rel/relMax)*100|0)+'%':'0%';if(SL[i].rw!=w){SL[i].rb.style.width=w;SL[i].rw=w}}}
-function deploy(){S.sector++;S.story=0;S.clr=0;S.vOpen=0;S.vTaken=0;S.iTaken=0;S.bossDead=0;S.bty=null;genMap(S.sector);placeP();S.hp=ST(S.L).hp;closeShop();save()}
+function deploy(){S.sector++;S.roomDesign=1;S.story=0;S.clr=0;S.vOpen=0;S.vTaken=0;S.iTaken=0;S.bossDead=0;S.bty=null;genMap(S.sector);placeP();S.hp=ST(S.L).hp;closeShop();save()}
 function buy(id){const u=U.find(x=>x[0]==id);if(!u||u[0].startsWith('w'))return;const l=S.L[id],c=cost(u,l),k=u[2]=='s'?'scrap':'cred';if(l>=u[5]||S[k]<c)return;S[k]-=c;S.L[id]++;if(id=='suit')S.hp=ST(S.L).hp;renderShop();snd(520,.1,'triangle',.05);save()}
 const menuState={};
 function categorizeMenu(root){

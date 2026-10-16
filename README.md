@@ -90,3 +90,13 @@ damage to large enemies (50 base body damage and 200 base brute headshot damage,
 before upgrades, attachments, and penetration falloff).
 
 See `MOVEMENT.md` for movement tuning and zipline controls.
+
+## Room variety
+
+New sites mix cargo storage, turbine halls, sample labs, service archives,
+collapsed works, and open transfer atriums. Each has its own layout, floor
+markings, and overhead sign. Layouts are seeded per site, with clear central
+routes and the existing platforms, depots, reactor, shelter, and coolant pool.
+
+Existing saves retain their current site's layout and cleanup progress. The new
+room designs appear when deploying to the next site (or starting a fresh save).
