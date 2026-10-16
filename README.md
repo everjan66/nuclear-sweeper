@@ -3,11 +3,26 @@
 
 ## HUD and shelter navigation
 
-The shelter fills the screen with four tabs:
-- **All gear:** gear upgrades, movement modules, and station upgrades.
-- **Weapons:** weapon upgrades and workshop attachments.
-- **Licenses & mastery:** weapon-class unlocks and per-weapon mastery progress.
+The shelter header shows your three currencies and where each one comes from
+(credits from refined dust, scrap from enemies, rare parts from the vault and
+the pool island). Below it, four tabs; each tab shows how many upgrades you can
+buy right now:
+- **Weapons:** a gunsmith for the selected weapon (silhouette, damage / fire rate /
+  magazine / reload bars, unlock or mastery progress), attachment unlocks (parts,
+  once for all weapons) and equip toggles, and the weapon's own upgrades (credits).
+  Weapon damage, cyclic rate and extended mags are levelled per weapon, so every
+  gun is its own upgrade track. Saves from before keep their old shared level on
+  every weapon.
+- **Gear:** gear upgrades (scrap), station upgrades (credits), and movement modules (parts).
 - **Achievements:** lifetime cleanup and combat milestones.
+- **Score:** current run, records, and the local top 5. Score is not a currency.
+
+Progress is stored in the browser (localStorage). Settings → Save game exports a
+backup file (game state plus settings) and imports it again after checking the
+map data; importing replaces the current progress and reloads the page.
+
+Upgrades are icon tiles with a level bar and a price button. Upgrades you cannot
+afford yet stay readable and show how much is missing.
 
 Overview and radio stay visible below every tab, alongside the exit actions.
 Use the radio's Previous / Next buttons to read every transmission. Cards use
