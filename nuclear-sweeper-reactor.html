@@ -264,7 +264,13 @@ function buildRoomDetails(){const rooms=R.filter(room=>room.design!==undefined),
  for(const room of rooms){const style=ROOM_DESIGNS[room.design],canvas=document.createElement('canvas');canvas.width=512;canvas.height=64;
   const context=canvas.getContext('2d');context.fillStyle='#172125';context.fillRect(0,0,512,64);context.fillStyle='#'+style.color.toString(16).padStart(6,'0');context.fillRect(0,0,10,64);context.font='bold 27px monospace';context.textAlign='center';context.fillText(String(R.indexOf(room)+1).padStart(2,'0')+' / '+style.n,260,42);
   const texture=new THREE.CanvasTexture(canvas),sign=new THREE.Mesh(new THREE.PlaneGeometry(5.6,.7),new THREE.MeshBasicMaterial({map:texture,side:THREE.DoubleSide}));
-  sign.position.set((room.cx+.5)*TS,WH-.45,(room.z0+.5)*TS);details.add(sign);
+  sign.position.set((room.cx+.5)*TS,WH-.9,(room.z0+.5)*TS);details.add(sign);
+  const mountMaterial=new THREE.MeshLambertMaterial({color:0x899397}),backing=new THREE.Mesh(new THREE.BoxGeometry(5.8,.8,.16),new THREE.MeshLambertMaterial({color:0x293338}));
+  backing.position.copy(sign.position);backing.position.z-=.09;details.add(backing);
+  const rearSign=sign.clone();rearSign.position.z=backing.position.z-.09;rearSign.rotation.y=Math.PI;details.add(rearSign);
+  const hangerBottom=sign.position.y+.4,hangerHeight=WH-hangerBottom;
+  for(const offset of[-2.2,2.2]){const hanger=new THREE.Mesh(new THREE.BoxGeometry(.12,hangerHeight,.12),mountMaterial),plate=new THREE.Mesh(new THREE.BoxGeometry(.4,.08,.36),mountMaterial);
+   hanger.position.set(sign.position.x+offset,hangerBottom+hangerHeight/2,backing.position.z);plate.position.set(hanger.position.x,WH-.04,backing.position.z);details.add(hanger,plate)}
   const rib=new THREE.Mesh(new THREE.BoxGeometry((room.x1-room.x0+1)*TS,.18,.22),new THREE.MeshLambertMaterial({color:style.color}));
   rib.position.set((room.x0+room.x1+1)*TS/2,WH-.15,(room.cz+.5)*TS);details.add(rib)}
  W3.add(details);W3.userData.details=details}
