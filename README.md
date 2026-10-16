@@ -68,6 +68,25 @@ cannot count the same enemy twice; despawning enemies never awards kills.
 - Existing saves retain purchased weapons. New statistics start at zero because
   old saves did not record lifetime dust or per-weapon/per-enemy kills.
 
+### Combat score
+
+- Each kill awards 100 points; a headshot killing hit adds 20 points.
+- Kills within five seconds stack into one gold, right-side notification.
+  After five gameplay seconds without a kill, it fades out over 0.4 seconds.
+  Menus hide the notification and pause its timer.
+- Every fifth kill raises the streak multiplier by 0.1, capped at 1.5.
+  The new multiplier applies only to that kill and later kills, including their
+  headshot bonus; previous points are never recalculated. Expiry resets the chain.
+- The HUD shows current-run points and your personal best. Combat score in the
+  shelter adds lifetime points, longest streak, and a local top-five leaderboard.
+  A run ends on rescue (death) or deployment to the next site, not on entering
+  the shelter. Reloading retains run points but starts a new streak.
+- Score achievements reward 10,000 / 50,000 / 250,000 lifetime points; streak
+  achievements reward chains of 5 / 10 / 25 kills. Points are for records and
+  achievements, not currency, so combat scoring does not affect upgrade balance.
+- Records are stored in this browser's save, not an online leaderboard. Existing
+  saves start at zero points; reset save also clears scores and records.
+
 ### Validation
 
 Browser checks cover fresh and legacy saves, exact unlock boundaries, combined
