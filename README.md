@@ -3,11 +3,16 @@
 
 ## HUD and shelter navigation
 
-The shelter fills the screen with four tabs:
-- **All gear:** gear upgrades, movement modules, and station upgrades.
-- **Weapons:** weapon upgrades and workshop attachments.
-- **Licenses & mastery:** weapon-class unlocks and per-weapon mastery progress.
+The shelter header shows your three currencies and where each one comes from
+(credits from refined dust, scrap from enemies, rare parts from the vault and
+the pool island). Below it, five tabs, grouped by what each purchase costs:
+- **Gear:** gear upgrades (scrap), station upgrades (credits), and movement modules (parts).
+- **Weapons:** weapon upgrades (credits) and workshop attachments (parts).
+- **Licenses:** weapon-class unlocks and per-weapon mastery progress.
 - **Achievements:** lifetime cleanup and combat milestones.
+- **Score:** current run, records, and the local top 5.
+
+Upgrades you cannot afford yet stay readable and show how much is missing.
 
 Overview and radio stay visible below every tab, alongside the exit actions.
 Use the radio's Previous / Next buttons to read every transmission. Cards use
