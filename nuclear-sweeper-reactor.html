@@ -33,6 +33,7 @@ canvas{position:fixed;inset:0;width:100%;height:100%}
 .slot .fb{position:absolute;left:0;bottom:0;height:3px;background:#9acd32;width:0}.slot .rb{position:absolute;left:0;top:0;bottom:0;background:#4f9dde55;width:0}
 #set{position:fixed;z-index:6;inset:0;background:#0b0e08f6;display:none;overflow:auto;padding:calc(14px + env(safe-area-inset-top,0px)) 12px 20px}
 #sw{max-width:660px;margin:auto}
+#resume{position:fixed;z-index:5;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:#0b0e08b8;text-align:center}
 .r{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:7px 0}.r input[type=range]{width:50%;accent-color:var(--ac)}
 .kbtn{min-width:130px;background:#27311f;color:inherit;border:1px solid #3c4a32;border-radius:4px;padding:5px;font:inherit;cursor:pointer}.kbtn:hover{border-color:var(--ac)}
 #tst{position:fixed;left:50%;transform:translateX(-50%);top:18%;pointer-events:none;opacity:0;transition:opacity .3s;background:#1c2416ee;border:1px solid #4f9dde;padding:6px 12px;border-radius:4px;color:#cfe6ff}
@@ -100,6 +101,7 @@ h2{margin:0 0 4px;color:var(--ac)}h3{margin:16px 0 6px;color:#8da079;font-size:1
 </style></head><body>
 <aside id="minimap" aria-label="North-up site map: rooms, routes, landmarks and player facing" hidden><header><span id="map-site">SITE MAP</span><span>N &#8593;</span></header><canvas id="map-canvas" width="256" height="256" role="img" aria-label="Top-down site geometry; white arrow shows your position and facing"></canvas><div class="map-legend"><span class="map-shelter">S Shelter</span><span class="map-depot">D Depot</span><span class="map-reactor">R Reactor</span><span class="map-route">&#9473; Route</span></div></aside>
 <canvas id="gl"></canvas><div id="vig"></div><div id="cx"></div><div id="scope"><svg viewBox="0 0 200 200"><g fill="#ff2a2a" stroke="#ff2a2a"><path d="M100 100l-11 13h5l6-7 6 7h5z" stroke="none"/><path d="M100 113V168" stroke-width="2"/><path d="M95 126h10M96 139h8M96 152h8M95 165h10" stroke-width="1.5"/></g></svg></div><div id="hm">✕</div><div id="hud"></div><div id="hint">Click to capture the mouse · LMB fire · RMB aim · R reload · 1-7 weapons<br>Space jump / vault / wallrun · Shift or C slide / roll · red = parkour route<br><b>Esc: settings and key bindings</b> · M music · E shelter (Esc / Enter / E / Space leaves it)</div><div id="shop"><div id="sp"></div></div><div id="bar"><div id="bl"></div><div id="wb"></div><div id="br"></div></div><div id="set"><div id="sw"></div></div><div id="log"></div><div id="tst"></div>
+<div id="resume"><button class="go" id="resumeButton">CLICK TO RESUME</button><p id="resumeHint" class="j">Mouse capture is required to resume. Esc opens settings.</p></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 const $=s=>document.querySelector(s),cv=$('#gl'),TS=2,GW=60,GH=60,CH=1.1,BH=1.3,BT=2.6,WH=6.4,KEY='nsr1',N8=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
@@ -161,7 +163,7 @@ const THEMES=[
 {n:'Meridian',bg:0x0f0a16,amb:0xb8a8d0,fl:[128,122,140],uw:[26,20,38],wall:[.42,.36,.55],crate:[.5,.35,.6],beam:[.9,.8,.15],plat:[.38,.34,.46],strip:[160,60,170],sh:[90,100,130],co:[120,80,140],vs:0x5a4a78,gl:0xd04aff,ac:0xc77dff,dep:0x7dff9a,dl:[.7,.3,.9],dh:[1,.5,.85]}];
 const TH=()=>THEMES[(S.sector-1)%THEMES.length];
 const getSec=s=>SEC[s-1]||{n:'Deep Site '+s,b:[[0,'Hanne Voss','Another reactor, another grave. Stickier dust, meaner things. Same job.'],[97,'SITE CLEARED','Site sealed. Another beacon goes dark. Next.']]};
-let S,M,D,R,CO,SH,CORE,q=new Int32Array(GW*GH),dist=new Int16Array(GW*GH),distB=new Int16Array(GW*GH),PB=new Uint8Array(GW*GH),hitT=-9,POOLR=null,ISL=null,TERM=null,ZIP=[],DOORT=[],DOORM=[],BLD=[],bfsT=0,p,E=[],Dr=[],P=[],F=[],EP=[],TR=[],keys={},ml=0,hf=0,ads=false,fps=true,paused=true,canDock=false,locked=false,tt=0,spawnT=3,amb=0,clickAcc=0,hpFlash=0,expo=0,wcd=0,rel=0,ammo=WP.map(w=>w.mag),wi=0,boostT=0,boostCd=0,kick=0,adsT=0,msgT,hmT=0,hmH=0,dirty=[],fullRef=true,mute=false,ac=null,aim={x:0,y:0,z:-1},CP,W3,mzT=0,fpv=true,DEP=[],DEPT=[],adsE=false,relMax=1,relPh=0,swT=0,shopOpen=false,setOpen=false,listen=null,inten=0,noLock=false,SL=[],mbus,sbus,mast,arpBus,noiseB,musT=0,musStep=0;
+let S,M,D,R,CO,SH,CORE,q=new Int32Array(GW*GH),dist=new Int16Array(GW*GH),distB=new Int16Array(GW*GH),PB=new Uint8Array(GW*GH),hitT=-9,POOLR=null,ISL=null,TERM=null,ZIP=[],DOORT=[],DOORM=[],BLD=[],bfsT=0,p,E=[],Dr=[],P=[],F=[],EP=[],TR=[],keys={},ml=0,hf=0,ads=false,fps=true,paused=true,canDock=false,locked=false,tt=0,spawnT=3,amb=0,clickAcc=0,hpFlash=0,expo=0,wcd=0,rel=0,ammo=WP.map(w=>w.mag),wi=0,boostT=0,boostCd=0,kick=0,adsT=0,msgT,hmT=0,hmH=0,dirty=[],fullRef=true,mute=false,ac=null,aim={x:0,y:0,z:-1},CP,W3,mzT=0,fpv=true,DEP=[],DEPT=[],adsE=false,relMax=1,relPh=0,swT=0,shopOpen=false,setOpen=false,listen=null,inten=0,SL=[],mbus,sbus,mast,arpBus,noiseB,musT=0,musStep=0;
 const mkL=()=>({sweep:0,rad:0,suit:0,gei:0,boots:0,tank:0,ref:0,yld:0,dmg:0,fr:0,multi:0,w1:0,w2:0,w3:0,w4:0,w5:0,w6:0});
 function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 const pct=()=>Math.min(100,(1-S.rem/S.total)*100),mag=()=>Math.ceil(WP[wi].mag*ST(S.L).mg);
@@ -179,7 +181,13 @@ function initAudio(){if(ac)return;try{ac=new(window.AudioContext||window.webkitA
  const L=ac.sampleRate;noiseB=ac.createBuffer(1,L,L);const d=noiseB.getChannelData(0);for(let i=0;i<L;i++)d[i]=Math.random()*2-1;
  applyVol();musT=ac.currentTime+.1;setInterval(musSched,25)}
 function applyVol(){if(!ac)return;mast.gain.value=CFG.mv;sbus.gain.value=CFG.sv*2.2;mbus.gain.setTargetAtTime(CFG.music?CFG.mu*(shopOpen||setOpen?.5:1):0,ac.currentTime,.25)}
-function syncPause(){paused=shopOpen||setOpen;renderPoints();applyVol()}
+const ESCAPE_UNLOCK_GRACE=120;
+let resumePending=false,escapeDown=false,escapeUnlockUntil=0,escapeReleased=false;
+function syncPause(){if(!shopOpen&&!setOpen&&!locked)resumePending=true;paused=shopOpen||setOpen||resumePending;$('#resume').style.display=resumePending&&!shopOpen&&!setOpen?'flex':'none';keys={};ml=0;hf=0;ads=false;renderPoints();applyVol()}
+function releaseMouse(){locked=false;if(document.pointerLockElement==cv&&document.exitPointerLock)document.exitPointerLock()}
+function resumeGame(){if(shopOpen||setOpen)return;resumePending=true;syncPause();initAudio();if(ac&&ac.state=='suspended')ac.resume();try{const request=cv.requestPointerLock();if(request&&request.catch)request.catch(lockFailed)}catch(e){lockFailed()}}
+function lockFailed(){if(document.pointerLockElement==cv||shopOpen||setOpen)return;resumePending=true;syncPause();$('#resumeHint').textContent='Mouse capture was not granted. Click to retry, or press Esc for settings.'}
+$('#resumeButton').addEventListener('click',resumeGame);
 function snd(f,d,type='square',v=.03){if(mute||!ac)return;const o=ac.createOscillator(),n=ac.createGain();o.type=type;o.frequency.value=f;n.gain.setValueAtTime(v,ac.currentTime);n.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+d);o.connect(n);n.connect(sbus);o.start();o.stop(ac.currentTime+d)}
 // procedural techno: four-on-the-floor kick, off-beat hats, rolling bass, delayed arp, pad. Key and tempo change per site; it thickens when enemies are near.
 const MUS=[{bpm:124,root:33,prog:[0,-4,-2,-5]},{bpm:118,root:38,prog:[0,-2,-5,-7]},{bpm:112,root:40,prog:[0,-5,-4,-2]},{bpm:128,root:42,prog:[0,-4,-7,-2]}];
@@ -426,15 +434,15 @@ function save(){try{S.t=Date.now();localStorage.setItem(KEY,JSON.stringify({...S
 function placeP(){p={x:SH.x,z:SH.z+4,h:0,vx:0,vz:0,vh:0,yaw:0,pit:0,g:1,sl:0,slideLock:0,st:0,peak:0,cy:0,jb:0,roll:0,cd:0,low:0,crP:-9,rl:0,rp:0,dashed:0,gr:null,zp:null,chain:0,ss:0,sa:0,sT:0};canDock=false}
 function dockShelter(){S.raw+=S.tank;S.tank=0;S.hp=ST(S.L).hp;ammo=WP.map(w=>Math.ceil(w.mag*ST(S.L).mg));canDock=false;save()}
 function openShop(){shopOpen=true;ml=0;ads=false;syncPause();S.raw+=S.tank;S.tank=0;S.hp=ST(S.L).hp;ammo=WP.map(w=>Math.ceil(w.mag*ST(S.L).mg));canDock=false;if(document.exitPointerLock)document.exitPointerLock();$('#shop').style.display='block';renderShop();save()}
-function closeShop(){$('#shop').style.display='none';shopOpen=false;syncPause();initAudio();if(ac&&ac.state=='suspended')ac.resume();try{if(document.activeElement)document.activeElement.blur()}catch(e){}try{cv.requestPointerLock()}catch(e){}}
-function openSet(){if(setOpen)return;setOpen=true;ml=0;ads=false;syncPause();initAudio();if(document.exitPointerLock)document.exitPointerLock();$('#set').style.display='block';renderSet()}
-function closeSet(){setOpen=false;listen=null;$('#set').style.display='none';saveCfg();syncPause();if(!shopOpen){try{cv.requestPointerLock()}catch(e){}}}
+function closeShop(){$('#shop').style.display='none';shopOpen=false;resumePending=true;syncPause();try{if(document.activeElement)document.activeElement.blur()}catch(e){}}
+function openSet(){if(setOpen)return;setOpen=true;ml=0;ads=false;syncPause();initAudio();releaseMouse();$('#set').style.display='block';renderSet()}
+function closeSet(){setOpen=false;listen=null;$('#set').style.display='none';saveCfg();if(!shopOpen)resumePending=true;syncPause();try{if(document.activeElement)document.activeElement.blur()}catch(e){}}
 const fmtV=c=>c=='fov'?CFG.fov+'°':(+CFG[c]).toFixed(2);
 function renderSet(){const sl=(c,l,mn,mx,st)=>`<label class=r><span>${l}</span><span><span id="v_${c}">${fmtV(c)}</span> <input type=range data-c="${c}" min="${mn}" max="${mx}" step="${st}" value="${CFG[c]}"></span></label>`,ck=(c,l)=>`<label class=r><span>${l}</span><input type=checkbox data-c="${c}" ${CFG[c]?'checked':''}></label>`;
  $('#sw').innerHTML=`<h2>SETTINGS</h2><h3>Sound</h3>${ck('music','Background music')}${ck('geiger','Geiger counter sounds')}${sl('mv','Master volume',0,1,.01)}${sl('mu','Music volume',0,1,.01)}${sl('sv','Effects volume',0,1,.01)}
  <h3>View and aiming</h3>${sl('fov','Field of view (horizontal, 16:9 equivalent)',70,120,1)}${sl('sens','Mouse sensitivity',.2,3,.05)}${sl('adsm','Aim-down-sights sensitivity',.2,1.2,.05)}${ck('inv','Invert Y axis')}${ck('adsT','Aim down sights: toggle instead of hold')}
  <h3>Key bindings (click one, then press the new key)</h3>${Object.keys(KL).map(a=>`<div class=r><span>${KL[a]}</span><button class=kbtn data-k="${a}">${listen==a?'press a key...':kn(CFG.KB[a])}</button></div>`).join('')}
- <p class=j>Fixed: LMB fire · RMB aim · Esc opens and closes this menu · arrow keys look without mouse lock.</p><button class=go id=sc>CLOSE (Esc)</button><button class=go id=sk style="background:#3c4a32;color:#a9bd94">Reset key bindings</button>`;categorizeMenu($('#sw'))}
+ <p class=j>Fixed: LMB fire · RMB aim · Esc opens and closes this menu · click to resume after closing.</p><button class=go id=sc>CLOSE (Esc)</button><button class=go id=sk style="background:#3c4a32;color:#a9bd94">Reset key bindings</button>`;categorizeMenu($('#sw'))}
 $('#sw').addEventListener('input',e=>{const el=e.target,c=el.dataset&&el.dataset.c;if(!c)return;CFG[c]=el.type=='checkbox'?el.checked:+el.value;const v=$('#v_'+c);if(v)v.textContent=fmtV(c);applyVol();saveCfg()});
 $('#sw').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.k){listen=b.dataset.k;renderSet()}else if(b.id=='sc')closeSet();else if(b.id=='sk'){CFG.KB={...KBD};saveCfg();renderSet()}});
 // hotbar, Geiger gauge, vitals
@@ -680,22 +688,25 @@ function hud(){const s=ST(S.L),c=pct(),w=WP[wi],T0=[SH,...DEP].reduce((a,b)=>Mat
  $('#hud').innerHTML=`<section class="hud-category"><strong>MISSION</strong><b style="color:var(--ac)">SITE ${S.sector}</b> ${getSec(S.sector).n}<br>CLEANED ${c.toFixed(1)}%${S.clr?' <b style="color:#4f9dde">CLEARED</b>':''}<div class=bar><i style="width:${c}%;background:var(--ac)"></i></div>Queue ${S.raw|0} u</section><section class="hud-category"><strong>MOVEMENT</strong>${Math.hypot(p.vx,p.vz).toFixed(1)} m/s ${p.sl?'SLIDE':p.st==4?'WALLRUN':p.st==5?'WALLCLIMB':p.st==2?'HANG':p.st==1?'VAULT':p.roll>0?'ROLL':''}</section><section class="hud-category"><strong>NAVIGATION</strong>${T0===SH?"Shelter":"Depot"} ${ar} ${Math.hypot(dx,dz)|0} m${Math.hypot(p.x-SH.x,p.z-SH.z)<9?`<br>[${kn(CFG.KB.use)}] open shelter shop`:''}</section>`;$('#hud').insertAdjacentHTML('beforeend',`<section class="hud-category"><strong>COMBAT SCORE</strong>${S.score.run.toLocaleString('en-US')} <small> / BEST ${S.score.best.toLocaleString('en-US')}</small></section>`);barUpd()}
 // ---------- input ----------
 addEventListener('keydown',e=>{
+ if(e.code=='Escape'){e.preventDefault();if(e.repeat)return;escapeDown=true;if(performance.now()<escapeUnlockUntil)return}
+ if(e.code=='Enter'&&e.repeat)return;
  if(listen){e.preventDefault();if(e.code!='Escape'){for(const a in CFG.KB)if(CFG.KB[a]==e.code)CFG.KB[a]=CFG.KB[listen];CFG.KB[listen]=e.code}listen=null;saveCfg();renderSet();return}
  if(setOpen){if(e.code=='Escape'||e.code=='Enter'){e.preventDefault();closeSet()}return}
  keys[e.code]=1;if(e.code=='Space'||e.code=='Tab'||e.code.startsWith('Arrow'))e.preventDefault();
  if(e.code==CFG.KB.use&&e.repeat)return;
  if(shopOpen){if(e.code=='Escape'||e.code=='Enter'||e.code=='Space'||e.code==CFG.KB.use){e.preventDefault();closeShop()}return}
  if(e.code=='Escape'){openSet();return}
+ if(paused)return;
  const K=CFG.KB;if(e.code==K.jump&&!e.repeat)p.jb=.15;if((e.code==K.crouch||e.code==K.crouch2)&&!e.repeat)p.crP=tt;
  if(e.code==K.music&&!e.repeat){CFG.music=!CFG.music;saveCfg();applyVol();toast('Music '+(CFG.music?'on':'off'))}
  if(e.code==K.use){const n=p.st==0&&zpCd<=0?nearZip():null;if(n)attachZip(n);else if(Math.hypot(p.x-SH.x,p.z-SH.z)<9)openShop()}if(e.code==K.grapple&&!e.repeat)tryGrapple();if(e.code==K.dash&&!e.repeat)tryDash();
  for(let i=0;i<7;i++)if(e.code==K['w'+(i+1)])setW(i)});
-addEventListener('keyup',e=>keys[e.code]=0);
-cv.addEventListener('mousedown',e=>{if(paused)return;if(!locked&&!noLock){try{cv.requestPointerLock()}catch(_){noLock=true}return}if(e.button==0)ml=1;if(e.button==2)ads=CFG.adsT?!ads:true});
+addEventListener('keyup',e=>{keys[e.code]=0;if(e.code=='Escape'){escapeDown=false;escapeUnlockUntil=0;escapeReleased=true}});
+cv.addEventListener('mousedown',e=>{if(shopOpen||setOpen)return;if(!locked||document.pointerLockElement!=cv){resumeGame();return}if(paused)return;if(e.button==0)ml=1;if(e.button==2)ads=CFG.adsT?!ads:true});
 addEventListener('mouseup',e=>{if(e.button==0){ml=0;hf=0}if(e.button==2&&!CFG.adsT)ads=false});addEventListener('contextmenu',e=>e.preventDefault());
-document.addEventListener('pointerlockchange',()=>{const was=locked;locked=document.pointerLockElement==cv;if(was&&!locked&&!paused)openSet()});document.addEventListener('pointerlockerror',()=>{noLock=true});
-addEventListener('blur',()=>{ml=0;hf=0;ads=false;keys={}});
-addEventListener('mousemove',e=>{if(!paused&&e.buttons!==undefined){ml=e.buttons&1?1:0;if(!CFG.adsT)ads=!!(e.buttons&2)}if(locked&&!paused){const k=.0022*CFG.sens*(ads?CFG.adsm:1);p.yaw-=e.movementX*k;p.pit=cl(p.pit-(CFG.inv?-1:1)*e.movementY*k,-1.45,1.45)}});
+document.addEventListener('pointerlockchange',()=>{const was=locked;locked=document.pointerLockElement==cv;if(locked){if(shopOpen||setOpen){releaseMouse();return}resumePending=false;escapeUnlockUntil=0;escapeReleased=false;syncPause()}else if(was&&!paused){escapeUnlockUntil=!escapeDown&&!escapeReleased?performance.now()+ESCAPE_UNLOCK_GRACE:0;openSet()}});document.addEventListener('pointerlockerror',lockFailed);
+addEventListener('blur',()=>{ml=0;hf=0;ads=false;keys={};escapeDown=false;escapeUnlockUntil=0});
+addEventListener('mousemove',e=>{if(locked&&document.pointerLockElement==cv&&!paused){if(e.buttons!==undefined){ml=e.buttons&1?1:0;if(!CFG.adsT)ads=!!(e.buttons&2)}const k=.0022*CFG.sens*(ads?CFG.adsm:1);p.yaw-=e.movementX*k;p.pit=cl(p.pit-(CFG.inv?-1:1)*e.movementY*k,-1.45,1.45)}});
 $('#sp').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(shopClick(b))return;if(b.dataset.u)buy(b.dataset.u);else if(b.id=='dp')deploy();else if(b.id=='st2')openSet();else if(b.id=='rs'){if(b.dataset.s){try{localStorage.removeItem(KEY)}catch(_){}location.reload()}else{b.dataset.s=1;b.textContent='Really reset?'}}else closeShop()});
 function rs2(){rend.setSize(innerWidth,innerHeight,false);cam3.aspect=innerWidth/innerHeight}addEventListener('resize',rs2);rs2();
 // ---------- start ----------
