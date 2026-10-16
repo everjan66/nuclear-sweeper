@@ -5,14 +5,17 @@
 
 The shelter header shows your three currencies and where each one comes from
 (credits from refined dust, scrap from enemies, rare parts from the vault and
-the pool island). Below it, five tabs, grouped by what each purchase costs:
+the pool island). Below it, four tabs; each tab shows how many upgrades you can
+buy right now:
+- **Weapons:** the arsenal (every weapon with its silhouette, damage / fire rate /
+  magazine bars, unlock or mastery progress, and attachment toggles), plus upgrades
+  for every weapon (credits) and attachment unlocks (parts).
 - **Gear:** gear upgrades (scrap), station upgrades (credits), and movement modules (parts).
-- **Weapons:** weapon upgrades (credits) and workshop attachments (parts).
-- **Licenses:** weapon-class unlocks and per-weapon mastery progress.
 - **Achievements:** lifetime cleanup and combat milestones.
-- **Score:** current run, records, and the local top 5.
+- **Score:** current run, records, and the local top 5. Score is not a currency.
 
-Upgrades you cannot afford yet stay readable and show how much is missing.
+Upgrades are icon tiles with a level bar and a price button. Upgrades you cannot
+afford yet stay readable and show how much is missing.
 
 Overview and radio stay visible below every tab, alongside the exit actions.
 Use the radio's Previous / Next buttons to read every transmission. Cards use
