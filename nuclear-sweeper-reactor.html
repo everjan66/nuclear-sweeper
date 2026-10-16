@@ -86,7 +86,19 @@ h2{margin:0 0 4px;color:var(--ac)}h3{margin:16px 0 6px;color:#8da079;font-size:1
 @media(max-width:600px) and (min-height:381px){#sp .menu-nav{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:600px) and (min-height:381px) and (max-height:600px){#sp .menu-body .j{font-size:11px;line-height:1.3;margin:0}}
 @media(max-height:380px){#sp .menu-nav button{font-size:10px}}
+#minimap{position:fixed;z-index:2;right:calc(10px + env(safe-area-inset-right,0px));top:calc(10px + env(safe-area-inset-top,0px));width:190px;padding:8px;box-sizing:content-box;background:#0b0e08d9;border:1px solid #3c4a32;border-radius:5px;pointer-events:none;color:#a9bd94;font-size:10px}
+#minimap[hidden]{display:none}
+#minimap header{display:flex;justify-content:space-between;margin-bottom:4px;letter-spacing:1px;color:#8da079}
+#minimap canvas{position:static;inset:auto;display:block;width:100%;height:auto;aspect-ratio:1}
+.map-legend{display:flex;flex-wrap:wrap;gap:3px 8px;margin-top:4px;font-size:9px}.map-shelter{color:#9acd32}.map-depot{color:#6ee7ff}.map-reactor{color:#ffb45a}.map-route{color:#df6553}
+#minimap:not([hidden])~#hint{right:calc(238px + env(safe-area-inset-right,0px))}
+#minimap:not([hidden])~#points{top:max(36%,calc(280px + env(safe-area-inset-top,0px)))}
+@media(max-width:900px){#minimap:not([hidden])~#hint{display:none}}
+@media(max-width:600px){#minimap{width:min(128px,calc(100vw - 216px));padding:6px;font-size:9px}.map-legend{gap:2px 6px;font-size:8px}}
+@media(max-height:540px){#minimap{width:min(128px,calc(100vw - 216px));padding:6px}#minimap:not([hidden])~#hint{display:none}}
+@media(max-width:600px),(max-height:540px){#minimap:not([hidden])~#points{top:max(36%,calc(220px + env(safe-area-inset-top,0px)))}}
 </style></head><body>
+<aside id="minimap" aria-label="North-up site map: rooms, routes, landmarks and player facing" hidden><header><span id="map-site">SITE MAP</span><span>N &#8593;</span></header><canvas id="map-canvas" width="256" height="256" role="img" aria-label="Top-down site geometry; white arrow shows your position and facing"></canvas><div class="map-legend"><span class="map-shelter">S Shelter</span><span class="map-depot">D Depot</span><span class="map-reactor">R Reactor</span><span class="map-route">&#9473; Route</span></div></aside>
 <canvas id="gl"></canvas><div id="vig"></div><div id="cx"></div><div id="scope"><svg viewBox="0 0 200 200"><g fill="#ff2a2a" stroke="#ff2a2a"><path d="M100 100l-11 13h5l6-7 6 7h5z" stroke="none"/><path d="M100 113V168" stroke-width="2"/><path d="M95 126h10M96 139h8M96 152h8M95 165h10" stroke-width="1.5"/></g></svg></div><div id="hm">✕</div><div id="hud"></div><div id="hint">Click to capture the mouse · LMB fire · RMB aim · R reload · 1-7 weapons<br>Space jump / vault / wallrun · Shift or C slide / roll · red = parkour route<br><b>Esc: settings and key bindings</b> · M music · E shelter (Esc / Enter / E / Space leaves it)</div><div id="shop"><div id="sp"></div></div><div id="bar"><div id="bl"></div><div id="wb"></div><div id="br"></div></div><div id="set"><div id="sw"></div></div><div id="log"></div><div id="tst"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -243,6 +255,21 @@ function genMap(sec){const r=rng(1000+sec*77);DOORT=[];ZIP=[];POOLR=null;ISL=nul
  S.total=tot;S.rem=tot;SH={x:(R[0].cx+.5)*TS,z:(R[0].cz+.5)*TS};CORE={x:c5.cx*TS,z:c5.cz*TS};
  if(S.vOpen){for(const i of DOORT)M[i]=0}rebuildPB();E=[];Dr=[];P=[];F=[];EP=[];TR=[];{const rm=R.filter(o=>!o.sh);for(let k=0;k<Math.min(6+3*sec,28);k++)spawnIn(rm[Math.random()*rm.length|0])}
  spawnIsland();if(S.vOpen)spawnVault();rebuildPB();build3D();fullRef=true}
+const minimap={panel:$('#minimap'),ctx:$('#map-canvas').getContext('2d'),base:document.createElement('canvas'),map:null,vault:null,next:0,pad:8,scale:240/Math.max(GW,GH)};
+minimap.base.width=minimap.base.height=256;
+function rebuildMinimap(){const ctx=minimap.base.getContext('2d'),scale=minimap.scale,pad=minimap.pad,colors=['#46533b','#11170e','#777458','#b05a46','#914b3d','#777458','#647254','#254f58','#777458','#e6a248','#b05a46'];
+ ctx.fillStyle='#11170e';ctx.fillRect(0,0,256,256);
+ for(let row=0;row<GH;row++)for(let col=0;col<GW;col++){ctx.fillStyle=colors[M[row*GW+col]]||colors[1];ctx.fillRect(pad+col*scale,pad+row*scale,scale,scale)}
+ ctx.strokeStyle='#df6553';ctx.lineWidth=1;ctx.setLineDash([3,2]);
+ for(const zip of ZIP){ctx.beginPath();ctx.moveTo(pad+zip.x0/TS*scale,pad+zip.z0/TS*scale);ctx.lineTo(pad+zip.x1/TS*scale,pad+zip.z1/TS*scale);ctx.stroke()}ctx.setLineDash([]);
+ const mark=(point,label,color)=>{if(!point)return;const mapX=pad+point.x/TS*scale,mapZ=pad+point.z/TS*scale;ctx.fillStyle='#0b0e08';ctx.fillRect(mapX-6,mapZ-6,12,12);ctx.strokeStyle=color;ctx.lineWidth=1;ctx.strokeRect(mapX-6,mapZ-6,12,12);ctx.fillStyle=color;ctx.font='bold 10px "Courier New",monospace';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(label,mapX,mapZ+.5)};
+ mark(SH,'S','#9acd32');for(const depot of DEP)mark(depot,'D','#6ee7ff');mark(CORE,'R','#ffb45a');
+ $('#map-site').textContent='SITE '+S.sector+' MAP';minimap.map=M;minimap.vault=S.vOpen}
+function drawMinimap(now){const hidden=paused||!minimap.ctx;if(minimap.panel.hidden!==hidden){minimap.panel.hidden=hidden;minimap.next=0}if(hidden||document.hidden||!p||now<minimap.next)return;minimap.next=now+50;
+ if(minimap.map!==M||minimap.vault!==S.vOpen)rebuildMinimap();
+ const ctx=minimap.ctx;ctx.clearRect(0,0,256,256);ctx.drawImage(minimap.base,0,0);ctx.save();ctx.translate(minimap.pad+p.x/TS*minimap.scale,minimap.pad+p.z/TS*minimap.scale);ctx.rotate(-p.yaw);
+ ctx.fillStyle='#ffffff24';ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(-9,-19);ctx.lineTo(9,-19);ctx.closePath();ctx.fill();
+ ctx.fillStyle='#f4ffe8';ctx.strokeStyle='#0b0e08';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(0,-8);ctx.lineTo(5,5);ctx.lineTo(0,2);ctx.lineTo(-5,5);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore()}
 function pickT(){const s=S.sector,u=Math.random();if(Math.random()<.07+.01*s&&E.filter(e=>e.t==3).length<3)return 3;if(s>=3&&u<.12+.03*s)return 2;if(s>=2&&u<.4)return 1;return 0}
 const pass=i=>{const m=M[i];return m==0||m==4||m==3||m==6||m==10},solE=i=>{const m=M[i];return m==1||m==2||m==5||m==8||m==9||m==7};
 function passB(i){if(!pass(i))return false;const x=i%GW,z=i/GW|0;for(const[a,b]of N8){const X=x+a,Z=z+b;if(X<0||Z<0||X>=GW||Z>=GH||solE(Z*GW+X))return false}return true}
@@ -677,7 +704,7 @@ function rs2(){rend.setSize(innerWidth,innerHeight,false);cam3.aspect=innerWidth
 setTimeout(()=>$('#hint').style.display='none',70000);
 dockShelter();syncPause();
 let last=performance.now(),moveAcc=0;
-function loop(n){const dt=Math.min(.05,(n-last)/1000);last=n;refine(dt);if(!paused){moveAcc+=dt;while(moveAcc+1e-9>=MOVE.tick&&!paused){upd(MOVE.tick);moveAcc=Math.max(0,moveAcc-MOVE.tick)}}else moveAcc=0;draw();requestAnimationFrame(loop)}
+function loop(n){const dt=Math.min(.05,(n-last)/1000);last=n;refine(dt);if(!paused){moveAcc+=dt;while(moveAcc+1e-9>=MOVE.tick&&!paused){upd(MOVE.tick);moveAcc=Math.max(0,moveAcc-MOVE.tick)}}else moveAcc=0;draw();drawMinimap(n);requestAnimationFrame(loop)}
 setInterval(()=>{hud();if(checkProgress())save();if(paused)tickShop()},150);setInterval(save,8000);
 requestAnimationFrame(loop);
 </script></body></html>
