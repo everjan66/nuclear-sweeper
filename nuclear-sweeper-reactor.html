@@ -746,7 +746,7 @@ function hazUpd(dt,s,ti){bladeCd-=dt;tmsg-=dt;zpCd-=dt;gCd-=dt;dCd-=dt;
 function openVault(fx){S.vOpen=1;for(const i of DOORT)M[i]=0;for(const m of DOORM)W3.remove(m);DOORM=[];rebuildPB();spawnVault();if(fx){toast('VAULT DOORS UNLOCKED');say('Hanne Voss','Sample accepted. The vault doors are open. Take what\'s inside.');snd(300,.4,'sawtooth',.05)}}
 function spawnVault(){const o=R[12],cx=(o.cx+.5)*TS,cz=(o.cz+.5)*TS;[['part',2],['part',2],['cred',250],['cred',250],['scrap',6]].forEach((l,i)=>{if(S.vTaken&(1<<i))return;Dr.push({x:cx+rnd(-2,2),y:.4,z:cz+rnd(-2,2),vx:0,vz:0,k:l[0],a:l[1],bit:1<<i,m:'v'})})}
 function spawnIsland(){if(!ISL)return;[0,1].forEach(i=>{if(S.iTaken&(1<<i))return;Dr.push({x:ISL.x+(i?.8:-.8),y:.4,z:ISL.z,vx:0,vz:0,k:'part',a:1,bit:1<<i,m:'i'})})}
-function pickup(d){const k=d.k;if(k=='part'){S.parts+=d.a||1;toast('⬢ +'+(d.a||1)+' rare part')}else if(k=='cred'){S.cred+=d.a||50;toast('◆ +'+(d.a||50)+' credits')}else{S.scrap+=d.a||1;toast('⚙ +'+(d.a||1)+' scrap')}if(d.m=='v')S.vTaken|=d.bit;if(d.m=='i')S.iTaken|=d.bit;snd(740+Math.random()*200,.07,'triangle',.05)}
+function pickup(d){const k=d.k;let scrap=0;if(k=='part'){S.parts+=d.a||1;toast('⬢ +'+(d.a||1)+' rare part')}else if(k=='cred'){S.cred+=d.a||50;toast('◆ +'+(d.a||50)+' credits')}else{scrap=d.a||1;S.scrap+=scrap}if(d.m=='v')S.vTaken|=d.bit;if(d.m=='i')S.iTaken|=d.bit;snd(740+Math.random()*200,.07,'triangle',.05);return scrap}
 function camCalc(){const he=p.h+(p.low?.85:1.5),cy=Math.cos(p.yaw),sy=Math.sin(p.yaw),cp=Math.cos(p.pit+p.rp),sp=Math.sin(p.pit+p.rp);aim={x:-sy*cp,y:sp,z:-cy*cp};const H={x:p.x,y:he,z:p.z};
  CP={x:p.x,y:he+.1,z:p.z,H}}
 function muz(){const r={x:Math.cos(p.yaw),z:-Math.sin(p.yaw)};return fpv?{x:CP.x+aim.x*.7+r.x*.2,y:CP.y+aim.y*.7-.17,z:CP.z+aim.z*.7+r.z*.2}:{x:CP.H.x+aim.x*.9+r.x*.35,y:CP.H.y+aim.y*.9-.3,z:CP.H.z+aim.z*.9+r.z*.35}}
@@ -829,7 +829,7 @@ function upd(dt){tt+=dt;tickPoints(dt);const s=ST(S.L);
   for(let k=0;k<n&&!dead;k++){b.x+=b.vx*h;b.y+=b.vy*h;b.z+=b.vz*h;if(rs(b.x,b.y,b.z)){dead=true;break}
    if(!safe&&Math.abs(b.x-p.x)<.6&&Math.abs(b.z-p.z)<.6&&b.y>p.h&&b.y<p.h+hg){hurt(b.dm);snd(90,.12,'sawtooth',.05);dead=true}}
   if(dead)EP.splice(i,1)}
- for(let i=Dr.length-1;i>=0;i--){const d=Dr[i],dx=p.x-d.x,dz=p.z-d.z,m=Math.hypot(dx,dz)||1;d.x+=d.vx*dt;d.z+=d.vz*dt;const f=Math.exp(-4*dt);d.vx*=f;d.vz*=f;if(m<7){d.vx+=dx/m*60*dt;d.vz+=dz/m*60*dt}if(m<1.3&&p.h<1.5){pickup(d);Dr.splice(i,1)}}
+ let scrapPicked=0;for(let i=Dr.length-1;i>=0;i--){const d=Dr[i],dx=p.x-d.x,dz=p.z-d.z,m=Math.hypot(dx,dz)||1;d.x+=d.vx*dt;d.z+=d.vz*dt;const f=Math.exp(-4*dt);d.vx*=f;d.vz*=f;if(m<7){d.vx+=dx/m*60*dt;d.vz+=dz/m*60*dt}if(m<1.3&&p.h<1.5){scrapPicked+=pickup(d);Dr.splice(i,1)}}if(scrapPicked)toast('⚙ +'+scrapPicked+' scrap');
  for(let i=P.length-1;i>=0;i--){const a=P[i];a.a+=dt*25;const k=Math.min(1,dt*(5+a.a));a.x+=(p.x-a.x)*k;a.z+=(p.z-a.z)*k;a.y=.2+(1-Math.min(1,Math.hypot(p.x-a.x,p.z-a.z)/3))*.4;if(Math.hypot(p.x-a.x,p.z-a.z)<.5)P.splice(i,1)}
  for(let i=F.length-1;i>=0;i--){const f=F[i];f.vy-=9*dt;f.x+=f.vx*dt;f.y=Math.max(0,f.y+f.vy*dt);f.z+=f.vz*dt;if((f.l-=dt)<=0)F.splice(i,1)}
  for(let i=TR.length-1;i>=0;i--)if((TR[i].l-=dt)<=0)TR.splice(i,1);
