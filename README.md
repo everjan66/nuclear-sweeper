@@ -1,4 +1,6 @@
 
+<p align="center"><img src="assets/logo.png" width="420" alt="Nuclear Sweeper: Reactor Run logo"></p>
+
 # Nuclear Sweeper
 
 ## Collaboration
