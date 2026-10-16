@@ -1,6 +1,11 @@
 
 # Nuclear Sweeper
 
+## Collaboration
+
+See [roadmap.md](roadmap.md) for priorities, task ownership, and the workflow for
+coordinating issues and pull requests across developers.
+
 ## HUD and shelter navigation
 
 The shelter header shows your three currencies and where each one comes from

@@ -1,0 +1,69 @@
+# Nuclear Sweeper Roadmap
+
+This roadmap coordinates developers. Items are proposed work, not release
+promises. Use GitHub issues for scope and discussion and PRs for implementation.
+Update this file as work lands.
+
+## Current baseline
+
+- Standalone browser game in `nuclear-sweeper-reactor.html`.
+- Shelter gear, weapons, licenses, mastery, achievements, and radio UI.
+- Source-style movement: [MOVEMENT.md](MOVEMENT.md).
+- Three.js currently requires an internet connection.
+
+## Prioritized backlog
+
+Create an issue and agree on acceptance criteria before starting. Replace the
+owner and issue placeholders when claiming work. Independent items can run in
+parallel; dependencies are listed explicitly.
+
+| ID | Priority | Work item | Done when | Status | Owner | Issue / PR |
+| --- | --- | --- | --- | --- | --- | --- |
+| M1-1 | High | Document contributor workflow | Setup, branch/PR workflow, and a manual smoke-test checklist are documented. | Proposed | Unassigned | Not created |
+| M1-2 | High | Map game systems | A source map identifies movement, combat, progression, saves, rendering, and UI boundaries. | Proposed | Unassigned | Not created |
+| M1-3 | High | Establish regression scenarios | Repeatable baseline and upgraded-loadout checks cover movement, combat, purchases, site travel, and save isolation. | Proposed | Unassigned | Not created |
+| M2-1 | High | Agree on module boundaries | A short design defines interfaces, load order, and incremental migration preserving both entry points. Depends on M1-2. | Proposed | Unassigned | Not created |
+| M2-2 | High | Extract one subsystem | One agreed subsystem moves out of the main HTML without gameplay changes; both entry points pass regression checks. Depends on M2-1 and M1-3. | Proposed | Unassigned | Not created |
+| M2-3 | Medium | Add automated checks | A documented command and GitHub Actions check validate the extracted subsystem. Depends on M2-2. | Proposed | Unassigned | Not created |
+| M3-1 | Medium | Review progression and economy | Baseline and max-loadout findings are recorded; agreed balance changes include before/after comparisons. | Proposed | Unassigned | Not created |
+| M3-2 | Medium | Improve HUD and input usability | Agreed readability, keyboard navigation, and smaller-screen issues are reproduced and verified after fixes. | Proposed | Unassigned | Not created |
+| M3-3 | Medium | Profile demanding gameplay | A repeatable busy-site scenario records frame-time findings and verifies targeted optimizations. | Proposed | Unassigned | Not created |
+| M4-1 | Low | Evaluate offline dependencies | A documented decision covers Three.js delivery, licensing, and whether offline play should be supported. | Proposed | Unassigned | Not created |
+| M4-2 | Low | Define release checklist | Browser coverage, both entry points, save compatibility, and known limitations are documented. | Proposed | Unassigned | Not created |
+
+### Milestone goals
+
+1. **M1 - Collaboration foundation:** make onboarding and validation repeatable.
+2. **M2 - Safer parallel development:** reduce shared-file conflicts incrementally.
+3. **M3 - Gameplay and usability:** improve measured or reproduced problems.
+4. **M4 - Distribution readiness:** agree on dependency and release expectations.
+
+## Working together
+
+- **Claim work first:** assign yourself to the issue and update its roadmap row
+  in a small PR. Unassigned rows are not reservations.
+- **Define scope:** include the problem, affected files or systems, acceptance
+  criteria, dependencies, and verification plan in each issue.
+- **Coordinate shared files:** most gameplay lives in
+  `nuclear-sweeper-reactor.html`. Agree on sections each developer owns and
+  merge order before making overlapping edits.
+- **Keep PRs focused:** use one branch and PR per issue. Separate behavior
+  changes from large formatting or extraction changes.
+- **Protect both entry points:** verify normal and developer behavior when
+  touching shared gameplay; never mix their save or settings keys.
+- **Request review:** ask another developer to review when available. Include
+  screenshots for UI changes and reproduction steps for gameplay fixes.
+- **Close the loop:** link the issue from the PR, record verification results,
+  and mark the row **Done** only after implementation is merged.
+
+## Status and maintenance
+
+Use **Proposed**, **Ready**, **In progress**, **Blocked**, and **Done**.
+**Ready** means scope and acceptance criteria are agreed and dependencies are
+resolved. Set **In progress** when implementation starts. For **Blocked**, link
+the blocking issue and explain what is needed.
+
+Review priorities before starting a milestone or substantial new feature.
+Propose new work in an issue instead of silently expanding an active task.
+Keep completed items until the milestone closes, then summarize them here or
+link a release summary so contributors can understand prior decisions.
