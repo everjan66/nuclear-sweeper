@@ -381,7 +381,7 @@ function load(){try{const j=JSON.parse(localStorage.getItem(KEY));if(j&&j.d&&j.d
 function save(){try{S.t=Date.now();localStorage.setItem(KEY,JSON.stringify({...S,d:Array.from(D,v=>+v.toFixed(2))}))}catch(e){}}
 function placeP(){p={x:SH.x,z:SH.z+4,h:0,vx:0,vz:0,vh:0,yaw:0,pit:0,g:1,sl:0,slideLock:0,st:0,peak:0,cy:0,jb:0,roll:0,cd:0,low:0,crP:-9,rl:0,rp:0,dashed:0,gr:null,zp:null,chain:0,ss:0,sa:0,sT:0};canDock=false}
 function dockShelter(){S.raw+=S.tank;S.tank=0;S.hp=ST(S.L).hp;ammo=WP.map(w=>Math.ceil(w.mag*ST(S.L).mg));canDock=false;save()}
-function openShop(){shopOpen=true;ml=0;ads=false;syncPause();dockShelter();if(document.exitPointerLock)document.exitPointerLock();$('#shop').style.display='block';renderShop()}
+function openShop(){shopOpen=true;ml=0;ads=false;syncPause();S.raw+=S.tank;S.tank=0;S.hp=ST(S.L).hp;ammo=WP.map(w=>Math.ceil(w.mag*ST(S.L).mg));canDock=false;if(document.exitPointerLock)document.exitPointerLock();$('#shop').style.display='block';renderShop();save()}
 function closeShop(){$('#shop').style.display='none';shopOpen=false;syncPause();initAudio();if(ac&&ac.state=='suspended')ac.resume();try{if(document.activeElement)document.activeElement.blur()}catch(e){}try{cv.requestPointerLock()}catch(e){}}
 function openSet(){if(setOpen)return;setOpen=true;ml=0;ads=false;syncPause();initAudio();if(document.exitPointerLock)document.exitPointerLock();$('#set').style.display='block';renderSet()}
 function closeSet(){setOpen=false;listen=null;$('#set').style.display='none';saveCfg();syncPause();if(!shopOpen){try{cv.requestPointerLock()}catch(e){}}}
