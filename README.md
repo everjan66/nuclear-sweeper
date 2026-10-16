@@ -148,3 +148,14 @@ routes and the existing platforms, depots, reactor, shelter, and coolant pool.
 
 Existing saves retain their current site's layout and cleanup progress. The new
 room designs appear when deploying to the next site (or starting a fresh save).
+
+## Developer version
+
+Open the [developer version](nuclear-sweeper-dev.html) with the game HTML and `nuclear-sweeper-dev.js`
+in the same folder. Press **F2** to open developer tools anywhere.
+
+The developer version has its own save and settings. It includes every purchase,
+max loadouts, site travel, location teleports, cleanup/refinery controls, enemy
+spawning, and testing assists. See [DEVELOPMENT.md](DEVELOPMENT.md) for details.
+
+Both versions require internet access to load Three.js.
