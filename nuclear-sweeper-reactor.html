@@ -180,7 +180,9 @@ button.u:not(:disabled):hover .buybar{background:#b6e65a}
 <div id="resume"><button class="go" id="resumeButton">CLICK TO RESUME</button><p id="resumeHint" class="j">Mouse capture is required to resume. Esc opens settings.</p></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-const $=s=>document.querySelector(s),cv=$('#gl'),TS=2,GW=60,GH=60,CH=1.1,BH=1.3,BT=2.6,WH=6.4,KEY='nsr1',N8=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+const DEV_MODE=new URLSearchParams(location.search).get('dev')==='1',DEV_TOOLS={invincible:false,infiniteAmmo:false,freezeEnemies:false};
+let devOpen=false;
+const $=s=>document.querySelector(s),cv=$('#gl'),TS=2,GW=60,GH=60,CH=1.1,BH=1.3,BT=2.6,WH=6.4,KEY=DEV_MODE?'nsr1_dev':'nsr1',CFG_KEY=DEV_MODE?'nsr_cfg_dev':'nsr_cfg',N8=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
 const TT=[0,WH,1.1,2.6,0,2.2,3.2,0,1.1,WH,0],TB=[0,0,0,1.3,0,0,2.9,0,0,0,0];
 const MOVE={tick:1/64,groundAccel:10,airAccel:12,friction:5.2,stopSpeed:80*7.2/250,airWishCap:30*7.2/250,slideMinSpeed:3.5,slideEndSpeed:2.5,slideDrag:2.4,slideTurnRate:1.2};
 const SCORE={kill:100,headshot:20,window:5,step:5,maxBonus:.5};
@@ -249,8 +251,8 @@ const pct=()=>Math.min(100,(1-S.rem/S.total)*100),mag=()=>Math.ceil(WP[wi].mag*W
 const KBD={fw:'KeyW',bk:'KeyS',lf:'KeyA',rt:'KeyD',jump:'Space',crouch:'ShiftLeft',crouch2:'KeyC',reload:'KeyR',use:'KeyE',music:'KeyM',grapple:'KeyG',dash:'KeyF',w1:'Digit1',w2:'Digit2',w3:'Digit3',w4:'Digit4',w5:'Digit5',w6:'Digit6',w7:'Digit7'};
 const KL={fw:'Move forward',bk:'Move back',lf:'Strafe left',rt:'Strafe right',jump:'Jump / vault / wallrun / pull up',crouch:'Crouch / slide / roll',crouch2:'Crouch / slide (alternate)',reload:'Reload',use:'Shelter / leave shelter',music:'Toggle music',grapple:'Grapple hook (module)',dash:'Air-dash (module)',w1:'Weapon 1: Desert Eagle',w2:'Weapon 2: MP7',w3:'Weapon 3: SMG-11',w4:'Weapon 4: 416-C',w5:'Weapon 5: R4-C',w6:'Weapon 6: Breaker',w7:'Weapon 7: Vector DMR'};
 let CFG={fov:105,sens:1,adsm:.55,inv:false,adsT:false,mv:.8,sv:.8,mu:.5,music:true,geiger:true,KB:{...KBD}};
-function loadCfg(){try{const j=JSON.parse(localStorage.getItem('nsr_cfg'));if(j)CFG={...CFG,...j,KB:{...KBD,...(j.KB||{})}}}catch(e){}}
-function saveCfg(){try{localStorage.setItem('nsr_cfg',JSON.stringify(CFG))}catch(e){}}
+function loadCfg(){try{const j=JSON.parse(localStorage.getItem(CFG_KEY));if(j)CFG={...CFG,...j,KB:{...KBD,...(j.KB||{})}}}catch(e){}}
+function saveCfg(){try{localStorage.setItem(CFG_KEY,JSON.stringify(CFG))}catch(e){}}
 loadCfg();
 const kd=a=>!!keys[CFG.KB[a]],kn=c=>c.replace('Key','').replace('Digit','').replace('Left','').replace('Right',' R').replace('Escape','Esc').replace('Arrow','');
 const vfov=()=>2*Math.atan(Math.tan(CFG.fov*Math.PI/360)*9/16)*180/Math.PI;
@@ -262,7 +264,7 @@ function initAudio(){if(ac)return;try{ac=new(window.AudioContext||window.webkitA
 function applyVol(){if(!ac)return;mast.gain.value=CFG.mv;sbus.gain.value=CFG.sv*2.2;mbus.gain.setTargetAtTime(CFG.music?CFG.mu*(shopOpen||setOpen?.5:1):0,ac.currentTime,.25)}
 const ESCAPE_UNLOCK_GRACE=120;
 let resumePending=false,escapeDown=false,escapeUnlockUntil=0,escapeReleased=false;
-function syncPause(){if(!shopOpen&&!setOpen&&!locked)resumePending=true;paused=shopOpen||setOpen||resumePending;$('#resume').style.display=resumePending&&!shopOpen&&!setOpen?'flex':'none';keys={};ml=0;hf=0;ads=false;renderPoints();applyVol()}
+function syncPause(){if(!shopOpen&&!setOpen&&!locked)resumePending=true;paused=shopOpen||setOpen||devOpen||resumePending;$('#resume').style.display=resumePending&&!shopOpen&&!setOpen&&!devOpen?'flex':'none';keys={};ml=0;hf=0;ads=false;renderPoints();applyVol()}
 function releaseMouse(){locked=false;if(document.pointerLockElement==cv&&document.exitPointerLock)document.exitPointerLock()}
 function resumeGame(){if(shopOpen||setOpen)return;resumePending=true;syncPause();initAudio();if(ac&&ac.state=='suspended')ac.resume();try{const request=cv.requestPointerLock();if(request&&request.catch)request.catch(lockFailed)}catch(e){lockFailed()}}
 function lockFailed(){if(document.pointerLockElement==cv||shopOpen||setOpen)return;resumePending=true;syncPause();$('#resumeHint').textContent='Mouse capture was not granted. Click to retry, or press Esc for settings.'}
@@ -390,10 +392,10 @@ function relocE(e){const c=ET[e.t],r=.5*c.sc,big=c.sc>1.2,ci=(e.z/TS|0)*GW+(e.x/
 function unstickE(e,r){for(let rr=.25;rr<=3;rr+=.25)for(let k=0;k<8;k++){const a=k*Math.PI/4,x=e.x+Math.cos(a)*rr,z=e.z+Math.sin(a)*rr;if(!bl(x,z,r,0,1.8,1)){e.x=x;e.z=z;return}}if(!relocE(e)&&Math.hypot(e.x-p.x,e.z-p.z)>20){e.hp=0;e.gone=1}}
 function wake(e){e.al=1;for(const o of E)if(!o.al&&Math.hypot(o.x-e.x,o.z-e.z)<9)o.al=1}
 function noise(x,z,r){for(const e of E)if(!e.al&&!ET[e.t].boss&&Math.hypot(e.x-x,e.z-z)<r)wake(e)}
-function spawnE(x,z,al){let t=pickT();const ti=(z/TS|0)*GW+(x/TS|0);if(ET[t].sc>1.2&&!PB[ti])t=0;const c=ET[t],r=.5*c.sc;if(bl(x,z,r,0,1.8,1))return false;const s=S.sector,h=c.hp*(1+.4*(s-1));
+function spawnE(x,z,al,type){let t=type===undefined?pickT():type;const ti=(z/TS|0)*GW+(x/TS|0);if(ET[t].sc>1.2&&!PB[ti])t=0;const c=ET[t],r=.5*c.sc;if(bl(x,z,r,0,1.8,1))return false;const s=S.sector,h=c.hp*(1+.4*(s-1));
  E.push({t,x,z,hp:h,mh:h,cd:0,fc:rnd(0,1.5),sd:Math.random()<.5?1:-1,ph:rnd(0,6),bn:0,bt:0,al:al?1:0,px:x,pz:z,sT:.5,sk:0,pf:0});return true}
 function spawnIn(o){for(let k=0;k<12;k++){const x=o.x0+(Math.random()*(o.x1-o.x0+1)|0),z=o.z0+(Math.random()*(o.z1-o.z0+1)|0);if(M[z*GW+x]==0&&spawnE((x+.5)*TS,(z+.5)*TS,0))return}}
-function eAI(e,dt,safe){const c=ET[e.t],r=.5*c.sc,big=c.sc>1.2,dx=p.x-e.x,dz=p.z-e.z,d=Math.hypot(dx,dz)||1,spd=c.sp*(1+.04*(S.sector-1)),los=d<24&&clr(e.x,e.z,p.x,p.z,0);
+function eAI(e,dt,safe){if(DEV_MODE&&DEV_TOOLS.freezeEnemies)return;const c=ET[e.t],r=.5*c.sc,big=c.sc>1.2,dx=p.x-e.x,dz=p.z-e.z,d=Math.hypot(dx,dz)||1,spd=c.sp*(1+.04*(S.sector-1)),los=d<24&&clr(e.x,e.z,p.x,p.z,0);
  if(!e.al){e.ph+=dt;if(!safe&&((los&&d<15)||d<5))wake(e);else return}
  e.pf-=dt;const direct=los&&e.pf<=0&&clrW(e.x,e.z,p.x,p.z,r);let tx=p.x,tz=p.z,vx=0,vz=0;
  if(!direct){const bi=nextT((e.z/TS|0)*GW+(e.x/TS|0),big);if(bi>=0){tx=(bi%GW+.5)*TS;tz=((bi/GW|0)+.5)*TS}}
@@ -412,7 +414,7 @@ function eAI(e,dt,safe){const c=ET[e.t],r=.5*c.sc,big=c.sc>1.2,dx=p.x-e.x,dz=p.z
  e.sT-=dt;if(e.sT<=0){e.sT=.5;const mvd=Math.hypot(e.x-e.px,e.z-e.pz);e.px=e.x;e.pz=e.z;
   if(!safe&&d>1.8+r&&mvd<spd*.5*.22)e.sk++;else e.sk=0;
   if(e.sk==2)e.pf=2.5;else if(e.sk>=5){e.sk=0;relocE(e)}}}
-function hurt(n){S.hp-=n;hpFlash=.25;hitT=tt}
+function hurt(n){if(DEV_MODE&&DEV_TOOLS.invincible)return;S.hp-=n;hpFlash=.25;hitT=tt}
 // ---------- 3D scene ----------
 const sc=new THREE.Scene(),cam3=new THREE.PerspectiveCamera(75,1,.1,200),dummy=new THREE.Object3D(),col=new THREE.Color(),rend=new THREE.WebGLRenderer({canvas:cv,antialias:true});
 rend.setPixelRatio(Math.min(devicePixelRatio||1,1.5));const cam4=new THREE.PerspectiveCamera(30,1,.1,200);cam4.rotation.order='YXZ';cam3.rotation.order='YXZ';
@@ -571,7 +573,7 @@ function readImport(file){const msg=$('#smsg');pendingImport=null;if(!file)retur
   const confirm=document.createElement('button');confirm.className='kbtn';confirm.id='sic';confirm.textContent='Replace and reload';msg.append(confirm);confirm.focus()},()=>{msg.textContent='The file could not be read.'})}
 function confirmImport(){if(!pendingImport)return;const msg=$('#smsg'),saveText=JSON.stringify(pendingImport.state),cfgText=pendingImport.settings?JSON.stringify(pendingImport.settings):null;let old=null;try{old=localStorage.getItem(KEY)}catch(e){}
  saveLocked=true;// from here on no interval or event may overwrite the imported save before the reload
- try{localStorage.setItem(KEY,saveText);if(cfgText)localStorage.setItem('nsr_cfg',cfgText)}catch(e){let restored=false;try{if(old==null)localStorage.removeItem(KEY);else localStorage.setItem(KEY,old);restored=true}catch(_){}
+ try{localStorage.setItem(KEY,saveText);if(cfgText)localStorage.setItem(CFG_KEY,cfgText)}catch(e){let restored=false;try{if(old==null)localStorage.removeItem(KEY);else localStorage.setItem(KEY,old);restored=true}catch(_){}
   if(restored){saveLocked=false;msg.textContent='The browser refused to store the save. Nothing was changed.';return}}
  location.reload()}
 $('#sw').addEventListener('change',e=>{if(e.target.id=='sif'){readImport(e.target.files[0]);e.target.value=''}});
@@ -756,7 +758,7 @@ function shoot(s){const w=WP[wi],at=S.att[wi],o=fpv?CP:CP.H,sp=(adsE?w.sa*(at.b?
    if(TR.length<48)TR.push({a:start,b:h,l:.06});start=h;
    for(let j=0;j<3;j++)F.push({x:h.x,y:h.y,z:h.z,vx:rnd(-3,3),vy:rnd(0,4),vz:rnd(-3,3),l:.3,m:.3,c:h.e?'#8dff4a':'#ffb84a',r:.14});
    if(!h.e)break;const e=h.e;let dm=w.d*WS(wi).dm*dmul*(ET[e.t].sc>1.2?(w.big||1):1);if(h.hd)dm=e.t==2?dm*4:Math.max(dm*4,e.mh*1.01);e.hp-=dm*power;if(e.hp<=0)recordKill(e,wi,h.hd);hit.add(e);hmT=.18;hmH=h.hd;if(!e.al)wake(e)}}
- noise(p.x,p.z,at.s?9:34);ammo[wi]--;wcd+=1/(w.r*WS(wi).fr);hf=1;kick=.06+w.rc*3;p.rp=Math.min(.3,p.rp+w.rc*(adsE?.5:1)*(at.b?1.15:1));mzT=at.s?0:.06;snd(at.s?140:180+wi*60,.06,'sawtooth',at.s?.008:.025)}
+ noise(p.x,p.z,at.s?9:34);if(!(DEV_MODE&&DEV_TOOLS.infiniteAmmo))ammo[wi]--;wcd+=1/(w.r*WS(wi).fr);hf=1;kick=.06+w.rc*3;p.rp=Math.min(.3,p.rp+w.rc*(adsE?.5:1)*(at.b?1.15:1));mzT=at.s?0:.06;snd(at.s?140:180+wi*60,.06,'sawtooth',at.s?.008:.025)}
 function setW(i){if(i==0||S.L['w'+i]>0){wi=i;vmSet(WP[wi]);rel=0;relPh=0;wcd=.25;swT=.28}}
 function upd(dt){tt+=dt;tickPoints(dt);const s=ST(S.L);
  p.yaw+=((keys.ArrowLeft?1:0)-(keys.ArrowRight?1:0))*2.2*dt;p.pit=cl(p.pit+((keys.ArrowUp?1:0)-(keys.ArrowDown?1:0))*1.6*dt,-1.45,1.45);
@@ -815,12 +817,12 @@ function upd(dt){tt+=dt;tickPoints(dt);const s=ST(S.L);
    D[i]=nv;S.rem-=t;S.tank+=t*10;S.prog.dust+=t*10;dirty.push(i);if(P.length<260&&Math.random()<.35)P.push({x:tx+rnd(-.7,.7),y:.2,z:tz+rnd(-.7,.7),a:0})}}
  // radiation
  const safe=Math.hypot(p.x-SH.x,p.z-SH.z)<7,ti=(p.z/TS|0)*GW+(p.x/TS|0),lv=M[ti]==6?3.2:0,r=(p.h>=lv-.3?D[ti]:0)*(1+.25*(S.sector-1)),dm=(safe||p.h-lv>.5?0:Math.max(0,r*5-s.suit*.8))+(M[ti]==7&&p.h<.45?Math.max(5,24-s.suit*2.5):0);hazUpd(dt,s,ti);
- S.hp-=dm*dt;expo+=(dm-expo)*Math.min(1,dt*4);if(dm<=0&&S.hp<s.hp)S.hp=Math.min(s.hp,S.hp+(safe?25:1.5)*dt);
+ if(!(DEV_MODE&&DEV_TOOLS.invincible))S.hp-=dm*dt;expo+=(dm-expo)*Math.min(1,dt*4);if(dm<=0&&S.hp<s.hp)S.hp=Math.min(s.hp,S.hp+(safe?25:1.5)*dt);
  amb=0;{const gr=s.gei/TS;for(let z=Math.max(0,Math.floor(p.z/TS-gr));z<=Math.min(GH-1,Math.floor(p.z/TS+gr));z++)for(let x=Math.max(0,Math.floor(p.x/TS-gr));x<=Math.min(GW-1,Math.floor(p.x/TS+gr));x++){const v=D[z*GW+x];if(v<=0)continue;const dd=Math.hypot((x+.5)*TS-p.x,(z+.5)*TS-p.z);if(dd<s.gei)amb=Math.max(amb,v*(1-dd/s.gei*.8))}}
  clickAcc+=(2+amb*40)*dt;while(clickAcc>=1){clickAcc--;if(CFG.geiger)snd(1500+Math.random()*900,.012,'square',.018)}
  // enemies
  const cp=pct();bfsT-=dt;if(bfsT<=0){bfsT=.3;bfs()}spawnT-=dt;
- if(spawnT<=0&&E.length<Math.min(8+2*S.sector,26)){spawnT=3.5;for(let k=0;k<12;k++){const x=(1+Math.random()*(GW-2)|0),z=(1+Math.random()*(GH-2)|0);if(M[z*GW+x]==0&&Math.hypot((x+.5)*TS-p.x,(z+.5)*TS-p.z)>22&&Math.hypot((x+.5)*TS-SH.x,(z+.5)*TS-SH.z)>9&&spawnE((x+.5)*TS,(z+.5)*TS,1))break}}
+ if(!(DEV_MODE&&DEV_TOOLS.freezeEnemies)&&spawnT<=0&&E.length<Math.min(8+2*S.sector,26)){spawnT=3.5;for(let k=0;k<12;k++){const x=(1+Math.random()*(GW-2)|0),z=(1+Math.random()*(GH-2)|0);if(M[z*GW+x]==0&&Math.hypot((x+.5)*TS-p.x,(z+.5)*TS-p.z)>22&&Math.hypot((x+.5)*TS-SH.x,(z+.5)*TS-SH.z)>9&&spawnE((x+.5)*TS,(z+.5)*TS,1))break}}
  for(const e of E)eAI(e,dt,safe);
  for(let i=E.length-1;i>=0;i--){const e=E[i];if(e.gone){E.splice(i,1);continue}if(e.hp<=0){E.splice(i,1);snd(130,.15,'sawtooth',.04);const c=ET[e.t];
   for(let j=0;j<10;j++)F.push({x:e.x,y:.8,z:e.z,vx:rnd(-4,4),vy:rnd(1,5),vz:rnd(-4,4),l:.5,m:.5,c:'#8dff4a',r:.2});
@@ -870,6 +872,8 @@ function hud(){const s=ST(S.L),c=pct(),w=WP[wi],T0=[SH,...DEP].reduce((a,b)=>Mat
  $('#hud').innerHTML=`<section class="hud-category"><strong>MISSION</strong><b style="color:var(--ac)">SITE ${S.sector}</b> ${getSec(S.sector).n}<br>CLEANED ${c.toFixed(1)}%${S.clr?' <b style="color:#4f9dde">CLEARED</b>':''}<div class=bar><i style="width:${c}%;background:var(--ac)"></i></div></section><section class="hud-category"><strong>MOVEMENT</strong>${Math.hypot(p.vx,p.vz).toFixed(1)} m/s ${p.sl?'SLIDE':p.st==4?'WALLRUN':p.st==5?'WALLCLIMB':p.st==2?'HANG':p.st==1?'VAULT':p.roll>0?'ROLL':''}</section><section class="hud-category"><strong>NAVIGATION</strong>${T0===SH?"Shelter":"Depot"} ${ar} ${Math.hypot(dx,dz)|0} m${Math.hypot(p.x-SH.x,p.z-SH.z)<9?`<br>[${kn(CFG.KB.use)}] open shelter shop`:''}</section>`;$('#hud').insertAdjacentHTML('beforeend',`<section class="hud-category"><strong>COMBAT SCORE</strong>${S.score.run.toLocaleString('en-US')} <small> / BEST ${S.score.best.toLocaleString('en-US')}</small></section>`);barUpd()}
 // ---------- input ----------
 addEventListener('keydown',e=>{
+ if(DEV_MODE&&e.code=='F2'&&typeof toggleDev==='function'){e.preventDefault();if(!e.repeat)toggleDev();return}
+ if(devOpen){if(e.code=='Escape'){e.preventDefault();toggleDev(false)}return}
  if(e.code=='Escape'){e.preventDefault();if(e.repeat)return;escapeDown=true;if(performance.now()<escapeUnlockUntil)return}
  if(e.code=='Enter'&&e.repeat)return;
  if(listen){e.preventDefault();if(e.code!='Escape'){for(const a in CFG.KB)if(CFG.KB[a]==e.code)CFG.KB[a]=CFG.KB[listen];CFG.KB[listen]=e.code}listen=null;saveCfg();renderSet();return}
@@ -902,4 +906,5 @@ let last=performance.now(),moveAcc=0;
 function loop(n){const dt=Math.min(.05,(n-last)/1000);last=n;refine(dt);if(!paused){moveAcc+=dt;while(moveAcc+1e-9>=MOVE.tick&&!paused){upd(MOVE.tick);moveAcc=Math.max(0,moveAcc-MOVE.tick)}}else moveAcc=0;draw();drawMinimap(n);requestAnimationFrame(loop)}
 setInterval(()=>{hud();if(checkProgress())save();if(paused)tickShop()},150);setInterval(save,8000);
 requestAnimationFrame(loop);
+if(DEV_MODE){const devScript=document.createElement('script');devScript.src='nuclear-sweeper-dev.js';devScript.onerror=()=>alert('Keep nuclear-sweeper-dev.js beside the game HTML to load developer tools.');document.body.append(devScript)}
 </script></body></html>
