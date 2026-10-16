@@ -3,15 +3,17 @@
 
 ## HUD and shelter navigation
 
-The in-game readout groups mission progress, movement, and navigation into
-separate panels. The shelter uses category buttons for the overview, gear,
-station, weapons, licenses, mastery, achievements, workshop, movement modules,
-and radio log. Settings separates sound, aiming, and key bindings.
+The shelter fills the screen with four tabs:
+- **All gear:** gear upgrades, movement modules, and station upgrades.
+- **Weapons:** weapon upgrades and workshop attachments.
+- **Licenses & mastery:** weapon-class unlocks and per-weapon mastery progress.
+- **Achievements:** lifetime cleanup and combat milestones.
 
-Menus do not scroll. Use Previous / Next when a category needs more than one
-page; page sizes adapt to the available screen height. Resources and exit
-actions remain visible, and purchases keep the current category and page.
-Category and page buttons also work with Tab and Enter / Space.
+Overview and radio stay visible below every tab, alongside the exit actions.
+Use the radio's Previous / Next buttons to read every transmission. Cards use
+the available screen width, with adaptive pages on smaller screens. Purchases
+keep your selected tab and page. Settings retains its separate categories.
+
 
 For a manual UI check, visit every category on desktop, portrait, and landscape
 screens. Page through achievements, mastery, and key bindings; buy an upgrade,

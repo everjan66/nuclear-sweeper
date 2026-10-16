@@ -49,8 +49,31 @@ h2{margin:0 0 4px;color:var(--ac)}h3{margin:16px 0 6px;color:#8da079;font-size:1
 .menu-footer .go{margin:0;padding:9px 12px}.menu-pager{justify-content:center;min-height:32px}
 .hud-category{margin-bottom:8px;padding:6px 8px;border-left:2px solid var(--ac);background:#0b0e08b8}
 .hud-category strong{display:block;color:#8da079;font-size:10px;letter-spacing:1.5px}
+#sp{max-width:none;width:100%;gap:10px}
+#sp .menu-nav{display:grid;grid-template-columns:repeat(4,1fr)}
+#sp .menu-nav button{padding:12px;font-weight:bold;font-size:15px}
+#sp .menu-body>.g{grid-template-columns:repeat(auto-fill,minmax(250px,1fr));align-content:start;gap:12px}
+#sp .menu-body .u{padding:14px;min-width:0}
+.section-label{display:block;color:var(--ac);font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+#sp .menu-body .r{display:block;margin:0;padding:12px;background:#1c2416;border:1px solid #3c4a32;border-radius:5px}
+#sp .menu-body .r>span{display:block;margin-bottom:6px}
+#sp .menu-body .kbtn{min-width:0;padding:6px}
+.shelter-context{display:grid;grid-template-columns:1fr 2fr;gap:16px;border-top:1px solid #3c4a32;padding-top:8px}
+.shelter-context strong{color:var(--ac);font-size:11px}
+.shelter-context p{margin:4px 0 0;color:#a9bd94;font-size:11px;line-height:1.4}
+.radio-heading{display:flex;align-items:center;gap:8px}
+.radio-heading button{background:#27311f;border:1px solid #3c4a32;border-radius:3px;color:inherit;cursor:pointer;padding:3px 8px}
+.radio-heading button:disabled{opacity:.35;cursor:default}
+.u .section-label{color:var(--ac)}
+@media(max-height:600px){.overview-detail{display:none}}
+@media(max-width:600px){#sp .menu-body>.g{grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}#sp .menu-nav button{font-size:12px;padding:9px 4px}.shelter-context{grid-template-columns:1fr;gap:6px}.shelter-context p{font-size:10px}#sp .menu-body .u{padding:10px}}
+@media(max-height:500px){#sp{gap:4px}#sp .menu-nav button{padding:5px;font-size:12px}#sp .menu-body .u{padding:8px}.section-label{margin-bottom:4px}.shelter-context{padding-top:4px;gap:10px;grid-template-columns:1fr 2fr}.shelter-context p{font-size:10px;margin:2px 0}.shelter-context strong{font-size:10px}}
 @media(max-width:600px){#hud{width:175px;font-size:11px}.g{grid-template-columns:1fr}.menu-nav button{padding:5px 7px;font-size:11px}.menu-body .r{flex-wrap:wrap;gap:4px}.menu-body .kbtn{min-width:90px}.menu-footer .go{padding:7px;font-size:11px}#hint{max-width:160px;font-size:10px}#bar{gap:4px;max-width:100%;width:100%;justify-content:center}#bl,#br{width:66px;font-size:9px}#gg svg{width:66px}#wb{gap:2px;flex-wrap:wrap;max-width:260px;justify-content:center}.slot{width:58px;height:50px}.slot svg{width:48px}.slot .nm{font-size:8px}}
 @media(max-height:500px){#sp,#sw{gap:4px}.menu-nav button{padding:4px 7px}.menu-footer .go{padding:5px 8px}.menu-pager{min-height:26px}.hud-category{margin-bottom:3px;padding:3px 6px}.menu-body{font-size:11px}.menu-body .j{line-height:1.3}}
+@media(max-height:380px){#sp{gap:3px}#sp h2{font-size:14px;margin:0}#sp #st{font-size:10px}#sp .menu-pager{min-height:20px}#sp .menu-pager button{padding:2px 6px;font-size:10px}#sp .shelter-context{grid-template-columns:1fr 2fr;gap:8px}#sp .radio-heading{gap:5px}#sp .radio-heading button{padding:1px 4px;font-size:10px}#sp .section-label{font-size:9px;margin-bottom:3px}#sp .menu-body .r{padding:6px}#sp .menu-body .kbtn{padding:3px;font-size:10px}#sp .menu-body .u{padding:6px}#sp .menu-body .j{margin:0;font-size:10px;line-height:1.2}#sp .menu-body .section-label{margin-bottom:3px}}
+@media(max-width:600px) and (min-height:381px){#sp .menu-nav{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px) and (min-height:381px) and (max-height:600px){#sp .menu-body .j{font-size:11px;line-height:1.3;margin:0}}
+@media(max-height:380px){#sp .menu-nav button{font-size:10px}}
 </style></head><body>
 <canvas id="gl"></canvas><div id="vig"></div><div id="cx"></div><div id="scope"><svg viewBox="0 0 200 200"><g fill="#ff2a2a" stroke="#ff2a2a"><path d="M100 100l-11 13h5l6-7 6 7h5z" stroke="none"/><path d="M100 113V168" stroke-width="2"/><path d="M95 126h10M96 139h8M96 152h8M95 165h10" stroke-width="1.5"/></g></svg></div><div id="hm">✕</div><div id="hud"></div><div id="hint">Click to capture the mouse · LMB fire · RMB aim · R reload · 1-7 weapons<br>Space jump / vault / wallrun · Shift or C slide / roll · red = parkour route<br><b>Esc: settings and key bindings</b> · M music · E shelter (Esc / Enter / E / Space leaves it)</div><div id="shop"><div id="sp"></div></div><div id="bar"><div id="bl"></div><div id="wb"></div><div id="br"></div></div><div id="set"><div id="sw"></div></div><div id="log"></div><div id="tst"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -365,19 +388,39 @@ function barReload(){for(let i=0;i<SL.length;i++){const w=i==wi&&rel>0?((1-rel/r
 function deploy(){S.sector++;S.roomDesign=1;S.story=0;S.clr=0;S.vOpen=0;S.vTaken=0;S.iTaken=0;S.bossDead=0;S.bty=null;genMap(S.sector);placeP();S.hp=ST(S.L).hp;closeShop();save()}
 function buy(id){const u=U.find(x=>x[0]==id);if(!u||u[0].startsWith('w'))return;const l=S.L[id],c=cost(u,l),k=u[2]=='s'?'scrap':'cred';if(l>=u[5]||S[k]<c)return;S[k]-=c;S.L[id]++;if(id=='suit')S.hp=ST(S.L).hp;renderShop();snd(520,.1,'triangle',.05);save()}
 const menuState={};
+function shelterContext(groups,state){
+ const context=document.createElement('aside');context.className='shelter-context';context.setAttribute('aria-label','Overview and radio log');
+ const overview=document.createElement('section'),heading=document.createElement('strong'),summary=document.createElement('p'),detail=document.createElement('span');heading.textContent='OVERVIEW';summary.textContent=`Site ${S.sector}: ${getSec(S.sector).n}.`;detail.className='overview-detail';detail.textContent=' Deposited dust keeps refining while you explore. Ammo resupplied here.';summary.append(detail);overview.append(heading,summary);
+ const radio=document.createElement('section'),controls=document.createElement('div'),label=document.createElement('strong'),previous=document.createElement('button'),next=document.createElement('button'),message=document.createElement('p');controls.className='radio-heading';label.textContent='RADIO LOG';
+ const transmissions=getSec(S.sector).b.slice(0,S.story),pages=[];
+ for(const transmission of transmissions){let text='';for(const word of transmission[2].split(' ')){if(text.length+word.length>90){pages.push(`${transmission[1]}: ${text}`);text=''}text+=(text?' ':'')+word}if(text)pages.push(`${transmission[1]}: ${text}`)}
+ if(!pages.length)pages.push('No transmissions yet.');
+ state.radio=Math.min(state.radio??pages.length-1,pages.length-1);
+ previous.type=next.type='button';previous.textContent='Previous';next.textContent='Next';previous.setAttribute('aria-label','Previous radio page');next.setAttribute('aria-label','Next radio page');message.setAttribute('aria-live','polite');
+ const update=()=>{message.textContent=pages[state.radio];previous.disabled=state.radio==0;next.disabled=state.radio==pages.length-1;label.textContent=`RADIO LOG ${state.radio+1}/${pages.length}`};
+ previous.onclick=()=>{state.radio--;update()};next.onclick=()=>{state.radio++;update()};controls.append(label,previous,next);radio.append(controls,message);context.append(overview,radio);context.onclick=event=>event.stopPropagation();update();
+ const combined=[{name:'All gear',sections:['Gear','Movement modules','Station'],nodes:[]},{name:'Weapons',sections:['Weapons','Workshop'],nodes:[]},{name:'Licenses & mastery',sections:['Weapon licenses','Weapon mastery'],nodes:[]},{name:'Achievements',sections:['Achievements'],nodes:[]}];
+ for(const category of combined){const grid=document.createElement('div');grid.className='g';
+  for(const name of category.sections){const group=groups.find(entry=>entry.name==name);if(!group)continue;
+   for(const node of group.nodes){if(node.matches('h3'))continue;const cards=node.matches('.g')?Array.from(node.children):[node];
+    for(const card of cards){const section=document.createElement('small');section.className='section-label';section.textContent=name;card.prepend(section);if(card.matches('.j'))card.classList.add('u');grid.append(card)}}}
+  category.nodes=[grid]}
+ groups.splice(0,groups.length,...combined);return context;
+}
 function categorizeMenu(root){
  const state=menuState[root.id]||(menuState[root.id]={category:0,page:0}),nodes=Array.from(root.children),title=nodes.shift(),groups=[{name:'Overview',nodes:[]}],footer=document.createElement('footer');footer.className='menu-footer';
  let status=null;
  for(const node of nodes){if(node.matches('.go'))footer.append(node);else if(node.matches('h3'))groups.push({name:node.textContent.split(' (')[0].split(' \u00b7')[0],nodes:[node]});else if(node.id=='st')status=node;else groups[groups.length-1].nodes.push(node)}
+ const context=root.id=='sp'?shelterContext(groups,state):null;
  const categories=groups.filter(group=>group.nodes.length),nav=document.createElement('nav'),body=document.createElement('section'),pager=document.createElement('div');nav.className='menu-nav';nav.setAttribute('aria-label',root.id=='sp'?'Shelter categories':'Settings categories');body.className='menu-body';body.id=root.id+'-content';pager.className='menu-pager';pager.setAttribute('aria-label','Category pages');
- root.replaceChildren(title,...(status?[status]:[]),nav,body,pager,footer);
+ root.replaceChildren(title,...(status?[status]:[]),nav,body,pager,...(context?[context]:[]),footer);
  nav.onclick=event=>event.stopPropagation();pager.onclick=event=>event.stopPropagation();
  const show=()=>{
   state.category=Math.min(state.category,categories.length-1);const group=categories[state.category];body.replaceChildren(...group.nodes);body.setAttribute('aria-label',group.name);
   nav.replaceChildren(...categories.map((entry,index)=>{const button=document.createElement('button');button.type='button';button.textContent=entry.name;button.setAttribute('aria-pressed',String(index==state.category));button.setAttribute('aria-controls',body.id);button.onclick=()=>{state.category=index;state.page=0;show();nav.children[index].focus({preventScroll:true})};return button}));
   const items=Array.from(body.children).flatMap(node=>node.matches('.g')?Array.from(node.children):[node]),pages=[[]];items.forEach(node=>node.hidden=true);
   for(const item of items){item.hidden=false;if(body.scrollHeight>body.clientHeight&&pages[pages.length-1].length){pages[pages.length-1].forEach(node=>node.hidden=true);pages.push([])}pages[pages.length-1].push(item)}
-  items.forEach(node=>node.hidden=true);state.page=Math.min(state.page,pages.length-1);pages[state.page].forEach(node=>node.hidden=false);
+  items.forEach(node=>node.hidden=true);state.page=Math.min(state.page,pages.length-1);pages[state.page].forEach(node=>node.hidden=false);if(root.id=='sp')tickShop();
   const previous=document.createElement('button'),next=document.createElement('button'),label=document.createElement('span');previous.textContent='Previous';next.textContent='Next';previous.disabled=state.page==0;next.disabled=state.page==pages.length-1;label.textContent=`${state.page+1} / ${pages.length}`;label.setAttribute('aria-live','polite');previous.onclick=()=>{state.page--;show();pager.querySelector('button:not(:disabled)').focus({preventScroll:true})};next.onclick=()=>{state.page++;show();pager.querySelector('button:not(:disabled)').focus({preventScroll:true})};pager.replaceChildren(previous,label,next);
  };
  if(root.menuObserver)root.menuObserver.disconnect();root.menuObserver=new ResizeObserver(()=>{if(root.parentElement.style.display!='none')show()});root.menuObserver.observe(body);show();
