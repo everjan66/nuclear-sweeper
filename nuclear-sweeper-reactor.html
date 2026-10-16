@@ -140,6 +140,11 @@ button.u:not(:disabled):hover .buybar{background:#b6e65a}
 #sp .menu-body .grp,#sp .menu-body .note{grid-column:1/-1;margin:0}#sp .menu-body .grp{color:var(--ac);font-size:12px}#sp .menu-body .grp:not(:first-child){margin-top:12px}#sp .menu-body .note{max-width:80ch}#sp .menu-body .grp.cont{margin-top:0}@media(max-height:500px){#sp .menu-body .grp:not(:first-child){margin-top:4px}#sp .menu-body .grp.cont{margin-top:0}}
 #rs{margin-left:auto}
 #sp .menu-body>.g{grid-template-columns:repeat(8,minmax(0,1fr));align-content:start;gap:12px}#sp .menu-body .u{grid-column:span 2}#sp .menu-body .u.mini{grid-column:span 1}
+#sp .menu-body>.gear-grid{grid-template-columns:repeat(6,minmax(0,1fr));gap:3px}#sp .menu-body .gear-grid .grp:not(:first-child){margin-top:4px}
+#sp .menu-body .gear-grid .u.tile{padding:8px 8px 0;gap:2px;min-height:0}#sp .menu-body .gear-grid [data-md]{grid-column:span 2}
+#sp .gear-grid .tile .ico{width:18px;height:18px}#sp .gear-grid .tile b{font-size:12px}
+#sp .gear-grid .tile .buybar{margin:auto -8px 0;width:calc(100% + 16px);padding:0 8px;min-height:26px;font-size:10px;letter-spacing:0;gap:4px}
+#sp .gear-grid .buybar .price{font-size:12px;padding:2px 4px;gap:2px}#sp .gear-grid .buybar .cic{width:16px;height:16px}#sp .gear-grid .buybar .lk{width:12px;height:12px}
 @media(max-width:1000px){#sp .menu-body>.g{grid-template-columns:repeat(4,minmax(0,1fr))}}
 #sp .menu-body .u{padding:12px;min-width:0}
 #sp .menu-body .r{display:block;margin:0;padding:12px;background:#1c2416;border:1px solid #3c4a32;border-radius:5px}
@@ -620,7 +625,7 @@ function shelterContext(groups,state){
  const update=()=>{message.textContent=pages[state.radio];previous.disabled=state.radio==0;next.disabled=state.radio==pages.length-1;label.textContent=`RADIO LOG ${state.radio+1}/${pages.length}`};
  previous.onclick=()=>{state.radio--;update()};next.onclick=()=>{state.radio++;update()};controls.append(label,previous,next);radio.append(controls,message);context.append(overview,radio);context.onclick=event=>event.stopPropagation();update();
  const combined=[{name:'Weapons',sections:['Arsenal'],nodes:[]},{name:'Gear',sections:['Gear','Station','Movement modules'],nodes:[]},{name:'Achievements',sections:['Achievements'],nodes:[]},{name:'Score',sections:['Combat score'],nodes:[]}];
- for(const category of combined){const grid=document.createElement('div');grid.className='g';
+ for(const category of combined){const grid=document.createElement('div');grid.className=category.name=='Gear'?'g gear-grid':'g';
   for(const name of category.sections){const group=groups.find(entry=>entry.name==name);if(!group)continue;
    for(const node of group.nodes){if(node.matches('h3')){node.className='grp';grid.append(node);continue}const cards=node.matches('.g')?Array.from(node.children):[node];
     for(const card of cards){if(card.matches('.j'))card.classList.add('note');grid.append(card)}}}
