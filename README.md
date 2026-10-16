@@ -17,6 +17,10 @@ buy right now:
 - **Achievements:** lifetime cleanup and combat milestones.
 - **Score:** current run, records, and the local top 5. Score is not a currency.
 
+Progress is stored in the browser (localStorage). Settings → Save game exports a
+backup file (game state plus settings) and imports it again after checking the
+map data; importing replaces the current progress and reloads the page.
+
 Upgrades are icon tiles with a level bar and a price button. Upgrades you cannot
 afford yet stay readable and show how much is missing.
 

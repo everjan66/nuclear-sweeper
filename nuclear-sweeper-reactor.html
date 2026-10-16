@@ -511,8 +511,9 @@ function cast(o,d,mx,noE,ignored){let t=0;while(t<mx){t+=.25;if(rs(o.x+d.x*t,o.y
  return{t,e:be,hd,x:o.x+d.x*t,y:o.y+d.y*t,z:o.z+d.z*t}}
 // ---------- game flow ----------
 function fresh(){return fixProgress({roomDesign:1,L:mkL(),wl:WP.map(()=>({dmg:0,fr:0,multi:0})),scrap:0,cred:0,raw:0,tank:0,hp:100,sector:1,story:0,clr:0,total:1,rem:1,t:Date.now(),parts:0,att:WP.map(()=>({s:0,b:0,l:0})),unl:{s:0,b:0,l:0},mod:{gr:0,dash:0},vOpen:0,vTaken:0,iTaken:0,bossDead:0,bty:null,kills:0})}
-function load(){try{const j=JSON.parse(localStorage.getItem(KEY));if(j&&j.d&&j.d.length==GW*GH){j.L=Object.assign(mkL(),j.L);return fixS(j)}}catch(e){}return null}
-function save(){try{S.t=Date.now();localStorage.setItem(KEY,JSON.stringify({...S,d:Array.from(D,v=>+v.toFixed(2))}))}catch(e){}}
+function load(){try{return cleanSave(JSON.parse(localStorage.getItem(KEY)),true)}catch(e){}return null}
+let saveLocked=false;
+function save(){if(saveLocked)return false;try{S.t=Date.now();localStorage.setItem(KEY,JSON.stringify({...S,d:Array.from(D,v=>+v.toFixed(2))}));return true}catch(e){return false}}
 function placeP(){p={x:SH.x,z:SH.z+4,h:0,vx:0,vz:0,vh:0,yaw:0,pit:0,g:1,sl:0,slideLock:0,st:0,peak:0,cy:0,jb:0,roll:0,cd:0,low:0,crP:-9,rl:0,rp:0,dashed:0,gr:null,zp:null,chain:0,ss:0,sa:0,sT:0};canDock=false}
 function dockShelter(){S.raw+=S.tank;S.tank=0;S.hp=ST(S.L).hp;ammo=WP.map((w,i)=>Math.ceil(w.mag*WS(i).mg));canDock=false;save()}
 function openShop(){shopOpen=true;ml=0;ads=false;syncPause();S.raw+=S.tank;S.tank=0;S.hp=ST(S.L).hp;ammo=WP.map((w,i)=>Math.ceil(w.mag*WS(i).mg));canDock=false;if(document.exitPointerLock)document.exitPointerLock();$('#shop').style.display='block';walletOpen();renderShop();save()}
@@ -524,9 +525,49 @@ function renderSet(){const sl=(c,l,mn,mx,st)=>`<label class=r><span>${l}</span><
  $('#sw').innerHTML=`<h2>SETTINGS</h2><h3>Sound</h3>${ck('music','Background music')}${ck('geiger','Geiger counter sounds')}${sl('mv','Master volume',0,1,.01)}${sl('mu','Music volume',0,1,.01)}${sl('sv','Effects volume',0,1,.01)}
  <h3>View and aiming</h3>${sl('fov','Field of view (horizontal, 16:9 equivalent)',70,120,1)}${sl('sens','Mouse sensitivity',.2,3,.05)}${sl('adsm','Aim-down-sights sensitivity',.2,1.2,.05)}${ck('inv','Invert Y axis')}${ck('adsT','Aim down sights: toggle instead of hold')}
  <h3>Key bindings (click one, then press the new key)</h3>${Object.keys(KL).map(a=>`<div class=r><span>${KL[a]}</span><button class=kbtn data-k="${a}">${listen==a?'press a key...':kn(CFG.KB[a])}</button></div>`).join('')}
- <p class=j>Fixed: LMB fire · RMB aim · Esc opens and closes this menu · arrow keys look without mouse lock.</p><button class=go id=sc>CLOSE (Esc)</button><button class=go id=sk style="background:#3c4a32;color:#a9bd94">Reset key bindings</button>`;categorizeMenu($('#sw'))}
+ <p class=j>Fixed: LMB fire · RMB aim · Esc opens and closes this menu · arrow keys look without mouse lock.</p>
+ <h3>Save game</h3><div class=j>Your progress lives in this browser only. Export a backup file before updates or a browser clean-up; import puts it back.</div><div class=j>Current save: Site ${S.sector} · ${Math.floor(S.cred).toLocaleString('en-US')} credits · ${S.scrap} scrap · ${S.parts} parts · ${S.kills} kills.</div><div class=r><span>Backup file</span><span><button class=kbtn id=sx>Export save file</button> <button class=kbtn id=sim>Import save file</button><input type=file id=sif accept=".json,application/json" hidden></span></div><p class=j id=smsg role=status aria-live=polite></p>
+ <button class=go id=sc>CLOSE (Esc)</button><button class=go id=sk style="background:#3c4a32;color:#a9bd94">Reset key bindings</button>`;categorizeMenu($('#sw'))}
 $('#sw').addEventListener('input',e=>{const el=e.target,c=el.dataset&&el.dataset.c;if(!c)return;CFG[c]=el.type=='checkbox'?el.checked:+el.value;const v=$('#v_'+c);if(v)v.textContent=fmtV(c);applyVol();saveCfg()});
-$('#sw').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.k){listen=b.dataset.k;renderSet()}else if(b.id=='sc')closeSet();else if(b.id=='sk'){CFG.KB={...KBD};saveCfg();renderSet()}});
+// save backup: one JSON file with the game state and the settings
+const saveStamp=()=>{const d=new Date(),z=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}`};
+function exportSave(){const stored=save();let state=null;if(stored){try{state=JSON.parse(localStorage.getItem(KEY))}catch(e){}}// if storing failed, export the live state rather than an older stored copy
+ if(!state)state={...S,d:Array.from(D,v=>+v.toFixed(2))};
+ const blob=new Blob([JSON.stringify({format:'nuclear-sweeper-save',version:1,exported:new Date().toString(),save:state,settings:CFG})],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.href=url;a.download=`nuclear-sweeper-save-${saveStamp()}.json`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);$('#smsg').textContent='Backup file saved to your downloads.'}
+// imported saves are rebuilt from known fields only, every value typed and clamped, so a hand-edited file cannot break the game or inject markup
+function cleanSave(raw,keepTime=false){if(!raw||typeof raw!='object'||Array.isArray(raw))return null;
+ if(!Array.isArray(raw.d)||raw.d.length!=GW*GH||raw.d.some(v=>typeof v!='number'||!Number.isFinite(v)))return null;
+ if(!raw.L||typeof raw.L!='object'||Array.isArray(raw.L))return null;
+ const num=(v,min,max,int,fallback)=>{v=Number(v);if(!Number.isFinite(v))return fallback;v=Math.min(max,Math.max(min,v));return int?Math.floor(v):v},flag=v=>v===true||v===1?1:0,obj=v=>v&&typeof v=='object'&&!Array.isArray(v)?v:{};
+ const L=mkL();for(const key in L){const u=U.find(x=>x[0]==key);L[key]=num(raw.L[key],0,u?u[5]:1,true,0)}
+ const state={...fresh(),d:raw.d.map(v=>Math.min(1,Math.max(0,v))),L,roomDesign:num(raw.roomDesign,0,99,true,1),scrap:num(raw.scrap,0,1e9,true,0),cred:num(raw.cred,0,1e12,false,0),raw:num(raw.raw,0,1e9,false,0),tank:num(raw.tank,0,1e7,false,0),hp:num(raw.hp,0,1e5,false,100),
+  sector:num(raw.sector,1,9999,true,1),story:num(raw.story,0,999,true,0),clr:flag(raw.clr),total:num(raw.total,1e-6,1e9,false,1),rem:num(raw.rem,0,1e9,false,1),parts:num(raw.parts,0,1e6,true,0),
+  att:WP.map((_,i)=>{const a=obj(Array.isArray(raw.att)?raw.att[i]:null);return {s:flag(a.s),b:flag(a.b),l:flag(a.l)}}),unl:(a=>({s:flag(a.s),b:flag(a.b),l:flag(a.l)}))(obj(raw.unl)),mod:(a=>({gr:flag(a.gr),dash:flag(a.dash)}))(obj(raw.mod)),
+  vOpen:flag(raw.vOpen),vTaken:num(raw.vTaken,0,1023,true,0),iTaken:num(raw.iTaken,0,1023,true,0),bossDead:flag(raw.bossDead),bty:null,kills:num(raw.kills,0,1e9,true,0),prog:obj(raw.prog),score:obj(raw.score),t:keepTime&&typeof raw.t=='number'&&Number.isFinite(raw.t)&&raw.t>0?Math.min(raw.t,Date.now()):Date.now()};
+ // without per-weapon levels fixS migrates the old shared ones from L, exactly like loading an old save
+ if(Array.isArray(raw.wl))state.wl=WP.map((_,i)=>{const w=obj(raw.wl[i]);return {dmg:num(w.dmg,0,40,true,0),fr:num(w.fr,0,30,true,0),multi:num(w.multi,0,8,true,0)}});else delete state.wl;
+ return fixS(state)}
+// real KeyboardEvent.code values only (Escape is reserved for the menu)
+const KEYCODE=/^(Key[A-Z]|Digit[0-9]|Numpad([0-9]|Add|Subtract|Multiply|Divide|Decimal|Enter)|F([1-9]|1[0-9]|2[0-4])|Arrow(Up|Down|Left|Right)|(Shift|Control|Alt|Meta)(Left|Right)|Space|Tab|Enter|Backspace|CapsLock|Backquote|Minus|Equal|BracketLeft|BracketRight|Backslash|Semicolon|Quote|Comma|Period|Slash|IntlBackslash|Insert|Delete|Home|End|PageUp|PageDown)$/;
+function cleanSettings(raw){if(!raw||typeof raw!='object'||Array.isArray(raw))return null;const num=(v,min,max,fallback)=>{v=Number(v);return Number.isFinite(v)?Math.min(max,Math.max(min,v)):fallback},bool=(v,fallback)=>typeof v=='boolean'?v:fallback,KB={...KBD};
+ if(raw.KB&&typeof raw.KB=='object')for(const action in KBD){const code=raw.KB[action];if(typeof code=='string'&&KEYCODE.test(code))KB[action]=code}
+ return {fov:Math.round(num(raw.fov,70,120,CFG.fov)),sens:num(raw.sens,.2,3,CFG.sens),adsm:num(raw.adsm,.2,1.2,CFG.adsm),inv:bool(raw.inv,CFG.inv),adsT:bool(raw.adsT,CFG.adsT),mv:num(raw.mv,0,1,CFG.mv),sv:num(raw.sv,0,1,CFG.sv),mu:num(raw.mu,0,1,CFG.mu),music:bool(raw.music,CFG.music),geiger:bool(raw.geiger,CFG.geiger),KB}}
+let pendingImport=null;
+function readImport(file){const msg=$('#smsg');pendingImport=null;if(!file)return;if(file.size>5e6){msg.textContent='That file is too large to be a save.';return}
+ file.text().then(text=>{let data;try{data=JSON.parse(text)}catch(e){msg.textContent='Not a save file: the file is not valid JSON.';return}
+  const wrapped=data&&typeof data=='object'&&data.format=='nuclear-sweeper-save';if(wrapped&&data.version!==1){msg.textContent='This backup comes from a different game version and cannot be read here. Nothing was changed.';return}let state=null;try{state=cleanSave(wrapped?data.save:data)}catch(e){state=null}
+  if(!state){msg.textContent='Not a Nuclear Sweeper save: the map data is missing or broken. Nothing was changed.';return}
+  pendingImport={state,settings:wrapped?cleanSettings(data.settings):null};
+  msg.textContent=`Found a save from Site ${state.sector} with ${Math.floor(state.cred).toLocaleString('en-US')} credits. This replaces your current progress. `;
+  const confirm=document.createElement('button');confirm.className='kbtn';confirm.id='sic';confirm.textContent='Replace and reload';msg.append(confirm);confirm.focus()},()=>{msg.textContent='The file could not be read.'})}
+function confirmImport(){if(!pendingImport)return;const msg=$('#smsg'),saveText=JSON.stringify(pendingImport.state),cfgText=pendingImport.settings?JSON.stringify(pendingImport.settings):null;let old=null;try{old=localStorage.getItem(KEY)}catch(e){}
+ saveLocked=true;// from here on no interval or event may overwrite the imported save before the reload
+ try{localStorage.setItem(KEY,saveText);if(cfgText)localStorage.setItem('nsr_cfg',cfgText)}catch(e){let restored=false;try{if(old==null)localStorage.removeItem(KEY);else localStorage.setItem(KEY,old);restored=true}catch(_){}
+  if(restored){saveLocked=false;msg.textContent='The browser refused to store the save. Nothing was changed.';return}}
+ location.reload()}
+$('#sw').addEventListener('change',e=>{if(e.target.id=='sif'){readImport(e.target.files[0]);e.target.value=''}});
+$('#sw').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.id=='sx'){exportSave();return}if(b.id=='sim'){$('#sif').click();return}if(b.id=='sic'){confirmImport();return}if(b.dataset.k){listen=b.dataset.k;renderSet()}else if(b.id=='sc')closeSet();else if(b.id=='sk'){CFG.KB={...KBD};saveCfg();renderSet()}});
 // hotbar, Geiger gauge, vitals
 const wIcon=(w,width=58)=>{const[c,bw,bh,bl,br,gp,sc2]=w.vm,L=bl*46,B=br*46;return `<svg viewBox="0 0 70 26" width="${width}" height="${Math.round(width*26/70)}" aria-hidden="true"><rect x="4" y="9" width="${L}" height="${5+bh*20}" rx="1" fill="#b9c2ac" stroke="#1a1a1a" stroke-width=".6"/><rect x="${4+L}" y="10" width="${B}" height="3" fill="#cfd6c4"/>${gp?`<rect x="${4+L*.12}" y="${13+bh*20}" width="5" height="8" fill="#9a9e96" transform="rotate(12 ${4+L*.12} 15)"/>`:''}${sc2?`<rect x="${4+L*.35}" y="5" width="9" height="4" rx="1.5" fill="#e6ece0"/>`:''}</svg>`};
 function buildBar(){$('#wb').innerHTML=WP.map((w,i)=>`<div class="slot" data-i="${i}"><span class="k"></span>${wIcon(w)}<span class="nm">${w.n}</span><span class="at"></span><span class="am"></span><div class="rb"></div><div class="fb"></div></div>`).join('');
