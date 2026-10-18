@@ -122,6 +122,7 @@ specific weapon; progress is cumulative and is never spent or reset on promotion
 | Tier 2: Platin | 150 | 40 | 25 | 10 | 10 |
 | Tier 3: Polychrome | 400 | 100 | 60 | 40 | 40 |
 
+The Weapons overview and picker show each weapon's currently earned finish.
 Mastery changes the weapon finish and weapon-slot border, not damage. Polychrome
 cycles through colors. Weapon slots also show mastery and kill counts on hover.
 Only the weapon delivering the killing hit receives credit. Shotgun pellets
