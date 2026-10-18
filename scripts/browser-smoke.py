@@ -89,11 +89,40 @@ async def smoke(args):
         await pages[1].locator("#coop-join").click()
         await pages[1].wait_for_function("coopSession?.view()?.role==='guest'&&!coopSession.view().waiting", polling=100)
         assert await pages[1].evaluate("coopSession.view().localId") == ids[1]
+        # Fail signaling requests while leaving actual RTC data channels intact.
+        # Each long poll must fail before checking continuity, and later succeed
+        # before checking recovery; this does not restart the server or TURN.
+        signaling_down = True
+        failed_polls = [asyncio.Event() for _ in contexts]
+        for index, context in enumerate(contexts):
+            async def signaling_route(route, request, *, index=index):
+                if signaling_down:
+                    await route.abort("connectionfailed")
+                    if "/api/poll?" in route.request.url:
+                        failed_polls[index].set()
+                else:
+                    await route.continue_()
+            await context.route("**/api/**", signaling_route)
+        await asyncio.wait_for(asyncio.gather(*(event.wait() for event in failed_polls)), timeout=35)
+        outage_tick = await host.evaluate("coopSession.view().world.tick")
+        await host.wait_for_function("tick => coopSession.view().world.tick > tick + 128", arg=outage_tick, polling=100)
+        for page in pages:
+            assert await page.evaluate("!coopSession.view().waiting && coopSession.stats().peers.length===" + ("3" if page == host else "1"))
+            answer = await page.evaluate("coopSession.perform('ready',{value:true})")
+            assert answer["ok"], answer
+        signaling_down = False
+        for page in pages:
+            await page.wait_for_function("document.querySelector('#coop-status').textContent.includes('Signaling reconnected')", polling=100, timeout=45000)
+        await pages[1].reload()
+        await driver(pages[1])
+        await pages[1].locator("#coop-join").click()
+        await pages[1].wait_for_function("coopSession?.view()?.role==='guest'&&!coopSession.view().waiting", polling=100)
+        assert await pages[1].evaluate("coopSession.view().localId") == ids[1]
         await host.wait_for_function("Object.values(coopSession.view().world.players).filter(p=>p.connected).length===4", polling=100)
         disposal = await pages[1].evaluate("""() => {remotePlayers.update(coopSession.view().remote);const models=coopSession.view().remote.map(p=>sc.getObjectByName('sweeper:'+p.id));let disposed=0;for(const model of models)model.getObjectByName('equipped-weapon').children[0].geometry.addEventListener('dispose',()=>disposed++);remotePlayers.clear();return {disposed,remaining:remotePlayers.stats().players};} """)
         assert disposal == {"disposed": 3, "remaining": 0}, disposal
         assert not errors, errors
-        print(json.dumps({"browser": args.browser, "version": browser.version, "clients": 4, "transport": "real WebRTC / localhost", "checks": ["narrow mode menu", "normal solo save round trip", "developer iframe/max loadout isolation", "join", "host-confirmed hotbar selection", "movement", "equipped weapon, attachments and mastery", "grapple rope", "pause", "deployment", "guest reload/reconnect", "avatar disposal"], "errors": errors}, indent=2))
+        print(json.dumps({"browser": args.browser, "version": browser.version, "clients": 4, "transport": "real WebRTC / localhost", "checks": ["narrow mode menu", "normal solo save round trip", "developer iframe/max loadout isolation", "join", "host-confirmed hotbar selection", "movement", "equipped weapon, attachments and mastery", "grapple rope", "pause", "deployment", "guest reload/reconnect", "signaling request outage with RTC continuity", "signaling recovery and identity-preserving rejoin", "avatar disposal"], "errors": errors}, indent=2))
         for page in pages:
             await page.evaluate("coopSession?.close()")
         await browser.close()

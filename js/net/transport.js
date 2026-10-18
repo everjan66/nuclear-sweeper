@@ -2,6 +2,7 @@
 'use strict';
 const NSR=root.NSR||(root.NSR={});
 const Protocol=NSR.Protocol;
+const encoder=new TextEncoder(),byteLength=text=>encoder.encode(text).length;
 function create({url,dev=false,onEvent=()=>{},iceTransportPolicy='all'}={}){
  let base=new URL(url||location.origin).origin,member=null,closed=false,pollController=null,iceServers=[],turnConfigured=false;
  const peers=new Map();let bytesSent=0,bytesReceived=0,chunkSequence=0,signalFailures=0;
@@ -32,8 +33,8 @@ function create({url,dev=false,onEvent=()=>{},iceTransportPolicy='all'}={}){
  }
  function drop(peerId){const state=peers.get(peerId);if(!state)return;peers.delete(peerId);clearTimeout(state.timeout);state.connection.close();state.chunks.clear();state.queue=[];emit('peer-close',{peerId});}
  function receive(state,text,reliable){
-  if(typeof text!=='string'||text.length>20000){drop(state.id);return;}bytesReceived+=text.length;state.lastSeen=performance.now();
-  let value;try{value=JSON.parse(text);}catch(error){drop(state.id);return;}
+  if(typeof text!=='string'||text.length>20000||byteLength(text)>20000){drop(state.id);return;}bytesReceived+=byteLength(text);state.lastSeen=performance.now();
+  let value;try{value=JSON.parse(text);if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Invalid message.');}catch(error){drop(state.id);return;}
   if(value.kind==='hello'){
    if(value.version!==Protocol.VERSION||value.dev!==!!dev){emit('error',{message:'Incompatible game version or developer mode.'});drop(state.id);return;}
    if(!state.open){state.open=true;emit('peer-open',{peerId:state.id});}return;
@@ -44,20 +45,26 @@ function create({url,dev=false,onEvent=()=>{},iceTransportPolicy='all'}={}){
   if(value.kind==='chunk'){
    if(!reliable||!Number.isInteger(value.total)||value.total<1||value.total>256||!Number.isInteger(value.index)||value.index<0||value.index>=value.total||typeof value.text!=='string'||value.text.length>12000){drop(state.id);return;}
    if(!state.chunks.has(value.id)){if(state.chunks.size>=3){drop(state.id);return;}state.chunks.set(value.id,{total:value.total,parts:[],bytes:0,created:performance.now()});}
-   const buffer=state.chunks.get(value.id);if(buffer.total!==value.total||buffer.parts[value.index]!==undefined)return;buffer.parts[value.index]=value.text;buffer.bytes+=value.text.length;
+   const buffer=state.chunks.get(value.id);if(buffer.total!==value.total||buffer.parts[value.index]!==undefined)return;buffer.parts[value.index]=value.text;buffer.bytes+=byteLength(value.text);
    if(buffer.bytes>Protocol.MAX_SNAPSHOT){drop(state.id);return;}
-   if(buffer.parts.filter(part=>part!==undefined).length===buffer.total){state.chunks.delete(value.id);try{value=JSON.parse(buffer.parts.join(''));}catch(error){drop(state.id);return;}}
+   if(buffer.parts.filter(part=>part!==undefined).length===buffer.total){state.chunks.delete(value.id);try{value=JSON.parse(buffer.parts.join(''));if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Invalid message.');}catch(error){drop(state.id);return;}}
    else return;
   }
   emit('message',{peerId:state.id,data:value,reliable});
  }
- function flush(state){const channel=state.reliable;if(!channel||channel.readyState!=='open')return;while(state.queue.length&&channel.bufferedAmount<65536){const text=state.queue.shift();state.queuedBytes-=text.length;channel.send(text);bytesSent+=text.length;}}
+ function flush(state){const channel=state.reliable;if(!channel||channel.readyState!=='open')return;while(state.queue.length&&channel.bufferedAmount<65536){const packet=state.queue[0];try{channel.send(packet.text);}catch(error){emit('error',{peerId:state.id,message:'Connection could not send data. Rejoin to retry.'});drop(state.id);return;}state.queue.shift();state.queuedBytes-=packet.bytes;bytesSent+=packet.bytes;}}
  function send(peerId,value,reliable=true){
-  const state=peers.get(peerId);if(!state?.open)return false;const text=JSON.stringify(value);if(text.length>Protocol.MAX_SNAPSHOT)return false;
-  if(!reliable){if(text.length>16000||state.unreliable?.readyState!=='open'||state.unreliable.bufferedAmount>32768)return false;state.unreliable.send(text);bytesSent+=text.length;return true;}
-  const pieces=[];if(text.length<=14000)pieces.push(text);else{const id=++chunkSequence,total=Math.ceil(text.length/10000);for(let index=0;index<total;index++)pieces.push(JSON.stringify({kind:'chunk',id,total,index,text:text.slice(index*10000,(index+1)*10000)}));}
-  if(state.queuedBytes+text.length>Protocol.MAX_SNAPSHOT){emit('error',{peerId,message:'Connection is too slow to synchronize. Rejoin to retry.'});drop(peerId);return false;}
-  state.queue.push(...pieces);state.queuedBytes+=pieces.reduce((total,piece)=>total+piece.length,0);flush(state);return true;
+  const state=peers.get(peerId);if(!state?.open)return false;const text=JSON.stringify(value),bytes=byteLength(text);if(bytes>Protocol.MAX_SNAPSHOT)return false;
+  if(!reliable){if(bytes>16000||state.unreliable?.readyState!=='open'||state.unreliable.bufferedAmount+bytes>32768)return false;try{state.unreliable.send(text);}catch(error){return false;}bytesSent+=bytes;return true;}
+  const pieces=[];if(bytes<=14000)pieces.push(text);else{
+   const id=++chunkSequence,parts=[];
+   for(let offset=0;offset<text.length;){let length=Math.min(10000,text.length-offset);while(byteLength(JSON.stringify(text.slice(offset,offset+length)))>19000)length=Math.floor(length/2);parts.push(text.slice(offset,offset+length));offset+=length;}
+   if(parts.length>256)return false;
+   for(let index=0;index<parts.length;index++)pieces.push(JSON.stringify({kind:'chunk',id,total:parts.length,index,text:parts[index]}));
+  }
+  const packets=pieces.map(text=>({text,bytes:byteLength(text)})),queuedBytes=packets.reduce((total,packet)=>total+packet.bytes,0);
+  if(state.queuedBytes+(state.reliable?.bufferedAmount||0)+queuedBytes>Protocol.MAX_SNAPSHOT){emit('error',{peerId,message:'Connection is too slow to synchronize. Rejoin to retry.'});drop(peerId);return false;}
+  state.queue.push(...packets);state.queuedBytes+=queuedBytes;flush(state);return peers.has(peerId);
  }
  async function handle(message){
   if(message.type==='peer-joined'){
@@ -75,7 +82,7 @@ function create({url,dev=false,onEvent=()=>{},iceTransportPolicy='all'}={}){
  }
  async function poll(){
   while(!closed&&member){
-   try{pollController=new AbortController();const messages=await request('poll?room='+encodeURIComponent(member.room)+'&member='+encodeURIComponent(member.memberId),null,pollController.signal);signalFailures=0;for(const message of messages)await handle(message);}
+   try{pollController=new AbortController();const messages=await request('poll?room='+encodeURIComponent(member.room)+'&member='+encodeURIComponent(member.memberId),null,pollController.signal);if(signalFailures)emit('status',{message:'Signaling reconnected. Invitations and peer negotiation are available again.'});signalFailures=0;for(const message of messages)await handle(message);}
    catch(error){if(closed)return;signalFailures++;emit('status',{message:'Signaling unavailable; established peers continue. '+error.message});await new Promise(resolve=>setTimeout(resolve,Math.min(5000,signalFailures*1000)));}
   }
  }

@@ -1,6 +1,6 @@
 # Private browser co-op
 
-Implementation status: October 18, 2026. Local endurance and Chromium/Firefox
+Implementation status: October 19, 2026. Local endurance and Chromium/Firefox
 browser checks pass; external network qualification remains open. The design is in
 [MULTIPLAYER_PLAN.md](MULTIPLAYER_PLAN.md).
 
@@ -114,7 +114,7 @@ Session tests use a controlled clock/network with 150 ms RTT and 2% packet loss
 to check prediction convergence, input expiry, transactions, pause and reconnect.
 GitHub Actions runs this suite and a two-minute simulated soak on Node 24.
 
-October 18 validation: 26 automated tests pass. Four independent browser contexts
+October 19 validation: 33 automated tests pass. Four independent browser contexts
 passed real localhost WebRTC checks in Chromium 154.0.8037.92 and Playwright
 Firefox 157.0: join, hotbar selection, movement, remote weapons/attachments/finish,
 grapple rope, host pause, deployment, guest reload/reconnect and avatar disposal.
@@ -122,6 +122,18 @@ Both also checked the narrow mode menu, normal solo save round trip and develope
 iframe/max-loadout save isolation. The browser harness drives the simulation with
 timers and invokes rendering explicitly to work with software WebGL; it does not
 measure sustained rendering performance.
+
+Transport regression tests also exercise blocked reliable channels, repeated
+snapshot bursts, UTF-8 and escaped snapshot chunking, reordered/duplicate chunks,
+unreliable congestion, SCTP send failures and malformed message envelopes. The
+2 MiB per-peer reliable limit includes encoded chunk envelopes and data already
+buffered by WebRTC. Reliable overflow closes the affected connection with a retry
+message; congested unreliable frames are dropped without building another queue.
+Byte counters measure UTF-8 application packets, excluding WebRTC/IP overhead.
+Both browser runs also abort signaling requests for all four clients, confirm
+continued host ticks and reliable actions over established RTC channels, restore
+polling, and reload/rejoin a guest with the same identity. This checks request
+outage recovery on localhost; it does not restart the signaling or TURN process.
 
 The four-client deterministic soak completed 2,075 simulated seconds with 150 ms
 RTT, +/-45 ms one-way jitter and 2% unreliable-message loss: 15 purchases,
@@ -141,13 +153,15 @@ Python Playwright (`python -m pip install playwright==1.64.0`), install its brow
 `--executable` can select an existing compatible browser executable. The game
 itself still has no added runtime dependencies. Raw validation results are in
 [docs/validation/2026-10-18-coop-release.json](docs/validation/2026-10-18-coop-release.json).
+The subsequent transport/recovery results are recorded in
+[docs/validation/2026-10-19-coop-transport.json](docs/validation/2026-10-19-coop-transport.json).
 
 The full release qualification still needs:
 
 - Run four human players for at least 30 real-time minutes with repeated collecting, shooting,
   loot races, purchases, rescues and site deployments; compare team/player state.
 - Use separate home/mobile networks and a forced TURN connection. Verify UDP,
-  TCP/TLS fallback, service outage and recovery, and guest reconnect after loss.
+  TCP/TLS fallback, signaling/TURN process restart and recovery, and guest reconnect after loss.
 - Review full parkour/combat/gear parity and animation in both browsers with
   baseline and max loadouts; check real tab visibility pause/resume behavior.
 - Measure bandwidth/frame time in a busy four-player site and check remote
