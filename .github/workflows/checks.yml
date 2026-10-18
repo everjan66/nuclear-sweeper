@@ -9,3 +9,5 @@ jobs:
         with:
           node-version: 24
       - run: npm test
+      - name: Four-client simulated soak
+        run: node scripts/coop-soak.cjs 2

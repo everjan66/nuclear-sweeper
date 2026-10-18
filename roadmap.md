@@ -13,7 +13,7 @@ Update this file as work lands.
 
 ## Multiplayer implementation
 
-October 17, 2026: the private co-op implementation is available in the working
+October 18, 2026: the private co-op implementation is available in the working
 tree. See [MULTIPLAYER.md](MULTIPLAYER.md) for setup, source map and validation;
 [MULTIPLAYER_PLAN.md](MULTIPLAYER_PLAN.md) remains the design reference.
 Rows remain In progress until review/merge and the listed acceptance checks.
@@ -22,10 +22,10 @@ Rows remain In progress until review/merge and the listed acceptance checks.
 | --- | --- | --- |
 | K1 - Shared simulation | DOM-free maps, movement and co-op simulation with explicit players; solo uses shared map/movement | In progress: solo combat/economy migration and gameplay parity review remain |
 | K2 - Connections | Four-slot private signaling, host-star WebRTC, invitations, version/dev checks, ICE configuration | In progress: deployed TURN and separate-network checks remain |
-| K3 - Synchronization | Fixed host ticks, prediction/replay, snapshots, dust updates, interpolation, confirmed transactions | In progress: simulated 150 ms RTT/2% loss passes; real jitter/backpressure and bandwidth qualification remain |
-| K4 - Co-op gameplay | Shared resources/loot, personal equipment/progression, guest-targeting AI, readiness/deployment, radio and avatars | In progress: four-player gameplay/balance and remote cosmetic fidelity remain |
-| K5 - Persistence/lifecycle | Isolated checkpoints, validated backup import/export, character reconnect, grace/rescue and host pause | In progress: extended browser/network acceptance remains |
-| K6 - Qualification | Automated suite/CI, local two-browser WebRTC smoke checks, documented deployment/release checklist | In progress: Firefox, forced relay, separate networks and four-player 30-minute run remain |
+| K3 - Synchronization | Fixed host ticks, prediction/replay, snapshots, dust updates, interpolation, confirmed transactions; packed wire v2 | In progress: 150 ms RTT/45 ms jitter/2% loss soak passes; payload reduced 41%; external backpressure/link qualification remains |
+| K4 - Co-op gameplay | Shared resources/loot, personal equipment/progression, guest-targeting AI, readiness/deployment, radio and equipped remote weapons/grapples | In progress: remote visual checks pass; human gameplay/balance and animation parity remain |
+| K5 - Persistence/lifecycle | Isolated checkpoints, validated backup import/export, character reconnect, grace/rescue and host pause; reload frees signaling slots | In progress: Chromium/Firefox live reload and simulated host restart pass; external network/tab visibility acceptance remains |
+| K6 - Qualification | 26 automated tests, CI soak, four-context real WebRTC checks in Chromium/Firefox and 30 simulated minutes with four clients | In progress: forced TURN, separate networks and a 30-minute real-time human session remain; evidence in docs/validation |
 
 The implementation also provides contributor workflow/source mapping and
 automated regression coverage for M1/M2. Their rows below stay In progress while

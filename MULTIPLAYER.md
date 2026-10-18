@@ -1,7 +1,7 @@
 # Private browser co-op
 
-Implementation status: October 17, 2026. Playable local implementation; external
-network and extended browser qualification remain open. The design is in
+Implementation status: October 18, 2026. Local endurance and Chromium/Firefox
+browser checks pass; external network qualification remains open. The design is in
 [MULTIPLAYER_PLAN.md](MULTIPLAYER_PLAN.md).
 
 ## Running and playing
@@ -39,10 +39,12 @@ live session; resume the host checkpoint and distribute a new invitation.
   snapshots, interpolation, transactions, reconnect grace and pause lifecycle.
 - `js/storage/coop.js`: isolated checkpoints and validated import.
 - `js/ui/coop.js`: mode selection, invitations, roster, backup UI and diagnostics.
+- `js/ui/remote-players.js`: equipped remote weapons, attachments, mastery finishes,
+  reload/muzzle presentation, grapple ropes and avatar resource cleanup.
 - `services/signaling/server.cjs`: ephemeral private room discovery and ICE config.
 
 Load order is core definitions/map/movement, simulation, protocol/transport,
-storage/session, co-op UI, then the existing HTML render shell. Scripts expose
+storage/session, remote-player/co-op UI, then the existing HTML render shell. Scripts expose
 `NSR` interfaces; DOM-free modules also support CommonJS for tests.
 
 The host runs 64 Hz simulation; guests send redundant sequenced input around
@@ -54,6 +56,12 @@ Reliable messages carry initial/transition snapshots, absolute dust changes,
 events and idempotent transactions. Session and generation IDs reject obsolete
 gameplay messages after reconnect or deployment.
 
+Wire protocol version 2 packs input controls into validated bit masks and sends
+only render-relevant remote pose fields. Hosts and guests must reload together
+and create a fresh invitation when upgrading from version 1. Co-op checkpoint
+format version 1 remains unchanged. Exiting/reloading a page sends an authenticated
+keepalive leave request to free the signaling slot promptly.
+
 The signaling implementation deliberately uses HTTP REST and long polling,
 instead of the proposed WebSocket service, to keep setup dependency-free.
 Gameplay goes over WebRTC. Losing signaling does not destroy established peer
@@ -63,8 +71,9 @@ and expire; checkpoints are stored in the host browser, not on this server.
 Shared map and movement are integrated into solo. Solo combat/economy still use
 the legacy HTML shell; a complete single-simulation solo migration remains a K1
 follow-up. Co-op AI uses its own shared targeting/pathing implementation and
-needs further gameplay parity/balance review. Remote avatars currently use a
-generic weapon model; remote grapple/weapon cosmetic fidelity remains unfinished.
+needs further gameplay parity/balance review. Remote avatars show equipped weapon
+dimensions, attachments, mastery finish, reload pose, confirmed muzzle flashes and
+grapple ropes. Detailed animation and finish-art parity still need visual review.
 
 ## Hosting on the internet
 
@@ -103,19 +112,44 @@ guest-targeting AI, deployment authority, save restart/import isolation, radio
 progress, disconnect rescue, input validation and signaling authorization/capacity.
 Session tests use a controlled clock/network with 150 ms RTT and 2% packet loss
 to check prediction convergence, input expiry, transactions, pause and reconnect.
-GitHub Actions runs this suite on Node 24.
+GitHub Actions runs this suite and a two-minute simulated soak on Node 24.
 
-Local Chromium browser smoke checks confirmed two real WebRTC clients, movement,
-stable reconnect identity, guest purchase confirmation, shared deployment and host
-pause propagation. Script parsing and a 640-tick checkpoint restore also passed.
-This is not the full release qualification:
+October 18 validation: 26 automated tests pass. Four independent browser contexts
+passed real localhost WebRTC checks in Chromium 154.0.8037.92 and Playwright
+Firefox 157.0: join, hotbar selection, movement, remote weapons/attachments/finish,
+grapple rope, host pause, deployment, guest reload/reconnect and avatar disposal.
+Both also checked the narrow mode menu, normal solo save round trip and developer
+iframe/max-loadout save isolation. The browser harness drives the simulation with
+timers and invokes rendering explicitly to work with software WebGL; it does not
+measure sustained rendering performance.
 
-- Run four players for at least 30 minutes with repeated collecting, shooting,
+The four-client deterministic soak completed 2,075 simulated seconds with 150 ms
+RTT, +/-45 ms one-way jitter and 2% unreliable-message loss: 15 purchases,
+15 deployments, 14 disconnect/rescue/reconnect cycles and one host restart, with
+no validation errors. Checkpoints are reloaded every simulated minute. Input and
+remote-frame packing reduced aggregate JSON payload traffic by about 41%, from
+3.33 to 1.95 Mbps in the same scenario. These are simulated payload totals across
+all clients, excluding WebRTC/IP overhead, and do not qualify an internet link.
+The scenario uses scripted movement/fire and fixture teleports, funding and
+clearance to exercise lifecycle transitions; it is not a human gameplay/balance test.
+
+Reproduce with `npm run test:soak` (30 simulated minutes), or
+`node scripts/coop-soak.cjs 2` for the shorter CI run. For browser checks, install
+Python Playwright (`python -m pip install playwright==1.64.0`), install its browsers
+(`python -m playwright install chromium firefox`), start the game server, then run
+`python scripts/browser-smoke.py --browser chromium` and repeat with `--browser firefox`.
+`--executable` can select an existing compatible browser executable. The game
+itself still has no added runtime dependencies. Raw validation results are in
+[docs/validation/2026-10-18-coop-release.json](docs/validation/2026-10-18-coop-release.json).
+
+The full release qualification still needs:
+
+- Run four human players for at least 30 real-time minutes with repeated collecting, shooting,
   loot races, purchases, rescues and site deployments; compare team/player state.
 - Use separate home/mobile networks and a forced TURN connection. Verify UDP,
   TCP/TLS fallback, service outage and recovery, and guest reconnect after loss.
-- Exercise Chromium and Firefox, normal and developer entry points, baseline
-  and max loadouts, host visibility pause/resume and browser reloads.
+- Review full parkour/combat/gear parity and animation in both browsers with
+  baseline and max loadouts; check real tab visibility pause/resume behavior.
 - Measure bandwidth/frame time in a busy four-player site and check remote
   movement/parkour presentation under jitter, burst loss and backpressure.
 - Recheck solo save compatibility, progression and movement against MOVEMENT.md.

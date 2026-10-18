@@ -17,7 +17,7 @@ function create({dev=false,name='Sweeper',url,relay=false,onEvent=()=>{},storage
   const own=bindings.get(peerId)||localId,players={};
   for(const player of Object.values(world.players)){
    if(player.id===own){players[player.id]=copy(player);delete players[player.id].actionResults;}
-   else players[player.id]={id:player.id,name:player.name,pose:copy(player.pose),wi:player.wi,hp:player.hp,ready:player.ready,connected:player.connected,present:player.present};
+   else {const pose=player.pose;players[player.id]={id:player.id,name:player.name,pose:{x:pose.x,z:pose.z,h:pose.h,yaw:pose.yaw,pit:pose.pit,low:!!pose.low,st:pose.st,gr:pose.gr?{x:pose.gr.x,y:pose.gr.y,z:pose.gr.z}:null},wi:player.wi,appearance:Defs.appearance(player),reloading:player.rel>0,hp:player.hp,ready:player.ready,connected:player.connected,present:player.present};}
   }
   const precision=value=>Math.round(value*1000)/1000;
   return {type:'frame',session:sessionId,generation:world.generation,tick:world.tick,time:world.time,players,team:world.team,rem:world.rem,clr:world.clr,story:world.story,vOpen:world.vOpen,paused:pausedByHost,
@@ -130,6 +130,7 @@ function create({dev=false,name='Sweeper',url,relay=false,onEvent=()=>{},storage
   if(world.events.length){const values=world.events.splice(0);transport.broadcast({type:'events',session:sessionId,generation:world.generation,events:values},true);events(values);if(values.some(value=>['transaction','vault','rescue'].includes(value.type)))save();}
  }
  function advance(dt,raw={}){
+  for(const [id,pending]of pendingActions)if(performance.now()>pending.until){pendingActions.delete(id);pending.resolve({ok:false,reason:'Host did not confirm this action. Reconnect before trying again.'});status('Action confirmation timed out.');}
   if(closed||!world||waiting||syncing)return;
   if(pausedByHost){if(role==='host'){snapshotAccumulator+=dt;if(snapshotAccumulator>=.5){snapshotAccumulator=0;sendFrame();}}return;}
   if(role==='guest'&&performance.now()-lastHostAt>1500){waiting=true;status('Waiting for host. Prediction has stopped.');return;}
@@ -150,9 +151,8 @@ function create({dev=false,name='Sweeper',url,relay=false,onEvent=()=>{},storage
    if(dustAccumulator>=.1){dustAccumulator=0;const cells=[...new Set(world.dirty.splice(0))].map(tile=>[tile,world.D[tile]]);if(cells.length)transport.broadcast({type:'dust',session:sessionId,generation:world.generation,cells},true);}
    if(saveAccumulator>=8){saveAccumulator=0;save();}
   }else{
-   sendAccumulator+=dt;if(sendAccumulator>=1/32){sendAccumulator=0;transport.send('host',{type:'inputs',session:sessionId,generation:world.generation,inputs:inputHistory.slice(-8)},false);}
+   sendAccumulator+=dt;if(sendAccumulator>=1/32){sendAccumulator=0;transport.send('host',{type:'inputs',session:sessionId,generation:world.generation,inputs:inputHistory.slice(-8).map(Protocol.packInput)},false);}
   }
-  for(const [id,pending]of pendingActions)if(performance.now()>pending.until){pendingActions.delete(id);pending.resolve({ok:false,reason:'Host did not confirm this action. Reconnect before trying again.'});status('Action confirmation timed out.');}
  }
  function perform(type,fields={}){
   if(!world||waiting||pausedByHost)return Promise.resolve({ok:false,reason:'Wait for the host.'});
@@ -162,9 +162,9 @@ function create({dev=false,name='Sweeper',url,relay=false,onEvent=()=>{},storage
  }
  function view(){
   if(!world)return null;const player=role==='guest'?predicted:world.players[localId];if(!player)return null;
-  const remote=Object.values(world.players).filter(member=>member.id!==localId&&(member.connected||member.present)).map(member=>copy(member));
+  const remote=Object.values(world.players).filter(member=>member.id!==localId&&(member.connected||member.present)).map(member=>({...copy(member),appearance:member.appearance||Defs.appearance(member),reloading:member.reloading??member.rel>0}));
   const target=performance.now()-100,older=remoteFrames.filter(frame=>frame.at<=target).at(-1),newer=remoteFrames.find(frame=>frame.at>target);
-  if(older&&newer){const scale=clamp((target-older.at)/(newer.at-older.at));for(const member of remote){const before=older.players[member.id],after=newer.players[member.id];if(before&&after)for(const key of ['x','z','h','yaw'])member.pose[key]=before.pose[key]+(after.pose[key]-before.pose[key])*scale;}}
+  if(older&&newer){const scale=clamp((target-older.at)/(newer.at-older.at));for(const member of remote){const before=older.players[member.id],after=newer.players[member.id];if(before&&after){for(const key of ['x','z','h','pit'])member.pose[key]=before.pose[key]+(after.pose[key]-before.pose[key])*scale;member.pose.yaw=Defs.lerpAngle(before.pose.yaw,after.pose.yaw,scale);}}}
   let enemies=world.E;
   if(older&&newer){const scale=clamp((target-older.at)/(newer.at-older.at)),before=new Map(older.E.map(enemy=>[enemy.id,enemy])),after=new Map(newer.E.map(enemy=>[enemy.id,enemy]));enemies=world.E.map(enemy=>{const first=before.get(enemy.id),last=after.get(enemy.id);return first&&last?{...enemy,x:first.x+(last.x-first.x)*scale,z:first.z+(last.z-first.z)*scale}:enemy;});}
   return {world,player,remote,enemies,role,waiting,paused:pausedByHost,localId,saveError};

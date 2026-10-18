@@ -77,3 +77,12 @@ test('a disconnected character remains vulnerable and can only be rescued once',
  openFloor(world);guest.pose.x=40;guest.pose.z=40;guest.hp=.1;world.E=[{id:'enemy',x:41,z:41,t:0,hp:30,mh:30,al:1,cd:0,fc:1,ph:0}];Sim.step(world,{});const raw=world.team.raw;assert.equal(guest.disconnectedRescued,true);assert.equal(guest.tank,0);assert.equal(raw,10);
  Sim.rescue(world,guest.id);assert.equal(world.team.raw,raw);assert.equal(world.events.filter(event=>event.type==='rescue').length,1);
 });
+test('checkpoint restore retains the spawn schedule and rejects invalid ledge state',()=>{
+ const {world,host}=fixture();world.spawnT=.75;const restored=Sim.restore(Sim.snapshot(world));assert.equal(restored.spawnT,.75);
+ const corrupt=Sim.snapshot(world);corrupt.players.host.pose.st=2;corrupt.players.host.pose.hd={x:1,z:0};corrupt.players.host.pose.hT=null;assert.throws(()=>Sim.restore(corrupt));
+});
+test('a ranged enemy at the target position keeps finite movement and projectile state',()=>{
+ const {world,guest}=fixture();openFloor(world);guest.pose.x=40;guest.pose.z=40;world.E=[{id:'coincident',x:40,z:40,t:1,hp:30,mh:30,al:1,cd:0,fc:0,ph:0}];
+ Sim.step(world,{});for(const entity of [...world.E,...world.EP])for(const key of ['x','z'])assert.ok(Number.isFinite(entity[key]));
+ for(const projectile of world.EP)for(const key of ['y','vx','vy','vz'])assert.ok(Number.isFinite(projectile[key]));
+});

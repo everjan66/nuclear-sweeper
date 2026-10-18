@@ -48,6 +48,9 @@ const SEC=[
 {n:'Meridian Breeder Plant',b:[[0,'Hanne Voss','Meridian. The last site on the old maps. Everything here hits harder.'],[97,'SITE CLEARED','Meridian is cold. The old maps are empty, but the fallout isn\'t. There are more sites. You know what you do.']]}];
 const getSec=s=>SEC[s-1]||{n:'Deep Site '+s,b:[[0,'Hanne Voss','Another reactor, another grave. Stickier dust, meaner things. Same job.'],[97,'SITE CLEARED','Site sealed. Another beacon goes dark. Next.']]};
 
-NSR.Defs={SEC,getSec,TS,GW,GH,WH,TT,TB,MOVE,SCORE,cl,lerp,ST,U,cost,WP,ET,ENAMES,WCLASS,CNAMES,UNLOCK,TIERS,mkL,rng,ROOM_DESIGNS,ATT,MOD};
+function weaponTier(progress){let tier=0;for(let next=1;next<TIERS.length;next++){const target=TIERS[next];if(progress&&progress.kills>=target.k&&target.types.every((goal,type)=>progress.types[type]>=goal))tier=next;else break;}return tier;}
+function appearance(player){return {tier:weaponTier(player.prog?.weapons[player.wi]),attachments:{s:!!player.att?.[player.wi]?.s,b:!!player.att?.[player.wi]?.b,l:!!player.att?.[player.wi]?.l}};}
+const lerpAngle=(first,last,amount)=>first+Math.atan2(Math.sin(last-first),Math.cos(last-first))*amount;
+NSR.Defs={SEC,getSec,weaponTier,appearance,lerpAngle,TS,GW,GH,WH,TT,TB,MOVE,SCORE,cl,lerp,ST,U,cost,WP,ET,ENAMES,WCLASS,CNAMES,UNLOCK,TIERS,mkL,rng,ROOM_DESIGNS,ATT,MOD};
 if(typeof module!=='undefined')module.exports=NSR.Defs;
 })(globalThis);

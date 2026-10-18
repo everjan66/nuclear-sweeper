@@ -7,7 +7,7 @@ function create({url,dev=false,onEvent=()=>{},iceTransportPolicy='all'}={}){
  const peers=new Map();let bytesSent=0,bytesReceived=0,chunkSequence=0,signalFailures=0;
  const emit=(type,data={})=>onEvent({type,...data});
  async function request(path,body,signal){
-  const response=await fetch(base+'/api/'+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(member?{Authorization:'Bearer '+member.memberToken}:{})},body:body?JSON.stringify({...body,...(member?{room:member.room,member:member.memberId}:{})}):undefined,signal});
+  const response=await fetch(base+'/api/'+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(member?{Authorization:'Bearer '+member.memberToken}:{})},body:body?JSON.stringify({...body,...(member?{room:member.room,member:member.memberId}:{})}):undefined,signal,keepalive:path==='leave'});
   const value=await response.json();if(!response.ok)throw new Error(value.error||'Signaling service unavailable.');return value;
  }
  async function signal(peerId,data){return request('signal',{to:peerId,data});}
@@ -86,7 +86,8 @@ function create({url,dev=false,onEvent=()=>{},iceTransportPolicy='all'}={}){
    try{const reports=await state.connection.getStats();reports.forEach(report=>{if(report.type==='candidate-pair'&&report.state==='succeeded'){const candidate=reports.get(report.localCandidateId);state.path=candidate?.candidateType==='relay'?'TURN relay':'direct';}});}catch(error){}
   }
  },2000);
- async function close(){if(closed)return;closed=true;clearInterval(heartbeat);pollController?.abort();if(member)request('leave',{}).catch(()=>{});for(const id of [...peers.keys()])drop(id);}
+ async function close(){if(closed)return;closed=true;root.removeEventListener?.('pagehide',close);clearInterval(heartbeat);pollController?.abort();if(member)request('leave',{}).catch(()=>{});for(const id of [...peers.keys()])drop(id);}
+ root.addEventListener?.('pagehide',close);
  return {
   async host(){try{member=await request('create',{version:Protocol.VERSION,dev});await initialize();const invitation={url:base,room:member.room,token:member.token,dev,version:Protocol.VERSION};return {room:member.room,token:member.token,invitation};}catch(error){await close();throw error;}},
   async join(invitation){try{const value=Protocol.invitation(invitation);base=value.url;member=await request('join',{room:value.room,token:value.token,version:Protocol.VERSION,dev});await initialize();return member.memberId;}catch(error){await close();throw error;}},

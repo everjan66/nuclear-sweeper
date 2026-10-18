@@ -193,6 +193,7 @@ button.u:not(:disabled):hover .buybar{background:#b6e65a}
 <script src="js/net/transport.js"></script>
 <script src="js/storage/coop.js"></script>
 <script src="js/net/session.js"></script>
+<script src="js/ui/remote-players.js"></script>
 <script src="js/ui/coop.js"></script>
 <script>
 let coopSession=null,coopUI=null,gameStarted=false,coopEdges={},coopWeapon=0,coopRemote=[],coopVisualCooldown=0;
@@ -230,7 +231,7 @@ function tickPoints(dt){if(streak.left<=0)return;streak.left=Math.max(0,streak.l
 function finishScore(reason){if(S.score.run>0){S.score.board.push({points:S.score.run,site:S.sector,reason});S.score.board.sort((first,second)=>second.points-first.points);S.score.board.length=Math.min(5,S.score.board.length)}S.score.run=0;resetStreak();save()}
 function scoreHTML(){const format=value=>value.toLocaleString('en-US');return `<h3>Combat score · records only, buys nothing</h3><div class=j>Kill +100, head shot +20, chains within 5 seconds up to &times;1.5. Score counts for records and achievements. Purchases use credits, scrap and parts.</div><div class=g><div class=u><b>Current run - ${format(S.score.run)}</b><small>Personal best - ${format(S.score.best)} points</small><small>Lifetime - ${format(S.score.total)} points</small><small>Longest streak - ${S.score.chain} kills</small></div></div><div class=j>Local top 5: runs end on rescue or deployment. Reloading preserves your score, not your streak. Records stay on this browser.</div><div class=g>${S.score.board.length?S.score.board.map((entry,index)=>`<div class=u><b>#${index+1} - ${format(entry.points)} points</b><small>Site ${entry.site} / ${entry.reason}</small></div>`).join(''):'<div class=j>Finish a run to set your first record.</div>'}</div>`}
 function classKills(type){return S.prog.weapons.reduce((total,weapon,index)=>total+(WCLASS[index]==type?weapon.kills:0),0)}
-function weaponTier(index){const progress=S.prog.weapons[index];let tier=0;for(let next=1;next<TIERS.length;next++){const target=TIERS[next];if(progress.kills>=target.k&&target.types.every((goal,type)=>progress.types[type]>=goal))tier=next;else break}return tier}
+function weaponTier(index){return NSR.Defs.weaponTier(S.prog.weapons[index])}
 function checkProgress(notices=[]){let changed=false;
  for(let type=1;type<CNAMES.length;type++)if(classKills(type-1)>=UNLOCK[type]){const weapons=WP.map((_,index)=>index).filter(index=>WCLASS[index]==type);if(weapons.some(index=>!S.L['w'+index])){for(const index of weapons)S.L['w'+index]=1;celebrate({kind:'unlock',kicker:'NEW WEAPON CLASS',title:CNAMES[type]+' unlocked',sub:weapons.map(index=>WP[index].n).join(' · '),col:'#9acd32',mark:ico('check')});changed=true}}
  for(const achievement of ACH)if(!S.prog.ach.includes(achievement.id)&&achievement.read()>=achievement.goal){S.prog.ach.push(achievement.id);celebrate({kind:'ach',kicker:'ACHIEVEMENT',title:achievement.n,sub:achievement.goal.toLocaleString('en-US')+' '+achievement.unit,col:'#6ee7ff',mark:'★'});changed=true}
@@ -444,7 +445,7 @@ function build3D(){applyTheme();const th=TH();if(W3){if(W3.userData.details)W3.u
 const pm=new THREE.Group(),sm=new THREE.MeshLambertMaterial({color:0xf2c14e}),dk=new THREE.MeshLambertMaterial({color:0x22304d}),gy=new THREE.MeshLambertMaterial({color:0x5a5a5a});
 {const a=(g,m,x,y,z)=>{const o=new THREE.Mesh(g,m);o.position.set(x,y,z);pm.add(o);return o};
  a(new THREE.CylinderGeometry(.33,.4,1,12),sm,0,.8,0);const h=a(sph,sm,0,1.5,0);h.scale.set(.27,.27,.27);const v=a(sph,dk,0,1.5,-.18);v.scale.set(.2,.14,.12);
- a(new THREE.BoxGeometry(.5,.6,.25),new THREE.MeshLambertMaterial({color:0xbf8f3b}),0,.95,.34);a(new THREE.BoxGeometry(.5,.18,.7),gy,0,.2,-.5);a(new THREE.BoxGeometry(.1,.12,.5),gy,.32,1.0,-.5);sc.add(pm)}
+ a(new THREE.BoxGeometry(.5,.6,.25),new THREE.MeshLambertMaterial({color:0xbf8f3b}),0,.95,.34);a(new THREE.BoxGeometry(.5,.18,.7),gy,0,.2,-.5);a(new THREE.BoxGeometry(.1,.12,.5),gy,.32,1.0,-.5).name='held-weapon';sc.add(pm)}
 const gm=new THREE.Group(),gmat=new THREE.MeshLambertMaterial({color:0x8a9099}),dkm=new THREE.MeshLambertMaterial({color:0x1a1a1a}),bx=new THREE.BoxGeometry(1,1,1),gb=new THREE.Mesh(bx,gmat),gr=new THREE.Mesh(bx,dkm),gg=new THREE.Mesh(bx,dkm),gs=new THREE.Mesh(bx,dkm);gm.add(gb);gm.add(gr);gm.add(gg);gm.add(gs);const gmag=new THREE.Mesh(bx,dkm);gmag.scale.set(.04,.13,.07);gm.add(gmag);cam3.add(gm);
 const masteryMat=new THREE.MeshPhongMaterial({specular:0xffffff,shininess:100});
 let skinWeapon=-1,skinTier=-1,polychromeMap=null;
@@ -719,7 +720,7 @@ function shoot(s){const w=WP[wi],at=S.att[wi],o=fpv?CP:CP.H,sp=(adsE?w.sa*(at.b?
    for(let j=0;j<3;j++)F.push({x:h.x,y:h.y,z:h.z,vx:rnd(-3,3),vy:rnd(0,4),vz:rnd(-3,3),l:.3,m:.3,c:h.e?'#8dff4a':'#ffb84a',r:.14});
    if(!h.e)break;const e=h.e;let dm=w.d*WS(wi).dm*dmul*(ET[e.t].sc>1.2?(w.big||1):1);if(h.hd)dm=e.t==2?dm*4:Math.max(dm*4,e.mh*1.01);e.hp-=dm*power;if(e.hp<=0)recordKill(e,wi,h.hd);hit.add(e);hmT=.18;hmH=h.hd;if(!e.al)wake(e)}}
  noise(p.x,p.z,at.s?9:34);if(!(DEV_MODE&&DEV_TOOLS.infiniteAmmo))ammo[wi]--;wcd+=1/(w.r*WS(wi).fr);hf=1;kick=.06+w.rc*3;p.rp=Math.min(.3,p.rp+w.rc*(adsE?.5:1)*(at.b?1.15:1));mzT=at.s?0:.06;snd(at.s?140:180+wi*60,.06,'sawtooth',at.s?.008:.025)}
-function setW(i){if(i==0||S.L['w'+i]>0){wi=i;vmSet(WP[wi]);rel=0;relPh=0;wcd=.25;swT=.28}}
+function setW(i){if(i==0||S.L['w'+i]>0){if(coopSession){coopWeapon=i;return}wi=i;vmSet(WP[wi]);rel=0;relPh=0;wcd=.25;swT=.28}}
 function upd(dt){tt+=dt;tickPoints(dt);const s=ST(S.L);
  p.yaw+=((keys.ArrowLeft?1:0)-(keys.ArrowRight?1:0))*2.2*dt;p.pit=cl(p.pit+((keys.ArrowUp?1:0)-(keys.ArrowDown?1:0))*1.6*dt,-1.45,1.45);
  const movementPlayer={pose:p,L:S.L,mod:S.mod,move:{gCd,dCd,gsp,zpCd,crouch:!!p.lastCrouch}};
@@ -844,29 +845,21 @@ function startSolo(){
  gameStarted=true;dockShelter();syncPause();
  if(DEV_MODE){const devScript=document.createElement('script');devScript.src='nuclear-sweeper-dev.js';devScript.onerror=()=>alert('Keep nuclear-sweeper-dev.js beside the game HTML to load developer tools.');document.body.append(devScript)}
 }
-function applyCoopView(){const view=coopSession?.view();if(!view)return;const {world,player}=view;
+function applyCoopView(){const view=coopSession?.view();if(!view)return;const {world,player}=view,previousWeapon=wi;
  S={...fresh(),...player,sector:world.sector,total:world.total,rem:world.rem,clr:world.clr,story:world.story,vOpen:world.vOpen,vTaken:world.vTaken,iTaken:world.iTaken,roomDesign:world.roomDesign,...world.team,L:{...player.L,ref:world.team.ref,yld:world.team.yld}};
  p=player.pose;E=view.enemies;Dr=world.Dr;EP=world.EP;ammo=player.ammo;reserves=player.reserves;wi=player.wi;rel=player.rel;relMax=player.relMax;streak=player.streak;tt=world.time;expo=player.exposure||0;coopRemote=view.remote;
+ if(wi!==previousWeapon)vmSet(WP[wi]);else applyWeaponSkin();
  adsE=ads&&rel<=0;fpv=true;({gCd=0,dCd=0,gsp=0,zpCd=0}=player.move||{});camCalc();
 }
 function coopWorldChanged(){const view=coopSession?.view();if(!view)return;
  const world=view.world;({M,D,R,CO,SH,CORE,DEP,DEPT,POOLR,ISL,TERM,ZIP,DOORT}=world);applyCoopView();coopWeapon=view.player.wi;
  rebuildPB();build3D();fullRef=true;P=[];F=[];TR=[];gameStarted=true;buildBar();syncPause();if(shopOpen)renderShop();
 }
-const coopModels=new Map();
-function drawCoopPlayers(){
- const active=new Set(coopRemote.map(member=>member.id));
- for(const [id,model]of coopModels)if(!active.has(id)){sc.remove(model);model.traverse(object=>{if(object.material){if(object.material.map)object.material.map.dispose();object.material.dispose()}});coopModels.delete(id)}
- for(const member of coopRemote){let model=coopModels.get(member.id);
-  if(!model){model=pm.clone();model.traverse(object=>{if(object.material)object.material=object.material.clone()});
-   const canvas=document.createElement('canvas');canvas.width=256;canvas.height=48;const context=canvas.getContext('2d');context.fillStyle='#102016dd';context.fillRect(0,0,256,48);context.fillStyle='#b9f4ff';context.font='bold 22px monospace';context.textAlign='center';context.fillText(member.name,128,32,246);
-   const label=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(canvas),depthTest:false}));label.position.y=2.1;label.scale.set(2,.38,1);model.add(label);sc.add(model);coopModels.set(member.id,model)}
-  model.visible=true;model.position.set(member.pose.x,member.pose.h,member.pose.z);model.rotation.y=member.pose.yaw;model.scale.y=member.pose.low?.65:1;
- }
-}
+const remotePlayers=NSR.RemotePlayers.create({THREE,scene:sc,template:pm});
+function drawCoopPlayers(){remotePlayers.update(coopRemote);}
 function coopGameEvent(event){const own=event.playerId===coopSession?.view()?.localId;
  if(event.type==='story'){const message=getSec(event.sector).b[event.index];if(message)say(message[1],message[2]);}
- if(event.type==='shot'){for(const hit of event.traces||[])if(TR.length<48)TR.push({a:event.origin,b:hit,l:.08});if(!own)snd(200,.04,'sawtooth',.008)}
+ if(event.type==='shot'){if(!own)remotePlayers.shot(event.playerId);for(const hit of event.traces||[])if(TR.length<48)TR.push({a:event.origin,b:hit,l:.08});if(!own)snd(200,.04,'sawtooth',.008)}
  if(event.type==='hit'&&own){hmT=.18;hmH=event.headshot}
  if(event.type==='hurt'&&own)hpFlash=.25;
  if(event.type==='rescue'&&own){toast('Rescued to shelter. Half your tank was lost.');coopEdges={}}

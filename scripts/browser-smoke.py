@@ -1,0 +1,107 @@
+"""Optional release smoke: pip install playwright; python scripts/browser-smoke.py --help."""
+import argparse
+import asyncio
+import json
+from playwright.async_api import async_playwright
+
+
+async def smoke(args):
+    errors = []
+    async with async_playwright() as playwright:
+        browser_type = getattr(playwright, args.browser)
+        options = {"headless": True}
+        if args.executable:
+            options["executable_path"] = args.executable
+        if args.browser == "chromium":
+            options["args"] = ["--enable-unsafe-swiftshader", "--disable-background-timer-throttling", "--disable-renderer-backgrounding"]
+        browser = await browser_type.launch(**options)
+        contexts, pages = [], []
+        solo_context = await browser.new_context(viewport={"width": 390, "height": 844})
+        await solo_context.add_init_script("window.requestAnimationFrame=()=>0;")
+        solo = await solo_context.new_page()
+        solo.on("pageerror", lambda error: errors.append(str(error)))
+        await solo.goto(args.url)
+        assert await solo.evaluate("document.querySelector('#coop-menu').scrollWidth<=document.querySelector('#coop-menu').clientWidth")
+        await solo.locator("#coop-solo").click()
+        await solo.evaluate("S.cred=123;save()")
+        await solo.reload()
+        await solo.locator("#coop-solo").click()
+        assert await solo.evaluate("S.cred") == 123
+        await solo.goto(args.url + "/nuclear-sweeper-dev.html")
+        dev = solo.frame_locator("iframe")
+        await dev.locator("#coop-solo").click()
+        await dev.locator('[data-dev="max-all"]').click()
+        assert await dev.locator("#dev-panel").evaluate("() => S.L.boots===30&&S.mod.gr===1&&JSON.parse(localStorage.getItem('nsr1')).cred===123")
+        await solo_context.close()
+        # Drive simulation separately from rendering to keep this network/UI test
+        # usable on software WebGL. The real render path is checked explicitly below.
+        async def driver(page):
+            await page.evaluate("""() => {releaseInput={};releaseTimer=setInterval(()=>{if(coopSession?.view()){coopSession.advance(1/64,{yaw:0,pit:0,menu:true,weapon:coopWeapon,...releaseInput});applyCoopView();}},1000/64);} """)
+        for index in range(4):
+            context = await browser.new_context(viewport={"width": 1024, "height": 720})
+            await context.add_init_script("globalThis.releaseInput={};window.requestAnimationFrame=()=>0;")
+            page = await context.new_page()
+            page.on("pageerror", lambda error: errors.append(str(error)))
+            contexts.append(context)
+            pages.append(page)
+        host = pages[0]
+        await host.goto(args.url + "/?dev=1&release-smoke=host")
+        await driver(host)
+        await host.locator("#coop-host").click()
+        await host.wait_for_function("coopSession?.view()?.role==='host'", polling=100)
+        invite = await host.locator("#coop-share").input_value()
+        for page in pages[1:]:
+            await page.goto(invite)
+            await driver(page)
+            await page.locator("#coop-join").click()
+            await page.wait_for_function("coopSession?.view()?.role==='guest'&&!coopSession.view().waiting", polling=100)
+        await host.wait_for_function("Object.values(coopSession.view().world.players).filter(p=>p.connected).length===4", polling=100)
+        await host.evaluate("coopSession.setPaused(false)")
+        ids = [await page.evaluate("coopSession.view().localId") for page in pages]
+        await host.evaluate("""() => {coopSession.devCommand('max');applyCoopView();const p=coopSession.view().player;p.prog.weapons[3]={kills:60,types:[30,10,0,0]};setW(3);} """)
+        await pages[1].wait_for_function("coopSession.view().remote.some(p=>p.wi===3&&p.appearance.tier===1)", polling=100)
+        await host.evaluate("""() => {const w=coopSession.view().world;for(const p of Object.values(w.players))p.L.w3=1;}""")
+        await pages[1].wait_for_function("S.L.w3===1", polling=100)
+        await pages[1].locator('#wb .slot[data-i="3"]').evaluate("el=>el.click()")
+        await pages[1].wait_for_function("coopSession.view().player.wi===3", polling=100)
+        await pages[1].evaluate("releaseInput={fw:true,menu:false}")
+        start_z = await pages[1].evaluate("coopSession.view().player.pose.z")
+        await pages[1].wait_for_function("Math.abs(coopSession.view().player.pose.z-" + str(start_z) + ")>.5", polling=100)
+        await pages[1].evaluate("releaseInput={}")
+        await host.evaluate("""() => {const p=coopSession.view().player;p.pose.gr={x:p.pose.x+3,y:3,z:p.pose.z-3,t:0};coopSession.setPaused(true);} """)
+        for page in pages[1:]:
+            await page.wait_for_function("coopSession.view().paused", polling=100)
+        visual = await pages[1].evaluate("""() => {applyCoopView();draw();const member=coopSession.view().remote.find(p=>p.wi===3&&p.appearance.tier===1),model=sc.getObjectByName('sweeper:'+member.id),weapon=model.getObjectByName('equipped-weapon');return {counts:remotePlayers.stats(),width:weapon.children[0].scale.x,expectedWidth:WP[3].vm[1],suppressor:weapon.children[4].visible,color:weapon.children[0].material.color.getHex(),expectedColor:TIERS[1].col};} """)
+        assert visual["counts"] == {"players": 3, "ropes": 1}, visual
+        assert visual["width"] == visual["expectedWidth"] and visual["suppressor"], visual
+        assert visual["color"] == visual["expectedColor"], visual
+        await host.evaluate("""() => {const w=coopSession.view().world;for(const p of Object.values(w.players)){p.pose=NSR.Movement.createPose(w.SH);p.move={};}w.D.fill(0);w.rem=0;w.clr=1;coopSession.setPaused(false);} """)
+        for page in pages:
+            await page.wait_for_function("!coopSession.view().paused", polling=100)
+            answer = await page.evaluate("coopSession.perform('ready',{value:true})")
+            assert answer["ok"], answer
+        answer = await host.evaluate("coopSession.perform('deploy')")
+        assert answer["ok"], answer
+        for page in pages[1:]:
+            await page.wait_for_function("coopSession.view().world.generation===2", polling=100)
+        await pages[1].reload()
+        await driver(pages[1])
+        await pages[1].locator("#coop-join").click()
+        await pages[1].wait_for_function("coopSession?.view()?.role==='guest'&&!coopSession.view().waiting", polling=100)
+        assert await pages[1].evaluate("coopSession.view().localId") == ids[1]
+        await host.wait_for_function("Object.values(coopSession.view().world.players).filter(p=>p.connected).length===4", polling=100)
+        disposal = await pages[1].evaluate("""() => {remotePlayers.update(coopSession.view().remote);const models=coopSession.view().remote.map(p=>sc.getObjectByName('sweeper:'+p.id));let disposed=0;for(const model of models)model.getObjectByName('equipped-weapon').children[0].geometry.addEventListener('dispose',()=>disposed++);remotePlayers.clear();return {disposed,remaining:remotePlayers.stats().players};} """)
+        assert disposal == {"disposed": 3, "remaining": 0}, disposal
+        assert not errors, errors
+        print(json.dumps({"browser": args.browser, "version": browser.version, "clients": 4, "transport": "real WebRTC / localhost", "checks": ["narrow mode menu", "normal solo save round trip", "developer iframe/max loadout isolation", "join", "host-confirmed hotbar selection", "movement", "equipped weapon, attachments and mastery", "grapple rope", "pause", "deployment", "guest reload/reconnect", "avatar disposal"], "errors": errors}, indent=2))
+        for page in pages:
+            await page.evaluate("coopSession?.close()")
+        await browser.close()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Four independent browser contexts; requires a running npm start service and Python Playwright.")
+    parser.add_argument("--url", default="http://127.0.0.1:8787")
+    parser.add_argument("--browser", choices=["chromium", "firefox"], default="chromium")
+    parser.add_argument("--executable", help="Optional browser executable; otherwise use Playwright's installed browser.")
+    asyncio.run(smoke(parser.parse_args()))

@@ -192,7 +192,7 @@ function updateEnemies(world,players,dt){
  for(const enemy of world.E){if(enemy.hp<=0)continue;const definition=ET[enemy.t],radius=.5*definition.sc,current=(enemy.z/TS|0)*GW+(enemy.x/TS|0);
   const candidates=targets.filter(player=>fields[player.id]?.[definition.sc>1.2?1:0][current]>=0||clearLine(world,enemy,player.pose)).sort((first,second)=>distance(enemy,first.pose)-distance(enemy,second.pose));
   let target=candidates[0];const previous=candidates.find(player=>player.id===enemy.target);if(previous&&target&&distance(enemy,previous.pose)<distance(enemy,target.pose)*1.25)target=previous;
-  if(!target)continue;enemy.target=target.id;const separation=distance(enemy,target.pose),visible=separation<24&&clearLine(world,enemy,target.pose);
+  if(!target)continue;enemy.target=target.id;const separation=distance(enemy,target.pose)||1,visible=separation<24&&clearLine(world,enemy,target.pose);
   if(!enemy.al){if((visible&&separation<15)||separation<5)enemy.al=1;else continue;}
   let destination=target.pose;const field=fields[target.id]?.[definition.sc>1.2?1:0];
   if(!visible&&field){let best=current;for(const offset of [-GW,GW,-1,1]){const next=current+offset;if(next>=0&&next<field.length&&field[next]>=0&&(field[best]<0||field[next]<field[best]))best=next;}destination={x:(best%GW+.5)*TS,z:((best/GW|0)+.5)*TS};}
@@ -204,7 +204,7 @@ function updateEnemies(world,players,dt){
   enemy.cd-=dt;enemy.fc-=dt;
   if(!definition.rg&&separation<definition.sc*.9+.8&&target.pose.h<1.4&&enemy.cd<=0){enemy.cd=.9;hurt(world,target,definition.dm*(1+.3*(world.sector-1)));}
   if(definition.rg&&visible&&separation<(definition.rg===2?22:16)&&enemy.fc<=0){
-   enemy.fc=definition.rg===2?.3:1.8;const originY=1.1*definition.sc,delta={x:target.pose.x-enemy.x,y:target.pose.h+1-originY,z:target.pose.z-enemy.z},scale=(definition.rg===2?38:17)/Math.hypot(delta.x,delta.y,delta.z);
+   enemy.fc=definition.rg===2?.3:1.8;const originY=1.1*definition.sc,delta={x:target.pose.x-enemy.x,y:target.pose.h+1-originY,z:target.pose.z-enemy.z},scale=(definition.rg===2?38:17)/(Math.hypot(delta.x,delta.y,delta.z)||1);
    if(world.EP.length<128)world.EP.push({id:nextId(world,'b'),x:enemy.x,y:originY,z:enemy.z,vx:delta.x*scale,vy:delta.y*scale,vz:delta.z*scale,l:3,sz:definition.rg===2?.12:.22,dm:definition.dm*(1+.3*(world.sector-1))});
   }
  }
@@ -237,7 +237,7 @@ function step(world,inputs={},dt=MOVE.tick){
  const refined=Math.min(world.team.raw,(2+1.5*world.team.ref)*dt);world.team.raw-=refined;world.team.cred+=refined*(.5+.05*world.team.yld);
  updateEnemies(world,players,dt);updateProjectiles(world,players,dt);updateLoot(world,players,dt);
  for(const player of players){if(player.hp<=0)rescue(world,player.id);achievements(player);}
- world.spawnT-=dt;if(world.spawnT<=0){world.spawnT=3.5;if(world.E.length<Math.min(8+2*world.sector,26))spawn(world,true);}
+ if(!world.dev||!world.assists?.freezeEnemies){world.spawnT-=dt;if(world.spawnT<=0){world.spawnT=3.5;if(world.E.length<Math.min(8+2*world.sector,26))spawn(world,true);}}
  if(world.total&&world.rem/world.total<=.03)world.clr=1;
  const transmissions=Defs.getSec(world.sector).b,cleared=100*(1-world.rem/world.total);
  if(world.story<transmissions.length&&cleared>=transmissions[world.story][0])event(world,'story',{index:world.story++,sector:world.sector});
@@ -265,7 +265,7 @@ function validPlayer(saved){
  if(!finite(saved.pose.x,0,GW*TS)||!finite(saved.pose.z,0,GH*TS)||!finite(saved.pose.h,-10,20)||![0,1,2,4,5,6].includes(saved.pose.st))return false;
  const vector=value=>value&&finite(value.x,-1e6,1e6)&&finite(value.z,-1e6,1e6);
  if(saved.pose.st===1&&(!saved.pose.an||!['t','d','x0','z0','h0','x1','z1','h1','dx','dz','sp','arc'].every(key=>finite(saved.pose.an[key],-1e6,1e6))||saved.pose.an.d<=0))return false;
- if(saved.pose.st===2&&!vector(saved.pose.hd))return false;
+ if(saved.pose.st===2&&(!vector(saved.pose.hd)||!finite(saved.pose.hT,0,20)))return false;
  if([4,5].includes(saved.pose.st)&&!vector(saved.pose.wn))return false;
  if(saved.pose.st===4&&(!vector(saved.pose.wt)||!finite(saved.pose.wa,-1000,1000)))return false;
  if(saved.pose.gr&&(!vector(saved.pose.gr)||!finite(saved.pose.gr.y,-10,20)||!finite(saved.pose.gr.t,0,3)))return false;
@@ -303,6 +303,7 @@ function restore(raw){
  if(world.E.some(enemy=>!Number.isInteger(enemy.t)||enemy.t<0||enemy.t>=ET.length||!['hp','mh','cd','fc','ph'].every(key=>finite(enemy[key],-1e12,1e6))))throw new Error('Invalid enemy.');
  if(world.EP.some(projectile=>!['y','vx','vy','vz','l','dm'].every(key=>finite(projectile[key],-1000,1e6))))throw new Error('Invalid projectile.');
  if(world.Dr.some(loot=>!['scrap','cred','part'].includes(loot.k)||!finite(loot.a,0,1e9)||!finite(loot.vx,-1000,1000)||!finite(loot.vz,-1000,1000)))throw new Error('Invalid loot.');
+ if(!finite(raw.spawnT,0,3.5))throw new Error('Invalid spawn timer.');world.spawnT=raw.spawnT;
  world.total=generated.total;world.rem=world.D.reduce((total,value)=>total+value,0);world.events=[];world.dirty=[];return world;
 }
 NSR.Simulation={createWorld,addPlayer,step,action,snapshot,restore,restart,disconnect,rescue,inShelter,cast,recordKill};
