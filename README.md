@@ -3,6 +3,35 @@
 
 # Nuclear Sweeper
 
+## Private co-op
+
+Run Node.js 22 or newer from this directory:
+
+```sh
+npm start
+```
+
+Open `http://localhost:8787`, choose **HOST / CONTINUE WORLD**, and share the
+invitation with up to three friends. The initial menu also offers the existing
+solo game. Local testing works in separate browser tabs; friends on other
+networks need a deployed HTTPS signaling service and TURN relay.
+
+The host simulates the world. Dust, loot, currencies and refinery upgrades are
+shared; equipment, health, ammunition, mastery and score belong to each player.
+At 97% clearance, everyone returns to the shelter and marks ready; the host
+deploys the team. Menus stop local input while the shared world continues.
+Hiding the host tab pauses the expedition until the host resumes it.
+
+Co-op checkpoints and reconnect identities use separate browser storage from
+solo and developer solo. Hosts can export backups from the expedition menu and
+restore them from the initial menu after reviewing the replacement. Keep backups
+private because they contain reconnect credentials. There is no host migration;
+the host can reopen the saved world and send a fresh invitation.
+
+See [MULTIPLAYER.md](MULTIPLAYER.md) for deployment, implementation status and
+release checks. Run `npm test` for the dependency-free simulation/network tests.
+Keep the `js/` directory beside the HTML when copying or hosting the game.
+
 ## Mouse side buttons and collection audio
 
 In **Settings / Key bindings**, select an action and press a keyboard key or

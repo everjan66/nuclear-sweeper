@@ -11,6 +11,27 @@ Update this file as work lands.
 - Source-style movement: [MOVEMENT.md](MOVEMENT.md).
 - Three.js currently requires an internet connection.
 
+## Multiplayer implementation
+
+October 17, 2026: the private co-op implementation is available in the working
+tree. See [MULTIPLAYER.md](MULTIPLAYER.md) for setup, source map and validation;
+[MULTIPLAYER_PLAN.md](MULTIPLAYER_PLAN.md) remains the design reference.
+Rows remain In progress until review/merge and the listed acceptance checks.
+
+| Stage | Implementation | Status / remaining acceptance |
+| --- | --- | --- |
+| K1 - Shared simulation | DOM-free maps, movement and co-op simulation with explicit players; solo uses shared map/movement | In progress: solo combat/economy migration and gameplay parity review remain |
+| K2 - Connections | Four-slot private signaling, host-star WebRTC, invitations, version/dev checks, ICE configuration | In progress: deployed TURN and separate-network checks remain |
+| K3 - Synchronization | Fixed host ticks, prediction/replay, snapshots, dust updates, interpolation, confirmed transactions | In progress: simulated 150 ms RTT/2% loss passes; real jitter/backpressure and bandwidth qualification remain |
+| K4 - Co-op gameplay | Shared resources/loot, personal equipment/progression, guest-targeting AI, readiness/deployment, radio and avatars | In progress: four-player gameplay/balance and remote cosmetic fidelity remain |
+| K5 - Persistence/lifecycle | Isolated checkpoints, validated backup import/export, character reconnect, grace/rescue and host pause | In progress: extended browser/network acceptance remains |
+| K6 - Qualification | Automated suite/CI, local two-browser WebRTC smoke checks, documented deployment/release checklist | In progress: Firefox, forced relay, separate networks and four-player 30-minute run remain |
+
+The implementation also provides contributor workflow/source mapping and
+automated regression coverage for M1/M2. Their rows below stay In progress while
+the changes await review and merge. M3 economy tuning, profiling and M4 offline
+dependency work have not been completed by the multiplayer implementation.
+
 ## Prioritized backlog
 
 Create an issue and agree on acceptance criteria before starting. Replace the
@@ -19,12 +40,12 @@ parallel; dependencies are listed explicitly.
 
 | ID | Priority | Work item | Done when | Status | Owner | Issue / PR |
 | --- | --- | --- | --- | --- | --- | --- |
-| M1-1 | High | Document contributor workflow | Setup, branch/PR workflow, and a manual smoke-test checklist are documented. | Proposed | Unassigned | Not created |
-| M1-2 | High | Map game systems | A source map identifies movement, combat, progression, saves, rendering, and UI boundaries. | Proposed | Unassigned | Not created |
-| M1-3 | High | Establish regression scenarios | Repeatable baseline and upgraded-loadout checks cover movement, combat, purchases, site travel, and save isolation. | Proposed | Unassigned | Not created |
-| M2-1 | High | Agree on module boundaries | A short design defines interfaces, load order, and incremental migration preserving both entry points. Depends on M1-2. | Proposed | Unassigned | Not created |
-| M2-2 | High | Extract one subsystem | One agreed subsystem moves out of the main HTML without gameplay changes; both entry points pass regression checks. Depends on M2-1 and M1-3. | Proposed | Unassigned | Not created |
-| M2-3 | Medium | Add automated checks | A documented command and GitHub Actions check validate the extracted subsystem. Depends on M2-2. | Proposed | Unassigned | Not created |
+| M1-1 | High | Document contributor workflow | Setup, branch/PR workflow, and a manual smoke-test checklist are documented. | In progress | Current implementation | Working tree; review pending |
+| M1-2 | High | Map game systems | A source map identifies movement, combat, progression, saves, rendering, and UI boundaries. | In progress | Current implementation | Working tree; review pending |
+| M1-3 | High | Establish regression scenarios | Repeatable baseline and upgraded-loadout checks cover movement, combat, purchases, site travel, and save isolation. | In progress | Current implementation | Working tree; review pending |
+| M2-1 | High | Agree on module boundaries | A short design defines interfaces, load order, and incremental migration preserving both entry points. Depends on M1-2. | In progress | Current implementation | Working tree; review pending |
+| M2-2 | High | Extract one subsystem | One agreed subsystem moves out of the main HTML without gameplay changes; both entry points pass regression checks. Depends on M2-1 and M1-3. | In progress | Current implementation | Working tree; review pending |
+| M2-3 | Medium | Add automated checks | A documented command and GitHub Actions check validate the extracted subsystem. Depends on M2-2. | In progress | Current implementation | Working tree; review pending |
 | M3-1 | Medium | Review progression and economy | Baseline and max-loadout findings are recorded; agreed balance changes include before/after comparisons. | Proposed | Unassigned | Not created |
 | M3-2 | Medium | Improve HUD and input usability | Agreed readability, keyboard navigation, and smaller-screen issues are reproduced and verified after fixes. | Proposed | Unassigned | Not created |
 | M3-3 | Medium | Profile demanding gameplay | A repeatable busy-site scenario records frame-time findings and verifies targeted optimizations. | Proposed | Unassigned | Not created |
