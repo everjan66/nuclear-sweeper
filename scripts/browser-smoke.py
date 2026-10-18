@@ -2,10 +2,50 @@
 import argparse
 import asyncio
 import json
+import os
+from pathlib import Path
+import shutil
 from playwright.async_api import async_playwright
 
 
-async def smoke(args):
+class ManagedServer:
+    """Own only the child process created by this runner, including restart."""
+    def __init__(self, node):
+        self.node = node
+        self.process = None
+        self.port = 0
+
+    async def start(self):
+        env = {**os.environ, "PORT": str(self.port), "BIND": "127.0.0.1", "ELECTRON_RUN_AS_NODE": "1"}
+        # Avoid inheriting deployment secrets or ICE settings into a local test.
+        for key in ["ALLOWED_ORIGIN", "TURN_SECRET", "TURN_URLS", "STUN_URL"]:
+            env.pop(key, None)
+        self.process = await asyncio.create_subprocess_exec(
+            self.node, "services/signaling/server.cjs", cwd=Path(__file__).resolve().parent.parent,
+            env=env, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            **({"creationflags": 0x08000000} if os.name == "nt" else {}))
+        ready = await asyncio.wait_for(self.process.stdout.readline(), timeout=15)
+        if not ready.startswith(b"Nuclear Sweeper: http://127.0.0.1:"):
+            raise RuntimeError("Local signaling server failed to start: " + ready.decode(errors="replace"))
+        url = ready.decode().strip().split(" ")[-1]
+        self.port = int(url.rsplit(":", 1)[1])
+        return url
+
+    async def stop(self):
+        if self.process and self.process.returncode is None:
+            self.process.terminate()
+            try:
+                await asyncio.wait_for(self.process.wait(), timeout=5)
+            except TimeoutError:
+                self.process.kill()
+                await self.process.wait()
+
+    async def restart(self):
+        await self.stop()
+        return await self.start()
+
+
+async def smoke(args, server=None):
     errors = []
     async with async_playwright() as playwright:
         browser_type = getattr(playwright, args.browser)
@@ -49,6 +89,7 @@ async def smoke(args):
         await driver(host)
         await host.locator("#coop-host").click()
         await host.wait_for_function("coopSession?.view()?.role==='host'", polling=100)
+        await host.wait_for_function("document.querySelector('#coop-share').value.includes('#coop=')", polling=100)
         invite = await host.locator("#coop-share").input_value()
         for page in pages[1:]:
             await page.goto(invite)
@@ -119,13 +160,51 @@ async def smoke(args):
         await pages[1].wait_for_function("coopSession?.view()?.role==='guest'&&!coopSession.view().waiting", polling=100)
         assert await pages[1].evaluate("coopSession.view().localId") == ids[1]
         await host.wait_for_function("Object.values(coopSession.view().world.players).filter(p=>p.connected).length===4", polling=100)
+        if server:
+            before_restart = await host.evaluate("({worldId:coopSession.exportCheckpoint().worldId,sector:coopSession.view().world.sector,gear:Object.fromEntries(Object.values(coopSession.view().world.players).map(p=>[p.id,p.L]))})")
+            assert await server.restart() == args.url
+            for page in pages:
+                await page.wait_for_function("coopSession.stats().signaling==='expired'", polling=100, timeout=35000)
+                assert "HOST / CONTINUE WORLD" in await page.locator("#coop-status").inner_text()
+                assert await page.evaluate("!coopSession.view().waiting")
+                answer = await page.evaluate("coopSession.perform('ready',{value:true})")
+                assert answer["ok"], answer
+            async with host.expect_navigation(wait_until="load"):
+                await host.locator("#coop-leave").evaluate("el=>el.click()")
+            await host.locator("#coop-host").wait_for(state="visible")
+            await driver(host)
+            await host.locator("#coop-host").click()
+            await host.wait_for_function("coopSession?.view()?.role==='host'", polling=100)
+            await host.wait_for_function("document.querySelector('#coop-share').value.includes('#coop=')", polling=100)
+            invite = await host.locator("#coop-share").input_value()
+            for page in pages[1:]:
+                await page.goto(invite)
+                await page.reload()
+                await driver(page)
+                await page.locator("#coop-join").click()
+                await page.wait_for_function("coopSession?.view()?.role==='guest'&&!coopSession.view().waiting", polling=100)
+            await host.wait_for_function("Object.values(coopSession.view().world.players).filter(p=>p.connected).length===4", polling=100)
+            after_restart = await host.evaluate("({worldId:coopSession.exportCheckpoint().worldId,sector:coopSession.view().world.sector,gear:Object.fromEntries(Object.values(coopSession.view().world.players).map(p=>[p.id,p.L]))})")
+            assert after_restart == before_restart, (before_restart, after_restart)
+            assert [await page.evaluate("coopSession.view().localId") for page in pages] == ids
         disposal = await pages[1].evaluate("""() => {remotePlayers.update(coopSession.view().remote);const models=coopSession.view().remote.map(p=>sc.getObjectByName('sweeper:'+p.id));let disposed=0;for(const model of models)model.getObjectByName('equipped-weapon').children[0].geometry.addEventListener('dispose',()=>disposed++);remotePlayers.clear();return {disposed,remaining:remotePlayers.stats().players};} """)
         assert disposal == {"disposed": 3, "remaining": 0}, disposal
         assert not errors, errors
-        print(json.dumps({"browser": args.browser, "version": browser.version, "clients": 4, "transport": "real WebRTC / localhost", "checks": ["narrow mode menu", "normal solo save round trip", "developer iframe/max loadout isolation", "join", "host-confirmed hotbar selection", "movement", "equipped weapon, attachments and mastery", "grapple rope", "pause", "deployment", "guest reload/reconnect", "signaling request outage with RTC continuity", "signaling recovery and identity-preserving rejoin", "avatar disposal"], "errors": errors}, indent=2))
+        print(json.dumps({"browser": args.browser, "version": browser.version, "clients": 4, "transport": "real WebRTC / localhost", "checks": ["narrow mode menu", "normal solo save round trip", "developer iframe/max loadout isolation", "join", "host-confirmed hotbar selection", "movement", "equipped weapon, attachments and mastery", "grapple rope", "pause", "deployment", "guest reload/reconnect", "signaling request outage with RTC continuity", "signaling recovery and identity-preserving rejoin", "avatar disposal"] + (["signaling process restart with RTC continuity", "checkpoint rehost preserves world and all four identities"] if server else []), "errors": errors}, indent=2))
         for page in pages:
             await page.evaluate("coopSession?.close()")
         await browser.close()
+
+
+async def main(args):
+    server = ManagedServer(args.node) if args.managed_server else None
+    try:
+        if server:
+            args.url = await server.start()
+        await smoke(args, server)
+    finally:
+        if server:
+            await server.stop()
 
 
 if __name__ == "__main__":
@@ -133,4 +212,6 @@ if __name__ == "__main__":
     parser.add_argument("--url", default="http://127.0.0.1:8787")
     parser.add_argument("--browser", choices=["chromium", "firefox"], default="chromium")
     parser.add_argument("--executable", help="Optional browser executable; otherwise use Playwright's installed browser.")
-    asyncio.run(smoke(parser.parse_args()))
+    parser.add_argument("--managed-server", action="store_true", help="Start an isolated local server and verify process restart plus checkpoint rehost.")
+    parser.add_argument("--node", default=shutil.which("node") or "node", help="Node.js executable for --managed-server.")
+    asyncio.run(main(parser.parse_args()))

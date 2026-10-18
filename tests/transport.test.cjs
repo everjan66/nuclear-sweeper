@@ -24,7 +24,7 @@ async function connectedTransport({failPoll=false}={}){
  }
  const context=vm.createContext({URL,AbortController,TextEncoder,RTCPeerConnection:Connection,location:{origin:'http://localhost'},performance:{now:()=>0},setInterval:()=>1,clearInterval(){},setTimeout:(handler,delay)=>{if(delay<=5000)queueMicrotask(handler);return 1;},clearTimeout(){},fetch:async(url,options)=>{
   if(url.includes('/poll?')){
-   polls++;if(failPoll&&polls===2)throw new Error('service unavailable');if(failPoll&&polls===3)return {ok:true,json:async()=>[]};
+   polls++;if(failPoll==='expired'&&polls===2)return {ok:false,status:410,json:async()=>({error:'Room expired.'})};if(failPoll&&polls===2)throw new Error('service unavailable');if(failPoll&&polls===3)return {ok:true,json:async()=>[]};
    if(!offered){offered=true;return {ok:true,json:async()=>[{type:'peer-joined',peerId:'guest'}]};}
    return new Promise((resolve,reject)=>options.signal.addEventListener('abort',()=>reject(new Error('aborted'))));
   }
@@ -35,7 +35,7 @@ async function connectedTransport({failPoll=false}={}){
  await new Promise(resolve=>setImmediate(resolve));
  const connection=connections[0],[reliable,unreliable]=connection.channels;
  reliable.onmessage({data:JSON.stringify({kind:'hello',version:context.NSR.Protocol.VERSION,dev:false})});
- return {transport,reliable,unreliable,connection,events,limit:context.NSR.Protocol.MAX_SNAPSHOT};
+ return {transport,reliable,unreliable,connection,events,pollCount:()=>polls,limit:context.NSR.Protocol.MAX_SNAPSHOT};
 }
 
 test('reliable backpressure drains in order and counts UTF-8 bytes including chunk envelopes',async t=>{
@@ -102,4 +102,11 @@ test('malformed message envelopes close the peer without throwing into the game 
   const {transport,reliable,connection,events}=await connectedTransport();
   try{assert.doesNotThrow(()=>reliable.onmessage({data}));assert.equal(connection.closed,true);assert.equal(events.filter(event=>event.type==='message').length,0);}finally{await transport.close();}
  }
+});
+
+test('an expired signaling room stops retries and explains recovery while RTC remains usable',async t=>{
+ const {transport,connection,events,pollCount}=await connectedTransport({failPoll:'expired'});t.after(()=>transport.close());
+ assert.equal(pollCount(),2);assert.equal(transport.stats().signaling,'expired');assert.equal(connection.closed,undefined);
+ assert.ok(events.some(event=>event.type==='status'&&event.message.includes('HOST / CONTINUE WORLD')));
+ assert.equal(transport.send('guest',{kind:'frame'},false),true);
 });

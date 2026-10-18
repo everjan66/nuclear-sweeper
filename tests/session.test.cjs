@@ -1,6 +1,18 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const {environment}=require('./helpers/network.cjs');
+test('reliable host pause survives complete unreliable loss and rejects in-flight actions',async()=>{
+ const env=environment({latency:150,jitter:100}),host=env.NSR.Session.create({storage:env.storage()}),guest=env.NSR.Session.create({storage:env.storage()});
+ const result=await host.host();await guest.join(result.invitation);env.advance([host,guest],{},60);
+ const world=host.view().world;world.team.scrap=8;const guestId=guest.view().localId;
+ const pending=guest.perform('buy',{upgrade:'sweep'});env.setUnreliableBlackout(true);host.setPaused(true);
+ const tick=world.tick;env.advance([guest],{},150);
+ assert.equal(guest.view().paused,true);assert.equal(guest.view().waiting,false);assert.equal(world.tick,tick);
+ assert.equal((await pending).ok,false);assert.equal(world.team.scrap,8);assert.equal(world.players[guestId].L.sweep,0);
+ host.setPaused(false);env.advance([guest],{},10);assert.equal(guest.view().paused,false);
+ env.setUnreliableBlackout(false);env.advance([host,guest],{},50);assert.equal(guest.view().waiting,false);assert.ok(world.tick>tick);
+ await guest.close();await host.close();
+});
 test('guest prediction converges at 150 ms RTT and 2% loss; stale input stops and actions confirm',async()=>{
  const env=environment({latency:150,loss:.02}),host=env.NSR.Session.create({name:'Host',storage:env.storage()}),guest=env.NSR.Session.create({name:'Guest',storage:env.storage()});
  const result=await host.host();await guest.join(result.invitation);env.advance([host,guest],{},40);assert.ok(guest.view());

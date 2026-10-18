@@ -5,6 +5,10 @@
 
 ## Private co-op
 
+Private co-op is experimental. Local browser correctness checks are automated;
+public deployment, real-network play and performance qualification are tracked
+in issues #20-#22. See [MULTIPLAYER.md](MULTIPLAYER.md) for scope and evidence.
+
 Run Node.js 22 or newer from this directory:
 
 ```sh

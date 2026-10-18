@@ -4,6 +4,11 @@ Implementation status: October 19, 2026. Local endurance and Chromium/Firefox
 browser checks pass; external network qualification remains open. The design is in
 [MULTIPLAYER_PLAN.md](MULTIPLAYER_PLAN.md).
 
+This implementation is an experimental private co-op foundation. It can be
+reviewed and merged independently of a public multiplayer release. Remaining
+shared-simulation parity, deployment qualification and gameplay/performance work
+are tracked in issues #20, #21 and #22; K1-K6 are not claimed complete.
+
 ## Running and playing
 
 Use Node.js 22+ and `npm start`; no package installation or build step is needed.
@@ -24,6 +29,13 @@ A dropped guest has neutral input, remains vulnerable for ten seconds, then is
 rescued once. Its slot stays reserved for sixty seconds. Returning clients can
 reclaim the same character with their private token. A host departure ends the
 live session; resume the host checkpoint and distribute a new invitation.
+
+If the signaling process restarts, established peer connections can keep playing,
+but the server has lost its room and invitation. Clients stop retrying expired
+room credentials and display recovery instructions. The host chooses **SAVE &
+LEAVE**, then **HOST / CONTINUE WORLD**, and shares the new invitation. Guests
+reopen/reload that link in the same browser profile and origin to recover their
+characters. This is checkpoint recovery; in-flight negotiation is not persisted.
 
 ## Architecture
 
@@ -112,9 +124,10 @@ guest-targeting AI, deployment authority, save restart/import isolation, radio
 progress, disconnect rescue, input validation and signaling authorization/capacity.
 Session tests use a controlled clock/network with 150 ms RTT and 2% packet loss
 to check prediction convergence, input expiry, transactions, pause and reconnect.
-GitHub Actions runs this suite and a two-minute simulated soak on Node 24.
+GitHub Actions runs this suite, a two-minute simulated soak on Node 24, and
+four-client WebRTC/restart checks in Chromium and Firefox.
 
-October 19 validation: 33 automated tests pass. Four independent browser contexts
+October 19 validation: 35 automated tests pass. Four independent browser contexts
 passed real localhost WebRTC checks in Chromium 154.0.8037.92 and Playwright
 Firefox 157.0: join, hotbar selection, movement, remote weapons/attachments/finish,
 grapple rope, host pause, deployment, guest reload/reconnect and avatar disposal.
@@ -134,6 +147,11 @@ Both browser runs also abort signaling requests for all four clients, confirm
 continued host ticks and reliable actions over established RTC channels, restore
 polling, and reload/rejoin a guest with the same identity. This checks request
 outage recovery on localhost; it does not restart the signaling or TURN process.
+The managed-server scenario additionally kills and restarts the signaling process,
+checks existing RTC actions after the old room expires, then resumes the host
+checkpoint and reconnects all four original character identities with their gear.
+Host pause/resume now uses sequenced reliable messages, so a delayed frame cannot
+undo the pause; in-flight guest purchases are rejected while the world is paused.
 
 The four-client deterministic soak completed 2,075 simulated seconds with 150 ms
 RTT, +/-45 ms one-way jitter and 2% unreliable-message loss: 15 purchases,
@@ -155,6 +173,22 @@ itself still has no added runtime dependencies. Raw validation results are in
 [docs/validation/2026-10-18-coop-release.json](docs/validation/2026-10-18-coop-release.json).
 The subsequent transport/recovery results are recorded in
 [docs/validation/2026-10-19-coop-transport.json](docs/validation/2026-10-19-coop-transport.json).
+To include process restart and checkpoint recovery without running another server,
+use `python scripts/browser-smoke.py --managed-server --browser chromium`
+and repeat for Firefox. `--node` selects an explicit Node executable. The runner
+owns a temporary server on an available loopback port and stops it on exit.
+Managed restart results are recorded in
+[docs/validation/2026-10-19-coop-lifecycle.json](docs/validation/2026-10-19-coop-lifecycle.json).
+
+Merge readiness for the foundation requires passing simulation and both browser
+jobs, accurate scope/limitations, and no unresolved review findings. Public-release
+acceptance remains separate and is tracked in these follow-ups:
+
+| Issue | Remaining work |
+| --- | --- |
+| #20 | Complete solo/shared simulation migration and gameplay parity |
+| #21 | Deployed HTTPS/TURN, separate networks, real tab suspension and four-human session |
+| #22 | Sustained rendering/link profiling, animation review and balance tuning |
 
 The full release qualification still needs:
 

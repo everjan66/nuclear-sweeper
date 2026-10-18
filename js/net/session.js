@@ -7,7 +7,7 @@ const secret=()=>{const bytes=new Uint8Array(24);crypto.getRandomValues(bytes);r
 function create({dev=false,name='Sweeper',url,relay=false,onEvent=()=>{},storage=NSR.Storage.create({dev})}={}){
  let role='offline',world=null,worldId=null,identities={},localId=null,sessionId=null,transport=null,closed=false;
  let sequence=0,actionSequence=0,inputHistory=[],inputAccumulator=0,sendAccumulator=0,snapshotAccumulator=0,dustAccumulator=0,saveAccumulator=0;
- let lastHostAt=0,lastFrame=-1,predicted=null,pausedByHost=false,waiting=true,corrections=0,syncing=false,saveError=null;
+ let lastHostAt=0,lastFrame=-1,predicted=null,pausedByHost=false,pauseSequence=0,waiting=true,corrections=0,syncing=false,saveError=null;
  const bindings=new Map(),queues=new Map(),lastInputs=new Map(),receivedAt=new Map(),reservations=new Map(),pendingActions=new Map();
  let latestInput={},remoteFrames=[],lastStats=null;
  const emit=(type,data={})=>onEvent({type,...data});
@@ -20,16 +20,21 @@ function create({dev=false,name='Sweeper',url,relay=false,onEvent=()=>{},storage
    else {const pose=player.pose;players[player.id]={id:player.id,name:player.name,pose:{x:pose.x,z:pose.z,h:pose.h,yaw:pose.yaw,pit:pose.pit,low:!!pose.low,st:pose.st,gr:pose.gr?{x:pose.gr.x,y:pose.gr.y,z:pose.gr.z}:null},wi:player.wi,appearance:Defs.appearance(player),reloading:player.rel>0,hp:player.hp,ready:player.ready,connected:player.connected,present:player.present};}
   }
   const precision=value=>Math.round(value*1000)/1000;
-  return {type:'frame',session:sessionId,generation:world.generation,tick:world.tick,time:world.time,players,team:world.team,rem:world.rem,clr:world.clr,story:world.story,vOpen:world.vOpen,paused:pausedByHost,
+  return {type:'frame',session:sessionId,generation:world.generation,tick:world.tick,time:world.time,players,team:world.team,rem:world.rem,clr:world.clr,story:world.story,vOpen:world.vOpen,paused:pausedByHost,pauseSequence,
    E:world.E.map(enemy=>[enemy.id,enemy.t,precision(enemy.x),precision(enemy.z),precision(enemy.hp),enemy.mh,enemy.al,enemy.ph]),
    EP:world.EP.map(projectile=>[projectile.id,precision(projectile.x),precision(projectile.y),precision(projectile.z),projectile.sz]),
    Dr:world.Dr.map(loot=>[loot.id,precision(loot.x),precision(loot.z),loot.k,loot.a])};
  }
  function sendFrame(){for(const [peerId]of bindings){const value=frame(peerId);if(!transport.send(peerId,value,false)){const peer=transport.stats().peers.find(candidate=>candidate.id===peerId);if(peer&&peer.queuedBytes<32768)transport.send(peerId,value,true);}}}
  function sendSnapshot(peerId){
-  transport.send(peerId,{type:'snapshot',session:sessionId,worldId,playerId:bindings.get(peerId),world:Sim.snapshot(world),paused:pausedByHost},true);
+  transport.send(peerId,{type:'snapshot',session:sessionId,worldId,playerId:bindings.get(peerId),world:Sim.snapshot(world),paused:pausedByHost,pauseSequence},true);
  }
  function validMessage(data){return data&&data.session===sessionId&&data.generation===world?.generation;}
+ function applyPause(value,sequence){
+  if(!Number.isSafeInteger(sequence)||sequence<pauseSequence)return;
+  const changed=sequence>pauseSequence||pausedByHost!==!!value;pauseSequence=sequence;pausedByHost=!!value;
+  if(changed){inputAccumulator=0;inputHistory=[];emit('pause',{paused:pausedByHost});}
+ }
  function identify(peerId,data){
   if(bindings.has(peerId))return;
   const returning=data.identity&&Object.hasOwn(identities,data.identity.playerId)&&identities[data.identity.playerId]===data.identity.token;
@@ -77,7 +82,7 @@ function create({dev=false,name='Sweeper',url,relay=false,onEvent=()=>{},storage
     for(const raw of data.inputs){const input=Protocol.input(raw);if(input&&input.seq>player.lastSeq&&input.seq<=player.lastSeq+256&&!queue.some(queued=>queued.seq===input.seq))queue.push(input);}
     queue.sort((first,second)=>first.seq-second.seq);if(queue.length>128)queue.splice(0,queue.length-128);receivedAt.set(id,performance.now());
    }else if(data.type==='action'){
-    const generation=world.generation,result=Sim.action(world,id,data.action);save();
+    const generation=world.generation,result=pausedByHost?{ok:false,reason:'Wait for the host.'}:Sim.action(world,id,data.action);save();
     if(world.generation!==generation)transition();else transport.send(event.peerId,frame(event.peerId),true);
     transport.send(event.peerId,{type:'action-result',id:data.action?.id,result},true);
    }
@@ -93,12 +98,15 @@ function create({dev=false,name='Sweeper',url,relay=false,onEvent=()=>{},storage
   if(data.type==='snapshot'&&data.session===sessionId){
    try{
     syncing=true;world=Sim.restore(data.world);localId=data.playerId;if(!world.players[localId])throw new Error('Missing local character.');
-    sequence=world.players[localId].lastSeq;actionSequence=world.players[localId].lastActionId;inputHistory=[];remoteFrames=[];predicted=copy(world.players[localId]);lastFrame=world.tick;lastHostAt=performance.now();pausedByHost=data.paused;waiting=false;syncing=false;
+    sequence=world.players[localId].lastSeq;actionSequence=world.players[localId].lastActionId;inputHistory=[];remoteFrames=[];predicted=copy(world.players[localId]);lastFrame=world.tick;lastHostAt=performance.now();pausedByHost=data.paused;pauseSequence=data.pauseSequence||0;waiting=false;syncing=false;
     transport.send('host',{type:'synced',session:sessionId,generation:world.generation},true);emit('world',{world});status('Connected. The world continues while menus are open.');
    }catch(error){emit('error',{message:'World synchronization failed: '+error.message});}return;
   }
+  if(data.type==='pause'&&validMessage(data)&&typeof data.paused==='boolean'&&Number.isSafeInteger(data.pauseSequence)&&data.pauseSequence>=pauseSequence){
+   applyPause(data.paused,data.pauseSequence);lastHostAt=performance.now();waiting=false;return;
+  }
   if(data.type==='frame'&&validMessage(data)&&data.tick>=lastFrame&&world.players[localId]){
-   lastFrame=data.tick;lastHostAt=performance.now();pausedByHost=!!data.paused;waiting=false;
+   lastFrame=data.tick;lastHostAt=performance.now();applyPause(data.paused,data.pauseSequence||0);waiting=false;
    if(!data.players?.[localId])return;
    world.tick=data.tick;world.time=data.time;world.team=data.team;world.rem=data.rem;world.clr=data.clr;world.story=data.story;
    if(data.vOpen&&!world.vOpen){world.vOpen=1;for(const tile of world.DOORT)world.M[tile]=0;emit('geometry');}
@@ -181,7 +189,7 @@ function create({dev=false,name='Sweeper',url,relay=false,onEvent=()=>{},storage
   },
   async join(invitation){role='guest';transport=NSR.Transport.create({url:invitation.url,dev,iceTransportPolicy:relay?'relay':'all',onEvent:onTransport});status('Connecting to the host…');return transport.join(invitation);},
   advance,perform,view,save,
-  setPaused(value){if(role!=='host')return;pausedByHost=!!value;inputAccumulator=0;if(pausedByHost)save();sendFrame();emit('pause',{paused:pausedByHost});},
+  setPaused(value){if(role!=='host'||!world||closed)return;pausedByHost=!!value;pauseSequence++;inputAccumulator=0;lastInputs.clear();for(const queue of queues.values())queue.length=0;if(pausedByHost)save();transport.broadcast({type:'pause',session:sessionId,generation:world.generation,paused:pausedByHost,pauseSequence},true);sendFrame();emit('pause',{paused:pausedByHost});},
   stats(){lastStats={...transport?.stats(),role,corrections,tick:world?.tick,waiting,paused:pausedByHost};return lastStats;},
   exportCheckpoint(){if(role!=='host')throw new Error('Only the host can export this world.');return {format:'nsr-coop',version:1,worldId,identities,world:Sim.snapshot(world)};},
   devCommand(command,fields={}){

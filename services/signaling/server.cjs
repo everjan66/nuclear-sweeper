@@ -71,5 +71,5 @@ function createServer({allowedOrigin=process.env.ALLOWED_ORIGIN,turnSecret=proce
  server.on('close',()=>{clearInterval(maintenance);for(const room of rooms.values())for(const member of room.members.values()){if(member.waiting){clearTimeout(member.waiting.timer);member.waiting.response.end();}}});
  return server;
 }
-if(require.main===module){const server=createServer();server.listen(Number(process.env.PORT)||8787,process.env.BIND||'127.0.0.1',()=>console.log('Nuclear Sweeper: http://'+(process.env.BIND||'127.0.0.1')+':'+(process.env.PORT||8787)));}
+if(require.main===module){const server=createServer();server.listen(process.env.PORT===undefined?8787:Number(process.env.PORT),process.env.BIND||'127.0.0.1',()=>console.log('Nuclear Sweeper: http://'+(process.env.BIND||'127.0.0.1')+':'+server.address().port));}
 module.exports={createServer};
