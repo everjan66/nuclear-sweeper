@@ -3,15 +3,22 @@
 'use strict';
 const NSR=root.NSR||(root.NSR={});
 const {TS,GW,GH,WH,TT,TB,MOVE,SCORE,cl,lerp,ST,U,cost,WP,ET,ENAMES,WCLASS,CNAMES,UNLOCK,TIERS,mkL,rng,ROOM_DESIGNS,ATT,MOD}=NSR.Defs||(typeof require==='function'&&require('./definitions.js'));
-function generate(sec,{roomDesign=1,vOpen=0}={}){
-function designRooms(sec){const random=rng(7001+sec*193),order=ROOM_DESIGNS.map((_,index)=>index);
+function generate(sec,{roomDesign=2,vOpen=0}={}){
+function designRooms(sec){const random=rng(7001+sec*193),order=ROOM_DESIGNS.slice(0,6).map((_,index)=>index);
  for(let index=order.length-1;index>0;index--){const swap=random()*(index+1)|0;[order[index],order[swap]]=[order[swap],order[index]]}
- let next=0;for(const room of R){if(room.sh||room.core||room===POOLR)continue;room.design=order[next++%order.length];room.turn=random()<.5;
+ let next=0;for(const room of R){if(room.sh||room.core||room===POOLR)continue;if(!room.large)room.design=order[next++%order.length];room.turn=random()<.5;
   if(room.design!=1&&room.design!=4&&room.design!=5)continue;
   for(let z=room.z0;z<=room.z1;z++)for(let x=room.x0;x<=room.x1;x++){
    const edgeX=Math.min(x-room.x0,room.x1-x),edgeZ=Math.min(z-room.z0,room.z1-z);
    if(Math.abs(x-room.cx)>1&&Math.abs(z-room.cz)>1&&(room.design==4?x<room.cx&&z<room.cz&&edgeX+edgeZ<3:edgeX+edgeZ<2))M[z*GW+x]=1}}}
-function furnishRoom(room,sec){const random=rng(sec*977+room.x0*61+room.z0),width=room.x1-room.x0,height=room.z1-room.z0;
+function furnishRoom(room,sec){if(room.large){
+ for(const side of[-1,1])for(const end of[-1,1]){const edgeX=side<0?room.x0+1:room.x1-1,edgeZ=end<0?room.z0+1:room.z1-1;
+  for(let across=0;across<2;across++)for(let along=0;along<2;along++)M[(edgeZ-end*along)*GW+edgeX-side*across]=6;
+  M[edgeZ*GW+edgeX-side*2]=5;M[edgeZ*GW+edgeX-side*3]=2}
+ if(room.design!==7){const z=room.design===6?room.z0+2:room.z1-2;for(let x=room.x0+2;x<room.x1-1;x++)M[z*GW+x]=6}
+ room.lasers=[{x0:(room.x0+2)*TS,x1:(room.x1-1)*TS,z:(room.cz+.5)*TS,y:.85,phase:sec%6},
+  {x0:(room.x0+1.5)*TS,x1:(room.x1-.5)*TS,z:(room.z0+1.5)*TS,y:4.05,phase:(sec+2)%6}];return}
+ const random=rng(sec*977+room.x0*61+room.z0),width=room.x1-room.x0,height=room.z1-room.z0;
  for(let z=room.z0+1;z<room.z1;z++)for(let x=room.x0+1;x<room.x1;x++){
   if(Math.abs(x-room.cx)<=1||Math.abs(z-room.cz)<=1||M[z*GW+x]!=0)continue;
   const along=room.turn?z-room.z0:x-room.x0,across=room.turn?x-room.x0:z-room.z0;
@@ -32,7 +39,12 @@ function genZips(){ZIP=[];for(const o of R){if(!o.pl||o.core||o.sh)continue;cons
 const r=rng(1000+sec*77);DOORT=[];ZIP=[];POOLR=null;ISL=null;TERM=null;M=new Uint8Array(GW*GH).fill(1);D=new Float32Array(GW*GH);R=[];CO=[];
  const sl=15,carve=(x0,z0,x1,z1)=>{for(let z=z0;z<=z1;z++)for(let x=x0;x<=x1;x++)if(x>0&&z>0&&x<GW-1&&z<GH-1)M[z*GW+x]=0};
  for(let j=0;j<4;j++)for(let i=0;i<4;i++){const core=i==1&&j==1,w=core?13:7+(r()*5|0),h=core?13:7+(r()*5|0),x0=i*sl+1+(r()*(sl-w-2)|0),z0=j*sl+1+(r()*(sl-h-2)|0);R.push({x0,z0,x1:x0+w-1,z1:z0+h-1,cx:x0+(w>>1),cz:z0+(h>>1),core,sh:!i&&!j});carve(x0,z0,x0+w-1,z0+h-1)}
- POOLR=[6,7,11,2,1,14,4,8].map(i=>R[i]).find(o=>o.x1-o.x0>=8&&o.z1-o.z0>=8)||null;
+ if(roomDesign>=2){const slots=R.map((room,index)=>({room,index,area:(room.x1-room.x0+1)*(room.z1-room.z0+1)})).filter(entry=>!entry.room.sh&&!entry.room.core&&entry.area<=98).sort((first,second)=>first.area-second.area).slice(0,3);
+  for(let index=0;index<slots.length;index++){const {room,index:slot,area}=slots[index],largeWidth=Math.ceil(Math.sqrt(area*2)),largeDepth=Math.ceil(area*2/largeWidth);
+   for(let z=room.z0;z<=room.z1;z++)for(let x=room.x0;x<=room.x1;x++)M[z*GW+x]=1;
+   const x0=(slot%4)*sl+Math.max(1,Math.floor((sl-largeWidth)/2)),z0=(slot/4|0)*sl+Math.max(1,Math.floor((sl-largeDepth)/2));
+   Object.assign(room,{x0,z0,x1:x0+largeWidth-1,z1:z0+largeDepth-1,cx:x0+(largeWidth>>1),cz:z0+(largeDepth>>1),large:true,baseArea:area,ceiling:9.6,design:6+(index+sec-1)%3});carve(room.x0,room.z0,room.x1,room.z1)}}
+ POOLR=[6,7,11,2,1,14,4,8].map(i=>R[i]).find(o=>!o.large&&o.x1-o.x0>=8&&o.z1-o.z0>=8)||null;
  if(S.roomDesign)designRooms(sec);
  for(let j=0;j<4;j++)for(let i=0;i<4;i++){const a=R[j*4+i];
   if(i<3){const b=R[j*4+i+1];carve(a.cx,a.cz-1,b.cx,a.cz+1);carve(b.cx-1,Math.min(a.cz,b.cz),b.cx+1,Math.max(a.cz,b.cz));CO.push({h:1,a,b})}
@@ -47,7 +59,7 @@ const r=rng(1000+sec*77);DOORT=[];ZIP=[];POOLR=null;ISL=null;TERM=null;M=new Uin
  for(const o of R){if(o.sh)continue;const ok=(x,z)=>x>o.x0&&x<o.x1&&z>o.z0&&z<o.z1&&Math.abs(x-o.cx)>1&&Math.abs(z-o.cz)>1;
   for(let k=0,n=o.core?2:1+(r()<.6);k<n;k++){const len=3+(r()*4|0),hz=r()<.5,tx=o.x0+2+(r()*(o.x1-o.x0-3)|0),tz=o.z0+2+(r()*(o.z1-o.z0-3)|0);for(let u=0;u<len;u++){const x=tx+(hz?u:0),z=tz+(hz?0:u);if(o.design===undefined&&ok(x,z)&&M[z*GW+x]==0)M[z*GW+x]=1}}
   if(o.design!==undefined)furnishRoom(o,sec);
-  if(o!==POOLR&&r()<(o.core?1:.7)){const sd=r()*4|0,hzP=sd<2,sp=hzP?o.x1-o.x0+1:o.z1-o.z0+1,len=Math.min(sp-2,5+(r()*4|0)),st0=1+(r()*(sp-len-1)|0),cells=[];
+  if(!o.large&&o!==POOLR&&r()<(o.core?1:.7)){const sd=r()*4|0,hzP=sd<2,sp=hzP?o.x1-o.x0+1:o.z1-o.z0+1,len=Math.min(sp-2,5+(r()*4|0)),st0=1+(r()*(sp-len-1)|0),cells=[];
    for(let u=0;u<len;u++)for(let d=0;d<3;d++){const x=hzP?o.x0+st0+u:(sd==2?o.x0+d:o.x1-d),z=hzP?(sd==0?o.z0+d:o.z1-d):o.z0+st0+u;cells.push([x,z])}
    for(const[x,z]of cells)if(M[z*GW+x]!=1)M[z*GW+x]=6;o.pl={sd,hzP,st0,len};
    const c=[];for(let u=0;u<len;u++){const a=(hzP?o.x0:o.z0)+st0+u;if(Math.abs(a-(hzP?o.cx:o.cz))>1)c.push(a)}
@@ -60,6 +72,10 @@ const r=rng(1000+sec*77);DOORT=[];ZIP=[];POOLR=null;ISL=null;TERM=null;M=new Uin
  S.total=tot;S.rem=tot;SH={x:(R[0].cx+.5)*TS,z:(R[0].cz+.5)*TS};CORE={x:c5.cx*TS,z:c5.cz*TS};
  if(S.vOpen){for(const i of DOORT)M[i]=0}return {M:Array.from(M),D:Array.from(D),R,CO,SH,CORE,DEP,DEPT,POOLR,ISL,TERM,ZIP,DOORT,total:S.total,rem:S.rem,sector:sec,roomDesign:S.roomDesign};}
 
-NSR.Map={generate};
+function ceiling(world,x,z){const room=(world.R||[]).find(room=>room.large&&x>=room.x0*TS&&x<(room.x1+1)*TS&&z>=room.z0*TS&&z<(room.z1+1)*TS);return room?room.ceiling:WH;}
+function laserState(laser,time){const phase=((time+laser.phase)%6+6)%6;return phase>=1&&phase<3.8?'active':phase>=.4&&phase<1?'warning':'off';}
+function laserDamage(world,pose,time){let touching=false;for(const room of world.R||[])for(const laser of room.lasers||[]){if(laserState(laser,time)!=='active'||pose.h>=laser.y+.12||pose.h+(pose.low?1.22:1.8)<=laser.y-.12)continue;
+ const along=cl((pose.x-laser.x0)/(laser.x1-laser.x0),0,1),x=lerp(laser.x0,laser.x1,along);if(Math.hypot(pose.x-x,pose.z-laser.z)<.48)touching=true}return touching?18:0;}
+NSR.Map={generate,ceiling,laserState,laserDamage};
 if(typeof module!=='undefined')module.exports=NSR.Map;
 })(globalThis);

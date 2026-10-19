@@ -41,6 +41,21 @@ closes it. Gameplay pauses while the panel is open; the refinery keeps running.
 If the shelter or settings were already open, close that menu too to resume play.
 After closing the menus, click **CLICK TO RESUME** to capture the mouse again.
 
+## Traversal-room regression checks
+
+`tests/rooms.test.cjs` checks all 100 seeded sites for three enlarged rooms,
+double footprints and deterministic generation; it also simulates baseline
+platform ascents, high-ceiling grapples, laser timing/height/damage and old/new
+co-op checkpoint restoration. Layout versions 0 and 1 retain their original
+seeded geometry and dust; new games and deployments use layout version 2.
+
+In both HTML entries, start fresh or deploy, visit the Gantry Exchange, Laser
+Foundry and Relay Chamber, and compare jumping/mantling the stepping blocks
+with grappling directly to the platforms/ceiling. Confirm amber warning, red
+contact damage, safe off phases, end-runs and floor-level evasion of the upper
+beam. Repeat with a co-op guest and invincibility enabled/disabled. Reload an
+older save before deploying to confirm its existing dust stays in place.
+
 ## Available controls
 
 - Fund the exact cost of every remaining purchase, edit credits/scrap/rare parts,
