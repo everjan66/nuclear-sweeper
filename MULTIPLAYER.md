@@ -127,6 +127,8 @@ Session tests use a controlled clock/network with 150 ms RTT and 2% packet loss
 to check prediction convergence, input expiry, transactions, pause and reconnect.
 GitHub Actions runs this suite, a two-minute simulated soak on Node 24, and
 four-client WebRTC/restart checks in Chromium and Firefox.
+The Linux browser jobs use Xvfb and software OpenGL (`--headed` in the runner)
+so Firefox can initialize the game's WebGL renderer without a physical display.
 
 October 19 validation: 35 automated tests pass. Four independent browser contexts
 passed real localhost WebRTC checks in Chromium 154.0.8037.92 and Playwright

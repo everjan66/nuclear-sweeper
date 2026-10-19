@@ -31,7 +31,9 @@ jobs:
           python -m pip install playwright==1.64.0
           python -m playwright install --with-deps ${{ matrix.browser }}
       - name: Four-client WebRTC and process restart
-        run: python scripts/browser-smoke.py --managed-server --browser ${{ matrix.browser }} > browser-result.json
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: xvfb-run -a python scripts/browser-smoke.py --headed --managed-server --browser ${{ matrix.browser }} > browser-result.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:

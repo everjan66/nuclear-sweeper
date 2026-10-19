@@ -49,7 +49,7 @@ async def smoke(args, server=None):
     errors = []
     async with async_playwright() as playwright:
         browser_type = getattr(playwright, args.browser)
-        options = {"headless": True}
+        options = {"headless": not args.headed}
         if args.executable:
             options["executable_path"] = args.executable
         if args.browser == "chromium":
@@ -61,6 +61,9 @@ async def smoke(args, server=None):
         solo = await solo_context.new_page()
         solo.on("pageerror", lambda error: errors.append(str(error)))
         await solo.goto(args.url)
+        if errors:
+            raise RuntimeError("Game startup failed: " + json.dumps(errors))
+        await solo.locator("#coop-menu").wait_for(state="visible")
         assert await solo.evaluate("document.querySelector('#coop-menu').scrollWidth<=document.querySelector('#coop-menu').clientWidth")
         await solo.locator("#coop-solo").click()
         await solo.evaluate("S.cred=123;save()")
@@ -212,6 +215,7 @@ if __name__ == "__main__":
     parser.add_argument("--url", default="http://127.0.0.1:8787")
     parser.add_argument("--browser", choices=["chromium", "firefox"], default="chromium")
     parser.add_argument("--executable", help="Optional browser executable; otherwise use Playwright's installed browser.")
+    parser.add_argument("--headed", action="store_true", help="Use a visible browser; Linux CI supplies a virtual display with Xvfb.")
     parser.add_argument("--managed-server", action="store_true", help="Start an isolated local server and verify process restart plus checkpoint rehost.")
     parser.add_argument("--node", default=shutil.which("node") or "node", help="Node.js executable for --managed-server.")
     asyncio.run(main(parser.parse_args()))
