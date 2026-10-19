@@ -3,7 +3,7 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const Definitions=require('../js/core/definitions.js'),Maps=require('../js/core/map.js'),Movement=require('../js/core/movement.js');
 const Sim=require('../js/game/simulation.js');
 function fixture(){const world=Sim.createWorld();world.E=[];world.Dr=[];const host=Sim.addPlayer(world,{id:'host'}),guest=Sim.addPlayer(world,{id:'guest'});return {world,host,guest};}
-function openFloor(world){world.M.fill(0);world.D.fill(0);world.total=1;world.rem=1;world.TERM=null;world.DEP=[];world.SH={x:10,z:10};}
+function openFloor(world){world.M.fill(0);world.D.fill(0);world.D[3599]=1;world.total=1;world.rem=1;world.TERM=null;world.DEP=[];world.SH={x:10,z:10};}
 test('seeded maps are repeatable, bounded, and preserve legacy layouts',()=>{
  for(const sector of [1,2,3,4,17,100]){
   const first=Maps.generate(sector),second=Maps.generate(sector);assert.deepEqual(first,second);assert.equal(first.M.length,3600);assert.equal(first.D.length,3600);
@@ -22,7 +22,7 @@ test('movement replay retains slide, airborne dash, grapple and zipline state',(
 });
 test('two collectors conserve the last dust without creating tank contents',()=>{
  const {world,host,guest}=fixture();openFloor(world);host.pose.x=guest.pose.x=41;host.pose.z=guest.pose.z=41;
- const tile=20*60+20;world.D[tile]=.001;world.total=world.rem=.001;
+ const tile=20*60+20;world.D.fill(0);world.D[tile]=.001;world.total=world.rem=.001;
  Sim.step(world,{});assert.equal(world.D[tile],0);assert.ok(Math.abs(host.tank+guest.tank+world.team.raw-.01)<1e-10);assert.ok(Math.abs(host.prog.dust+guest.prog.dust-.01)<1e-10);assert.ok(world.boss);assert.equal(world.rem,world.D.reduce((sum,value)=>sum+value,0));
 });
 test('one loot object is credited once and rescue leaves other projectiles alive',()=>{
@@ -70,7 +70,7 @@ test('shared radio progress and personal achievements survive checkpoint restore
  Sim.step(world,{});assert.equal(world.story,1);assert.equal(world.events.filter(event=>event.type==='story').length,1);
  for(const id of ['dust0','enemy0_10','points10000','streak5'])assert.ok(host.prog.ach.includes(id));
  const restored=Sim.restore(Sim.snapshot(world));assert.equal(restored.story,1);assert.deepEqual(restored.players.host.prog.ach,host.prog.ach);
- world.rem=world.total*.02;for(let tick=0;tick<5;tick++)Sim.step(world,{});assert.equal(world.story,5);assert.equal(world.clr,1);
+ world.D=world.D.map(value=>value*.02);world.rem=world.D.reduce((total,value)=>total+value,0);for(let tick=0;tick<5;tick++)Sim.step(world,{});assert.equal(world.story,5);assert.equal(world.clr,1);
 });
 test('a disconnected character remains vulnerable and can only be rescued once',()=>{
  const {world,guest}=fixture();world.D.fill(0);world.rem=0;guest.tank=20;Sim.disconnect(world,guest.id);assert.equal(guest.present,true);assert.equal(guest.ready,false);

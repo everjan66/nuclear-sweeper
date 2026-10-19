@@ -116,7 +116,7 @@ async def smoke(args, server=None):
         assert visual["counts"] == {"players": 3, "ropes": 1}, visual
         assert visual["width"] == visual["expectedWidth"] and visual["suppressor"], visual
         assert visual["color"] == visual["expectedColor"], visual
-        await host.evaluate("""() => {const w=coopSession.view().world;for(const p of Object.values(w.players)){p.pose=NSR.Movement.createPose(w.SH);p.move={};}w.D.fill(0);w.rem=0;w.clr=1;coopSession.setPaused(false);} """)
+        await host.evaluate("""() => {const w=coopSession.view().world;for(const p of Object.values(w.players)){p.pose=NSR.Movement.createPose(w.SH);p.move={};}w.D.fill(0);const remaining=w.M.findIndex((value,index)=>value===0&&Math.hypot((index%60+.5)*2-w.SH.x,((index/60|0)+.5)*2-w.SH.z)>20);if(remaining<0)throw Error('No remaining cleanup tile');w.D[remaining]=.01;w.rem=.01;w.clr=1;coopSession.setPaused(false);} """)
         for page in pages:
             await page.wait_for_function("!coopSession.view().paused", polling=100)
             answer = await page.evaluate("coopSession.perform('ready',{value:true})")

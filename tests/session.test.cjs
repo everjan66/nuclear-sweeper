@@ -16,7 +16,7 @@ test('reliable host pause survives complete unreliable loss and rejects in-fligh
 test('guest prediction converges at 150 ms RTT and 2% loss; stale input stops and actions confirm',async()=>{
  const env=environment({latency:150,loss:.02}),host=env.NSR.Session.create({name:'Host',storage:env.storage()}),guest=env.NSR.Session.create({name:'Guest',storage:env.storage()});
  const result=await host.host();await guest.join(result.invitation);env.advance([host,guest],{},40);assert.ok(guest.view());
- const world=host.view().world;world.E=[];world.Dr=[];world.M.fill(0);world.D.fill(0);world.TERM=null;world.DEP=[];guest.view().world.M.fill(0);
+ const world=host.view().world;world.E=[];world.Dr=[];world.M.fill(0);world.D.fill(0);world.D[3599]=1;world.rem=1;world.TERM=null;world.DEP=[];guest.view().world.M.fill(0);
  const guestId=guest.view().localId;world.players[guestId].pose.x=30;world.players[guestId].pose.z=30;
  env.advance([host,guest],{1:{yaw:0,pit:0,fw:true}},120);env.advance([host,guest],{1:{yaw:0,pit:0}},40);
  const authoritative=world.players[guestId].pose,predicted=guest.view().player.pose;assert.ok(Math.hypot(authoritative.x-predicted.x,authoritative.z-predicted.z)<.2);assert.ok(authoritative.z<30);
