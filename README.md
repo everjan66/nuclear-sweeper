@@ -36,6 +36,14 @@ See [MULTIPLAYER.md](MULTIPLAYER.md) for deployment, implementation status and
 release checks. Run `npm test` for the dependency-free simulation/network tests.
 Keep the `js/` directory beside the HTML when copying or hosting the game.
 
+## Flying melee enemies
+
+Shriekers are purple, winged melee enemies that can appear from the first site.
+They fly over crates and raised walkways, climb to floating platforms, and dive
+to attack nearby players. High ground alone is no longer safe: shoot them at
+their actual height or retreat to the shelter. Full-height walls still block
+their movement and attacks. Solo and private co-op both include Shriekers.
+
 ## Dust Sovereign boss
 
 Sweep a site completely to teleport into an arena roughly six rooms in size.

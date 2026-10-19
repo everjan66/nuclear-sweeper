@@ -60,6 +60,16 @@ After closing the menus, click **CLICK TO RESUME** to capture the mouse again.
 - Toggle invincibility, infinite ammo, or frozen enemies/automatic spawns. All
   assists start off and are not persisted across page reloads.
 
+## Shrieker flight checks
+
+In developer solo, choose **Shrieker** in the enemy selector and spawn nearby.
+Test pursuit onto raised walkways and floating platforms, then return to ground
+level. Check that it flies around full-height walls, cannot hit through platforms
+or from a different elevation, and stays outside the shelter. Shoot the body and
+head at their visible height. Repeat with a co-op guest on high ground; verify
+the host and guest see the same altitude and that checkpoint reload preserves it.
+Existing four-enemy progress records migrate without losing kills.
+
 ## Dust Sovereign encounter
 
 Sweep **every** dust tile on a site (not the existing 97% early-deployment

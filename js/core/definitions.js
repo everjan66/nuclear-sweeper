@@ -22,7 +22,8 @@ const WP=[{n:'Desert Eagle',d:14,pen:2,fall:.6,r:2.6,mag:7,rl:1.8,sp:.7,sa:.08,p
 {n:'Breaker',d:3.8,pen:2,fall:.5,r:1.3,mag:6,rl:2.4,sp:5.5,sa:3.8,pel:9,auto:0,z:1.2,rc:.05,sc:0,vm:[0x4a3b2a,.08,.09,.5,.3,1,0]},
 {n:'Vector DMR',d:20,pen:3,fall:.75,big:2.5,r:1.8,mag:8,rl:1.9,sp:1.8,sa:.02,pel:1,auto:0,z:3,rc:.04,sc:1,vm:[0x2d3a2d,.07,.1,.6,.4,1,1]}];
 const ET=[{hp:30,sp:5.6,dm:12,sc:1,col:0x4f7a2c},{hp:30,sp:3.8,dm:9,sc:.95,col:0xa0522d,rg:1},{hp:130,sp:3.6,dm:26,sc:1.55,col:0x6a3a28},{hp:30,sp:4.4,dm:6,sc:1,col:0x5b6577,rg:2}];
-const ENAMES=['Glower','Spitter','Brute','Gunner'];
+ET.push({hp:38,sp:5,dm:14,sc:.8,col:0x925cca,fly:true});
+const ENAMES=['Glower','Spitter','Brute','Gunner','Shrieker'];
 const WCLASS=[0,1,1,2,2,3,4],CNAMES=['Pistol','Machine pistol','Assault rifle','Shotgun','Sniper / DMR'],UNLOCK=[0,25,60,90,60];
 const TIERS=[{n:'Basic',col:null,k:0,types:[0,0,0,0]},
  {n:'Tier 1 · Gold',col:0xd4af37,k:50,types:[20,5,0,0]},

@@ -86,8 +86,9 @@ function spawn(world,alert){
   const tile=1+(random(world)*(GW*GH-2)|0),x=(tile%GW+.5)*TS,z=((tile/GW|0)+.5)*TS;
   if(world.M[tile]!==0||distance({x,z},world.SH)<10||active.some(player=>distance({x,z},player.pose)<22))continue;
   let type=world.sector>=3&&random(world)<.2?2:world.sector>=2&&random(world)<.4?1:0;if(random(world)<.08)type=3;
+  if(random(world)<.18)type=4;
   if(Movement.collide(world,x,z,.5*ET[type].sc,0,1.8,1))continue;
-  const hp=ET[type].hp*(1+.4*(world.sector-1));world.E.push({id:nextId(world,'e'),t:type,x,z,hp,mh:hp,cd:0,fc:1,al:alert?1:0,ph:random(world)*6,target:null});return true;
+  const hp=ET[type].hp*(1+.4*(world.sector-1));world.E.push({id:nextId(world,'e'),t:type,x,z,h:ET[type].fly?.7:0,hp,mh:hp,cd:0,fc:1,al:alert?1:0,ph:random(world)*6,target:null});return true;
  }return false;
 }
 function recordKill(world,player,enemy,weapon,headshot){
@@ -105,7 +106,7 @@ function cast(world,origin,direction,max,ignored=new Set()){
  for(const candidate of world.E){if(candidate.hp<=0||ignored.has(candidate.id))continue;
   const scale=ET[candidate.t].sc;
   for(const [height,radius,isHead]of[[.75*scale,.62*scale,false],[1.5*scale,.34*scale,true]]){
-   const offset={x:candidate.x-origin.x,y:height-origin.y,z:candidate.z-origin.z};
+   const offset={x:candidate.x-origin.x,y:(candidate.h||0)+height-origin.y,z:candidate.z-origin.z};
    const projection=offset.x*direction.x+offset.y*direction.y+offset.z*direction.z;
    const squared=offset.x**2+offset.y**2+offset.z**2,inside=squared<radius**2,perpendicular=squared-projection**2;
    if((inside||projection>0)&&perpendicular<radius**2){const hit=inside?.01:projection-Math.sqrt(radius**2-perpendicular);if(hit>0&&hit<length){length=hit;enemy=candidate;headshot=isHead;}}
@@ -199,10 +200,11 @@ function updateEnemies(world,players,dt){
  if(world.dev&&world.assists?.freezeEnemies)return;
  const targets=players.filter(player=>!inShelter(world,player,7)),fields=pathFields(world,targets);
  for(const enemy of world.E){if(enemy.hp<=0)continue;const definition=ET[enemy.t],radius=.5*definition.sc,current=(enemy.z/TS|0)*GW+(enemy.x/TS|0);
-  const candidates=targets.filter(player=>fields[player.id]?.[definition.sc>1.2?1:0][current]>=0||clearLine(world,enemy,player.pose)).sort((first,second)=>distance(enemy,first.pose)-distance(enemy,second.pose));
+  const candidates=targets.filter(player=>definition.fly||fields[player.id]?.[definition.sc>1.2?1:0][current]>=0||clearLine(world,enemy,player.pose)).sort((first,second)=>distance(enemy,first.pose)-distance(enemy,second.pose));
   let target=candidates[0];const previous=candidates.find(player=>player.id===enemy.target);if(previous&&target&&distance(enemy,previous.pose)<distance(enemy,target.pose)*1.25)target=previous;
   if(!target)continue;enemy.target=target.id;const separation=distance(enemy,target.pose)||1,visible=separation<24&&clearLine(world,enemy,target.pose);
   if(!enemy.al){if((visible&&separation<15)||separation<5)enemy.al=1;else continue;}
+  if(definition.fly){if(Movement.fly(world,enemy,target.pose,dt,definition.sp*(1+.04*(world.sector-1))))hurt(world,target,definition.dm*(1+.3*(world.sector-1)));continue;}
   let destination=target.pose;const field=fields[target.id]?.[definition.sc>1.2?1:0];
   if(!visible&&field){let best=current;for(const offset of [-GW,GW,-1,1]){const next=current+offset;if(next>=0&&next<field.length&&field[next]>=0&&(field[best]<0||field[next]<field[best]))best=next;}destination={x:(best%GW+.5)*TS,z:((best/GW|0)+.5)*TS};}
   let deltaX=destination.x-enemy.x,deltaZ=destination.z-enemy.z,length=Math.hypot(deltaX,deltaZ)||1;
@@ -295,8 +297,8 @@ function validPlayer(saved){
  for(const key of ['wcd','rel','relMax','bladeCd','exposure'])if(!finite(saved[key],-1e12,1e6))return false;
  for(const key of ['kills','lastSeq','lastActionId'])if(!integer(saved[key]))return false;
  if(typeof saved.connected!=='boolean'||typeof saved.ready!=='boolean')return false;
- const progress=saved.prog;if(!progress||!finite(progress.dust,0,1e12)||!Array.isArray(progress.enemies)||progress.enemies.length!==4||!progress.enemies.every(value=>integer(value))||!Array.isArray(progress.weapons)||progress.weapons.length!==7)return false;
- if(progress.weapons.some(value=>!value||!integer(value.kills)||!Array.isArray(value.types)||value.types.length!==4||!value.types.every(total=>integer(total))))return false;
+ const progress=saved.prog;if(!progress||!finite(progress.dust,0,1e12)||!Array.isArray(progress.enemies)||![4,ET.length].includes(progress.enemies.length)||!progress.enemies.every(value=>integer(value))||!Array.isArray(progress.weapons)||progress.weapons.length!==7)return false;
+ if(progress.weapons.some(value=>!value||!integer(value.kills)||!Array.isArray(value.types)||![4,ET.length].includes(value.types.length)||!value.types.every(total=>integer(total))))return false;
  if(!Array.isArray(progress.ach)||progress.ach.length>64||!progress.ach.every(value=>typeof value==='string'&&value.length<40))return false;
  if(!saved.score||!['total','run','best','chain'].every(key=>integer(saved.score[key]))||!Array.isArray(saved.score.board)||saved.score.board.length>5||saved.score.board.some(entry=>!entry||!integer(entry.points)||!integer(entry.site,100)||!['Cleared','Rescued'].includes(entry.reason)))return false;
  if(!saved.streak||!['kills','heads','points','bonus'].every(key=>integer(saved.streak[key]))||!finite(saved.streak.left,0,5))return false;
@@ -316,13 +318,15 @@ function restore(raw){
  for(const [id,saved]of Object.entries(raw.players)){
   if(!validPlayer(saved))throw new Error('Invalid saved character.');const player=addPlayer(world,{id,name:saved.name});
   for(const key of Object.keys(player)){if(Object.hasOwn(saved,key))player[key]=clone(saved[key]);}
+  while(player.prog.enemies.length<ET.length)player.prog.enemies.push(0);
+  for(const weapon of player.prog.weapons)while(weapon.types.length<ET.length)weapon.types.push(0);
  }
  if(!Object.hasOwn(world.players,raw.hostId))throw new Error('Missing host character.');world.hostId=raw.hostId;
  for(const [key,limit]of [['E',64],['Dr',1000],['EP',128]]){
   if(!Array.isArray(raw[key])||raw[key].length>limit||raw[key].some(entity=>!entity||typeof entity.id!=='string'||entity.id.length>80||!finite(entity.x,-100,300)||!finite(entity.z,-100,300)))throw new Error('Invalid checkpoint entities.');
   if(new Set(raw[key].map(entity=>entity.id)).size!==raw[key].length)throw new Error('Duplicate checkpoint entities.');world[key]=clone(raw[key]);
  }
- if(world.E.some(enemy=>!Number.isInteger(enemy.t)||enemy.t<0||enemy.t>=ET.length||!['hp','mh','cd','fc','ph'].every(key=>finite(enemy[key],-1e12,1e6))))throw new Error('Invalid enemy.');
+ if(world.E.some(enemy=>!Number.isInteger(enemy.t)||enemy.t<0||enemy.t>=ET.length||!['hp','mh','cd','fc','ph'].every(key=>finite(enemy[key],-1e12,1e6))||(enemy.h!==undefined&&!finite(enemy.h,0,Defs.WH-1.8*ET[enemy.t].sc))))throw new Error('Invalid enemy.');
  if(world.EP.some(projectile=>!['y','vx','vy','vz','l','dm'].every(key=>finite(projectile[key],-1000,1e6))))throw new Error('Invalid projectile.');
  if(world.Dr.some(loot=>!['scrap','cred','part'].includes(loot.k)||!finite(loot.a,0,1e9)||!finite(loot.vx,-1000,1000)||!finite(loot.vz,-1000,1000)))throw new Error('Invalid loot.');
  if(!finite(raw.spawnT,0,3.5))throw new Error('Invalid spawn timer.');world.spawnT=raw.spawnT;

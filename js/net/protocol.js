@@ -1,7 +1,7 @@
 (function(root){
 'use strict';
 const NSR=root.NSR||(root.NSR={});
-const VERSION=2,MAX_MESSAGE=256*1024,MAX_SNAPSHOT=2*1024*1024;
+const VERSION=3,MAX_MESSAGE=256*1024,MAX_SNAPSHOT=2*1024*1024;
 const held=['fw','bk','lf','rt','crouch','grapple','fire','ads','reload','menu'];
 const edges=['jump','grapplePressed','dash','use'];
 const flags=[...held,...edges];

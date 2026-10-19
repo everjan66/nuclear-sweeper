@@ -13,6 +13,50 @@ function bl(x,z,r,f,h,en){if(en&&Math.hypot(x-SH.x,z-SH.z)<7)return 1;for(let tz
 
 return bl(x,z,r,f,h,en);}
 function ray(world,o,d,max){let t=0;while(t<max){t=Math.min(max,t+.1);if(solid(world,o.x+d.x*t,o.y+d.y*t,o.z+d.z*t))break;}return {t,x:o.x+d.x*t,y:o.y+d.y*t,z:o.z+d.z*t};}
+const flightPaths=new WeakMap();
+function fly(world,enemy,target,dt,speed){
+ const radius=.5*ET[enemy.t].sc,body=1.8*ET[enemy.t].sc,cruise=Math.min(WH-body-.1,Math.max(3.35,target.h||0));
+ const blocked=(x,z,height)=>height<0||height+body>WH||Math.hypot(x-world.SH.x,z-world.SH.z)<7||collide(world,x,z,radius,height,body);
+ const current=(enemy.z/TS|0)*GW+(enemy.x/TS|0),goal=(target.z/TS|0)*GW+(target.x/TS|0);
+ let path=flightPaths.get(enemy);
+ if(!path||path.goal!==goal||path.world.M!==world.M||path.cruise!==cruise||path.left<=0){
+  const field=new Int16Array(GW*GH).fill(-1),queue=[goal];field[goal]=0;
+  for(let index=0;index<queue.length;index++){const cell=queue[index],column=cell%GW,row=cell/GW|0;
+   for(const [offsetX,offsetZ]of [[1,0],[-1,0],[0,1],[0,-1]]){const nextX=column+offsetX,nextZ=row+offsetZ,next=nextZ*GW+nextX;
+    if(nextX<0||nextZ<0||nextX>=GW||nextZ>=GH||field[next]>=0||blocked((nextX+.5)*TS,(nextZ+.5)*TS,cruise))continue;
+    field[next]=field[cell]+1;queue.push(next);
+   }
+  }
+  path={goal,world,field,cruise,left:.4,escape:path?.escape,escapeHeight:path?.escapeHeight};flightPaths.set(enemy,path);
+ }
+ path.left-=dt;
+ let destination=target;
+ const deltaX=target.x-enemy.x,deltaZ=target.z-enemy.z,horizontal=Math.hypot(deltaX,deltaZ);
+ const corridor=(height,point=target)=>{const length=Math.hypot(point.x-enemy.x,point.z-enemy.z),steps=Math.max(1,Math.ceil(length/.3));for(let index=1;index<=steps;index++)if(blocked(enemy.x+(point.x-enemy.x)*index/steps,enemy.z+(point.z-enemy.z)*index/steps,height))return false;return true;};
+ if(!corridor(cruise)){let best=current;for(const next of [current-GW,current+GW,current-1,current+1])if(next>=0&&next<GW*GH&&Math.abs(next%GW-current%GW)+Math.abs((next/GW|0)-(current/GW|0))===1&&path.field[next]>=0&&(path.field[best]<0||path.field[next]<path.field[best]))best=next;
+  destination={x:(best%GW+.5)*TS,z:((best/GW|0)+.5)*TS};
+ }
+ let desired=horizontal<3&&corridor(Math.max(.7,target.h||0))?Math.max(.7,target.h||0):cruise;
+ if(path.escape){if(Math.abs((enemy.h??.7)-path.escapeHeight)<.05)path.escape=null;else{destination=path.escape;desired=path.escapeHeight;}}
+ const height=enemy.h??.7,nextHeight=height+cl(desired-height,-speed*dt,speed*dt);
+ if(!blocked(enemy.x,enemy.z,nextHeight))enemy.h=nextHeight;
+ else{enemy.h=height;let nearest=Infinity;
+  for(let offsetZ=-4;offsetZ<=4;offsetZ++)for(let offsetX=-4;offsetX<=4;offsetX++){
+   const point={x:((enemy.x/TS|0)+offsetX+.5)*TS,z:((enemy.z/TS|0)+offsetZ+.5)*TS},length=Math.hypot(point.x-enemy.x,point.z-enemy.z);
+   if(length>=nearest||blocked(point.x,point.z,height)||blocked(point.x,point.z,desired)||!corridor(height,point))continue;
+   let clear=true;for(let sample=Math.min(height,desired);sample<=Math.max(height,desired);sample+=.2)if(blocked(point.x,point.z,sample)){clear=false;break;}if(!clear)continue;
+   nearest=length;destination=point;
+  }
+  if(nearest<Infinity){path.escape=destination;path.escapeHeight=desired;}
+ }
+ const moveX=destination.x-enemy.x,moveZ=destination.z-enemy.z,length=Math.hypot(moveX,moveZ),travel=Math.min(speed*dt,Math.max(0,length-(destination===target ? .8 : 0)));
+ if(length>0){const nextX=enemy.x+moveX/length*travel,nextZ=enemy.z+moveZ/length*travel;
+  if(!blocked(nextX,enemy.z,enemy.h))enemy.x=nextX;if(!blocked(enemy.x,nextZ,enemy.h))enemy.z=nextZ;
+ }
+ enemy.cd-=dt;
+ const offset={x:target.x-enemy.x,y:(target.h||0)+.9-(enemy.h+.75*ET[enemy.t].sc),z:target.z-enemy.z},reach=Math.hypot(offset.x,offset.y,offset.z);
+ if(reach<1.65&&enemy.cd<=0&&ray(world,{x:enemy.x,y:enemy.h+.75*ET[enemy.t].sc,z:enemy.z},{x:offset.x/(reach||1),y:offset.y/(reach||1),z:offset.z/(reach||1)},reach).t>=reach){enemy.cd=.9;return true;}return false;
+}
 function step(world,player,input,dt){
  const p=player.pose,S=player,{M,SH,ZIP}=world,s=ST(S.L),tt=world.time||0;
  const kd=k=>!input.menu&&!!input[k];
@@ -100,6 +144,6 @@ if(input.grapplePressed&&!input.menu)tryGrapple();if(input.dash&&!input.menu)try
 player.move={gCd,dCd,gsp,zpCd,crouch:!!input.crouch};
 }
 
-NSR.Movement={createPose,tile,solid,collide,ray,step};
+NSR.Movement={createPose,tile,solid,collide,ray,fly,step};
 if(typeof module!=='undefined')module.exports=NSR.Movement;
 })(globalThis);

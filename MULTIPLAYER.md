@@ -69,9 +69,10 @@ Reliable messages carry initial/transition snapshots, absolute dust changes,
 events and idempotent transactions. Session and generation IDs reject obsolete
 gameplay messages after reconnect or deployment.
 
-Wire protocol version 2 packs input controls into validated bit masks and sends
-only render-relevant remote pose fields. Hosts and guests must reload together
-and create a fresh invitation when upgrading from version 1. Co-op checkpoint
+Wire protocol version 3 retains packed input controls and render-relevant remote
+pose fields, and adds flying enemy types and interpolated altitude. Hosts and
+guests must reload together and create a fresh invitation when upgrading from
+an earlier version; older clients cannot render Shriekers. Co-op checkpoint
 format version 1 remains unchanged. Exiting/reloading a page sends an authenticated
 keepalive leave request to free the signaling slot promptly.
 
