@@ -18,7 +18,7 @@ async function runSoak({seconds=1800,onProgress=()=>{}}={}){
   const results=await Promise.all(requests);assert.equal(results.filter(result=>result.ok).length,1);assert.equal(Object.values(world.players).reduce((total,player)=>total+player.L.sweep,0),before+1);assert.ok(world.team.scrap>=0);purchases++;
  }
  async function deploy(){
-  shelter();advance(40);world.D.fill(0);world.rem=0;world.clr=1;world.dirty=world.D.map((_,index)=>index);
+  shelter();advance(40);world.D.fill(0);const remaining=world.M.findIndex((value,index)=>value===0&&Math.hypot((index%60+.5)*2-world.SH.x,((index/60|0)+.5)*2-world.SH.z)>20);assert.ok(remaining>=0);world.D[remaining]=.01;world.rem=.01;world.clr=1;world.dirty=world.D.map((_,index)=>index);
   const requests=sessions.map(session=>session.perform('ready',{value:true}));advance(40);assert.ok((await Promise.all(requests)).every(result=>result.ok));
   const generation=world.generation;assert.equal((await host.perform('deploy')).ok,true);advance(40);assert.equal(world.generation,generation+1);
   for(const guest of guests){assert.equal(guest.view().world.generation,world.generation);assert.equal(guest.view().world.sector,world.sector);}deployments++;field();

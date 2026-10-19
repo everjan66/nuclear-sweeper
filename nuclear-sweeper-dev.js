@@ -57,7 +57,7 @@ function devResupply(){
 
 function devTravel(site){
  if(!Number.isInteger(site)||site<1||site>100)throw new Error('Choose a whole site number between 1 and 100.');
- S.sector=site;S.story=0;S.clr=0;S.vOpen=0;S.vTaken=0;S.iTaken=0;S.bossDead=0;S.bty=null;
+ S.sector=site;S.story=0;S.clr=0;S.vOpen=0;S.vTaken=0;S.iTaken=0;S.boss=null;S.bossDead=0;S.bty=null;
  genMap(site);placeP();devResupply();spawnT=3;bfsT=0;moveAcc=0;dirty=[];
  $('#log').style.display='none';clearTimeout(msgT);camCalc();
 }

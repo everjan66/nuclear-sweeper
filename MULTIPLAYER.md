@@ -42,6 +42,7 @@ characters. This is checkpoint recovery; in-flight negotiation is not persisted.
 - `js/core/definitions.js`: shared stats, weapons, economy definitions and radio.
 - `js/core/map.js`: seeded, DOM-free geometry and dust generation.
 - `js/core/movement.js`: fixed 64 Hz movement with explicit world/player/input.
+- `js/game/boss.js`: shared boss arena, dust shielding, phase attacks and validated boss state.
 - `js/game/simulation.js`: authoritative co-op combat, AI, collections, refinery,
   purchases, progression, readiness, deployment and checkpoint validation.
 - `js/net/protocol.js`: protocol version, input validation and invitation format.
@@ -55,7 +56,7 @@ characters. This is checkpoint recovery; in-flight negotiation is not persisted.
   reload/muzzle presentation, grapple ropes and avatar resource cleanup.
 - `services/signaling/server.cjs`: ephemeral private room discovery and ICE config.
 
-Load order is core definitions/map/movement, simulation, protocol/transport,
+Load order is core definitions/map/movement, boss, simulation, protocol/transport,
 storage/session, remote-player/co-op UI, then the existing HTML render shell. Scripts expose
 `NSR` interfaces; DOM-free modules also support CommonJS for tests.
 

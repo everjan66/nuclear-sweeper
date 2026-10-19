@@ -4,6 +4,7 @@ const NSR=root.NSR||(root.NSR={});
 const Defs=NSR.Defs||(typeof require==='function'&&require('../core/definitions.js'));
 const Maps=NSR.Map||(typeof require==='function'&&require('../core/map.js'));
 const Movement=NSR.Movement||(typeof require==='function'&&require('../core/movement.js'));
+const bossApi=()=>NSR.Boss||(typeof require==='function'&&require('./boss.js'));
 const {TS,GW,GH,MOVE,ST,WP,ET,U,ATT,MOD,WCLASS,UNLOCK,cl,cost,mkL}=Defs;
 const caches=new WeakMap();
 const clone=value=>JSON.parse(JSON.stringify(value));
@@ -16,7 +17,7 @@ function nextId(world,prefix){return prefix+(++world.entitySeq);}
 function createWorld({sector=1,dev=false}={}){
  if(!Number.isInteger(sector)||sector<1||sector>100)throw new Error('Invalid site.');
  const world={...Maps.generate(sector),version:1,dev:!!dev,generation:1,time:0,tick:0,rngState:sector*977+11,entitySeq:0,hostId:null,
-  team:{cred:0,scrap:0,parts:0,raw:0,ref:0,yld:0},players:{},E:[],Dr:[],EP:[],events:[],dirty:[],story:0,clr:0,vOpen:0,vTaken:0,iTaken:0,bossDead:0,bty:null,spawnT:3.5};
+  team:{cred:0,scrap:0,parts:0,raw:0,ref:0,yld:0},players:{},E:[],Dr:[],EP:[],events:[],dirty:[],story:0,clr:0,vOpen:0,vTaken:0,iTaken:0,boss:null,bossDead:0,bty:null,spawnT:3.5};
  for(let index=0;index<Math.min(6+3*sector,28);index++)spawn(world,false);
  if(world.ISL)for(let index=0;index<2;index++)world.Dr.push({id:nextId(world,'l'),x:world.ISL.x+(index?.8:-.8),z:world.ISL.z,y:.4,vx:0,vz:0,k:'part',a:1,m:'i',bit:1<<index});
  return world;
@@ -67,7 +68,7 @@ function action(world,id,request){
   }else if(request.type==='deploy'){
    result={ok:false,reason:'The host can deploy after 97% cleanup when everyone is ready in the shelter.'};
    const connected=Object.values(world.players).filter(member=>member.connected);
-   if(id===world.hostId&&world.clr&&connected.every(member=>member.ready&&inShelter(world,member))){
+   if(id===world.hostId&&world.clr&&(!world.boss||world.bossDead)&&connected.every(member=>member.ready&&inShelter(world,member))){
     const players=world.players,team=world.team,generation=world.generation+1,hostId=world.hostId,entitySeq=world.entitySeq;
     for(const member of Object.values(players)){finishScore(world,member,'Cleared');dock(world,member);}
     Object.assign(world,createWorld({sector:Math.min(100,world.sector+1),dev:world.dev}),{players,team,generation,hostId,entitySeq:entitySeq+1000});
@@ -100,7 +101,7 @@ function recordKill(world,player,enemy,weapon,headshot){
  event(world,'kill',{playerId:player.id,weapon,headshot,enemyId:enemy.id});
 }
 function cast(world,origin,direction,max,ignored=new Set()){
- const wall=Movement.ray(world,origin,direction,max);let length=wall.t,enemy=null,headshot=false;
+ const wall=Movement.ray(world,origin,direction,max);let length=wall.t,enemy=null,headshot=false,boss=false;
  for(const candidate of world.E){if(candidate.hp<=0||ignored.has(candidate.id))continue;
   const scale=ET[candidate.t].sc;
   for(const [height,radius,isHead]of[[.75*scale,.62*scale,false],[1.5*scale,.34*scale,true]]){
@@ -109,7 +110,13 @@ function cast(world,origin,direction,max,ignored=new Set()){
    const squared=offset.x**2+offset.y**2+offset.z**2,inside=squared<radius**2,perpendicular=squared-projection**2;
    if((inside||projection>0)&&perpendicular<radius**2){const hit=inside?.01:projection-Math.sqrt(radius**2-perpendicular);if(hit>0&&hit<length){length=hit;enemy=candidate;headshot=isHead;}}
   }
- }return {enemy,headshot,x:origin.x+direction.x*length,y:origin.y+direction.y*length,z:origin.z+direction.z*length};
+ }
+ if(world.boss&&!world.bossDead&&world.boss.hp>0){
+  const offset={x:world.boss.x-origin.x,y:2.8-origin.y,z:world.boss.z-origin.z},radius=2.7;
+  const projection=offset.x*direction.x+offset.y*direction.y+offset.z*direction.z,squared=offset.x**2+offset.y**2+offset.z**2,inside=squared<radius**2,perpendicular=squared-projection**2;
+  if((inside||projection>0)&&perpendicular<radius**2){const hit=inside?.01:projection-Math.sqrt(radius**2-perpendicular);if(hit>0&&hit<length){length=hit;enemy=null;headshot=false;boss=true;}}
+ }
+ return {enemy,headshot,boss,x:origin.x+direction.x*length,y:origin.y+direction.y*length,z:origin.z+direction.z*length};
 }
 function shoot(world,player,input){
  const weapon=WP[player.wi],attachments=player.att[player.wi],pose=player.pose,levels=player.wl[player.wi];
@@ -120,7 +127,9 @@ function shoot(world,player,input){
   const yaw=pose.yaw+(random(world)-.5)*2*spread,pitch=pose.pit+pose.rp+(random(world)-.5)*2*spread;
   const direction={x:-Math.sin(yaw)*Math.cos(pitch),y:Math.sin(pitch),z:-Math.cos(yaw)*Math.cos(pitch)},ignored=new Set();
   for(let pass=0;pass<(weapon.pen||1);pass++){
-   const hit=cast(world,origin,direction,70,ignored);if(traces.length<12)traces.push({x:hit.x,y:hit.y,z:hit.z});if(!hit.enemy)break;
+   const hit=cast(world,origin,direction,70,ignored);if(traces.length<12)traces.push({x:hit.x,y:hit.y,z:hit.z});
+   if(hit.boss){if(bossApi().damage(world,damage*(weapon.big||1)*Math.pow(weapon.fall||1,pass))>0)event(world,'hit',{playerId:player.id,headshot:false,boss:true});break;}
+   if(!hit.enemy)break;
    const enemy=hit.enemy;let power=damage*(ET[enemy.t].sc>1.2?(weapon.big||1):1);if(hit.headshot)power=enemy.t===2?power*4:Math.max(power*4,enemy.mh*1.01);
    enemy.hp-=power*Math.pow(weapon.fall||1,pass);enemy.al=1;ignored.add(enemy.id);
    if(enemy.hp<=0)recordKill(world,player,enemy,player.wi,hit.headshot);
@@ -229,18 +238,30 @@ function updateLoot(world,players,dt){
   if(separation<7){loot.vx+=(nearest.pose.x-loot.x)/(separation||1)*60*dt;loot.vz+=(nearest.pose.z-loot.z)/(separation||1)*60*dt;}return true;
  });
 }
+function enterBoss(world){
+ const Boss=bossApi();
+ Object.assign(world,Boss.arena(Maps.generate(world.sector)),{E:[],Dr:[],EP:[],dirty:[],clr:0,vOpen:0,vTaken:0,iTaken:0,bossDead:0,bty:null,boss:Boss.create(world.sector)});
+ for(const player of Object.values(world.players)){dock(world,player);player.pose=Movement.createPose(world.SH);player.pose.z=world.SH.z;player.move={};player.ready=false;player.fireHeld=false;}
+ Boss.seedDust(world);world.generation++;caches.delete(world);event(world,'boss');
+}
 function step(world,inputs={},dt=MOVE.tick){
  if(dt!==MOVE.tick)throw new Error('Simulation requires a fixed 64 Hz tick.');
  world.time+=dt;world.tick++;
  const players=Object.values(world.players).filter(player=>player.connected||player.present);
  for(const player of players){const input=inputs[player.id]||{menu:true};updatePlayer(world,player,input,dt);if(Number.isSafeInteger(input.seq))player.lastSeq=Math.max(player.lastSeq,input.seq);}
  const refined=Math.min(world.team.raw,(2+1.5*world.team.ref)*dt);world.team.raw-=refined;world.team.cred+=refined*(.5+.05*world.team.yld);
- updateEnemies(world,players,dt);updateProjectiles(world,players,dt);updateLoot(world,players,dt);
+ if(world.boss){
+  if(!world.bossDead&&(!world.dev||!world.assists?.freezeEnemies))for(const effect of bossApi().step(world,players,dt)||[]){
+   if(effect.type==='hurt'){const player=world.players[effect.playerId];if(player)hurt(world,player,effect.damage);}
+   else if(effect.type==='victory'&&!world.bossDead){world.bossDead=1;world.clr=1;world.team.cred+=1000+world.sector*250;world.team.parts+=3;event(world,'boss-victory');}
+  }
+ }else{updateEnemies(world,players,dt);updateProjectiles(world,players,dt);updateLoot(world,players,dt);}
  for(const player of players){if(player.hp<=0)rescue(world,player.id);achievements(player);}
- if(!world.dev||!world.assists?.freezeEnemies){world.spawnT-=dt;if(world.spawnT<=0){world.spawnT=3.5;if(world.E.length<Math.min(8+2*world.sector,26))spawn(world,true);}}
- if(world.total&&world.rem/world.total<=.03)world.clr=1;
+ if(!world.boss&&(!world.dev||!world.assists?.freezeEnemies)){world.spawnT-=dt;if(world.spawnT<=0){world.spawnT=3.5;if(world.E.length<Math.min(8+2*world.sector,26))spawn(world,true);}}
+ if(!world.boss&&world.total&&world.rem/world.total<=.03)world.clr=1;
  const transmissions=Defs.getSec(world.sector).b,cleared=100*(1-world.rem/world.total);
- if(world.story<transmissions.length&&cleared>=transmissions[world.story][0])event(world,'story',{index:world.story++,sector:world.sector});
+ if(!world.boss&&world.story<transmissions.length&&cleared>=transmissions[world.story][0])event(world,'story',{index:world.story++,sector:world.sector});
+ if(!world.boss&&bossApi().isClean(world))enterBoss(world);
  if(world.dirty.length>GW*GH)world.dirty=[...new Set(world.dirty)];return world;
 }
 function snapshot(world){const value=clone(world);delete value.assists;value.events=[];value.dirty=[];return value;}
@@ -284,11 +305,12 @@ function validPlayer(saved){
 function restore(raw){
  if(!raw||raw.version!==1||!Number.isInteger(raw.sector)||raw.sector<1||raw.sector>100||!raw.team||!raw.players)throw new Error('Unsupported co-op checkpoint.');
  if(!Array.isArray(raw.M)||raw.M.length!==GW*GH||!raw.M.every(value=>Number.isInteger(value)&&value>=0&&value<=10)||!Array.isArray(raw.D)||raw.D.length!==GW*GH||!raw.D.every(value=>finite(value,0,1)))throw new Error('Invalid co-op map.');
- const world=createWorld({sector:raw.sector,dev:raw.dev}),generated=Maps.generate(raw.sector,{vOpen:raw.vOpen});
+ const world=createWorld({sector:raw.sector,dev:raw.dev});let generated=Maps.generate(raw.sector,{vOpen:raw.vOpen}),boss=null;
+ if(raw.boss!=null){boss=bossApi().restore(raw.boss,raw.sector);if(!boss)throw new Error('Invalid checkpoint boss.');generated=bossApi().arena(generated);}
  if(raw.M.some((value,index)=>value!==generated.M[index]))throw new Error('Checkpoint geometry does not match this version.');
  for(const key of Object.keys(world.team))if(!finite(raw.team[key],0,1e12))throw new Error('Invalid team resources.');
  if(!Number.isInteger(raw.team.ref)||raw.team.ref>40||!Number.isInteger(raw.team.yld)||raw.team.yld>30)throw new Error('Invalid refinery upgrades.');
- Object.assign(world,generated,{D:raw.D.slice(),team:Object.fromEntries(Object.keys(world.team).map(key=>[key,raw.team[key]])),players:{}});
+ Object.assign(world,generated,{boss,D:raw.D.slice(),team:Object.fromEntries(Object.keys(world.team).map(key=>[key,raw.team[key]])),players:{}});
  for(const key of ['generation','tick','entitySeq','rngState','story','clr','vOpen','vTaken','iTaken','bossDead']){if(!Number.isSafeInteger(raw[key])||raw[key]<0)throw new Error('Invalid checkpoint counters.');world[key]=raw[key];}
  if(!finite(raw.time,0,1e12)||Object.keys(raw.players).length>32)throw new Error('Invalid checkpoint time or characters.');world.time=raw.time;
  for(const [id,saved]of Object.entries(raw.players)){
@@ -304,7 +326,8 @@ function restore(raw){
  if(world.EP.some(projectile=>!['y','vx','vy','vz','l','dm'].every(key=>finite(projectile[key],-1000,1e6))))throw new Error('Invalid projectile.');
  if(world.Dr.some(loot=>!['scrap','cred','part'].includes(loot.k)||!finite(loot.a,0,1e9)||!finite(loot.vx,-1000,1000)||!finite(loot.vz,-1000,1000)))throw new Error('Invalid loot.');
  if(!finite(raw.spawnT,0,3.5))throw new Error('Invalid spawn timer.');world.spawnT=raw.spawnT;
- world.total=generated.total;world.rem=world.D.reduce((total,value)=>total+value,0);world.events=[];world.dirty=[];return world;
+ if(boss&&!finite(raw.total,1,1e12))throw new Error('Invalid boss cleanup total.');
+ world.total=boss?raw.total:generated.total;world.rem=world.D.reduce((total,value)=>total+value,0);world.events=[];world.dirty=[];return world;
 }
 NSR.Simulation={createWorld,addPlayer,step,action,snapshot,restore,restart,disconnect,rescue,inShelter,cast,recordKill};
 if(typeof module!=='undefined')module.exports=NSR.Simulation;
