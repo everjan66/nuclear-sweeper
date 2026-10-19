@@ -20,7 +20,7 @@ function create({dev=false,name='Sweeper',url,relay=false,onEvent=()=>{},storage
    else {const pose=player.pose;players[player.id]={id:player.id,name:player.name,pose:{x:pose.x,z:pose.z,h:pose.h,yaw:pose.yaw,pit:pose.pit,low:!!pose.low,st:pose.st,gr:pose.gr?{x:pose.gr.x,y:pose.gr.y,z:pose.gr.z}:null},wi:player.wi,appearance:Defs.appearance(player),reloading:player.rel>0,hp:player.hp,ready:player.ready,connected:player.connected,present:player.present};}
   }
   const precision=value=>Math.round(value*1000)/1000;
-  return {type:'frame',session:sessionId,generation:world.generation,tick:world.tick,time:world.time,players,team:world.team,rem:world.rem,clr:world.clr,story:world.story,vOpen:world.vOpen,paused:pausedByHost,pauseSequence,
+  return {type:'frame',session:sessionId,generation:world.generation,tick:world.tick,time:world.time,players,team:world.team,rem:world.rem,total:world.total,clr:world.clr,story:world.story,vOpen:world.vOpen,boss:world.boss,bossDead:world.bossDead,paused:pausedByHost,pauseSequence,
    E:world.E.map(enemy=>[enemy.id,enemy.t,precision(enemy.x),precision(enemy.z),precision(enemy.hp),enemy.mh,enemy.al,enemy.ph]),
    EP:world.EP.map(projectile=>[projectile.id,precision(projectile.x),precision(projectile.y),precision(projectile.z),projectile.sz]),
    Dr:world.Dr.map(loot=>[loot.id,precision(loot.x),precision(loot.z),loot.k,loot.a])};
@@ -109,6 +109,7 @@ function create({dev=false,name='Sweeper',url,relay=false,onEvent=()=>{},storage
    lastFrame=data.tick;lastHostAt=performance.now();applyPause(data.paused,data.pauseSequence||0);waiting=false;
    if(!data.players?.[localId])return;
    world.tick=data.tick;world.time=data.time;world.team=data.team;world.rem=data.rem;world.clr=data.clr;world.story=data.story;
+   world.boss=data.boss||null;world.bossDead=data.bossDead||0;if(Number.isFinite(data.total))world.total=data.total;
    if(data.vOpen&&!world.vOpen){world.vOpen=1;for(const tile of world.DOORT)world.M[tile]=0;emit('geometry');}
    world.players=data.players;reconcile(data.players[localId]);
    world.E=data.E.map(([id,type,x,z,hp,mh,al,ph])=>({id,t:type,x,z,hp,mh,al,ph}));
@@ -133,9 +134,9 @@ function create({dev=false,name='Sweeper',url,relay=false,onEvent=()=>{},storage
    const queue=queues.get(id),next=queue?.shift();if(next){inputs[id]=next;lastInputs.set(id,Protocol.consume(next));}
    else inputs[id]=performance.now()-(receivedAt.get(id)||0)>250?Protocol.neutral(lastInputs.get(id)):lastInputs.get(id)||{menu:true};
   }
-  Sim.step(world,inputs,Defs.MOVE.tick);
+  const generation=world.generation;Sim.step(world,inputs,Defs.MOVE.tick);if(world.generation!==generation)transition();
   for(const [id,reservation]of reservations){if(!reservation.rescued&&performance.now()>reservation.rescueAt){const player=world.players[id];if(!player.disconnectedRescued)Sim.rescue(world,id);player.present=false;player.disconnectedRescued=true;reservation.rescued=true;save();}if(performance.now()>reservation.until)reservations.delete(id);}
-  if(world.events.length){const values=world.events.splice(0);transport.broadcast({type:'events',session:sessionId,generation:world.generation,events:values},true);events(values);if(values.some(value=>['transaction','vault','rescue'].includes(value.type)))save();}
+  if(world.events.length){const values=world.events.splice(0);transport.broadcast({type:'events',session:sessionId,generation:world.generation,events:values},true);events(values);if(values.some(value=>['transaction','vault','rescue','boss-victory'].includes(value.type)))save();}
  }
  function advance(dt,raw={}){
   for(const [id,pending]of pendingActions)if(performance.now()>pending.until){pendingActions.delete(id);pending.resolve({ok:false,reason:'Host did not confirm this action. Reconnect before trying again.'});status('Action confirmation timed out.');}

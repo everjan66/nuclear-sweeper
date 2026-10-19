@@ -23,7 +23,7 @@ test('movement replay retains slide, airborne dash, grapple and zipline state',(
 test('two collectors conserve the last dust without creating tank contents',()=>{
  const {world,host,guest}=fixture();openFloor(world);host.pose.x=guest.pose.x=41;host.pose.z=guest.pose.z=41;
  const tile=20*60+20;world.D[tile]=.001;world.total=world.rem=.001;
- Sim.step(world,{});assert.equal(world.D[tile],0);assert.ok(Math.abs(host.tank+guest.tank-.01)<1e-10);assert.ok(Math.abs(host.prog.dust+guest.prog.dust-.01)<1e-10);assert.equal(world.rem,0);
+ Sim.step(world,{});assert.equal(world.D[tile],0);assert.ok(Math.abs(host.tank+guest.tank+world.team.raw-.01)<1e-10);assert.ok(Math.abs(host.prog.dust+guest.prog.dust-.01)<1e-10);assert.ok(world.boss);assert.equal(world.rem,world.D.reduce((sum,value)=>sum+value,0));
 });
 test('one loot object is credited once and rescue leaves other projectiles alive',()=>{
  const {world,host,guest}=fixture();openFloor(world);host.pose.x=guest.pose.x=41;host.pose.z=guest.pose.z=41;

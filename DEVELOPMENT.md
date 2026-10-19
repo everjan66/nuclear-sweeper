@@ -60,6 +60,31 @@ After closing the menus, click **CLICK TO RESUME** to capture the mouse again.
 - Toggle invincibility, infinite ammo, or frozen enemies/automatic spawns. All
   assists start off and are not persisted across page reloads.
 
+## Dust Sovereign encounter
+
+Sweep **every** dust tile on a site (not the existing 97% early-deployment
+threshold) to teleport into the Dust Sovereign arena. The clear floor is 54 by
+38 meters, roughly six average site rooms, with a large, crowned reactor boss.
+Entering deposits carried dust and resupplies the player or entire co-op team.
+
+The boss shields and regenerates while dust remains. Sweep all highlighted
+patches to open a 10/9/8-second damage window. Health gates at two-thirds and
+one-third start the next phase; regeneration never undoes a completed phase.
+Phase one uses telegraphed blasts; phase two uses double blasts; phase three
+adds expanding shock rings that can be jumped. Orange circles warn of blasts,
+and green beacons plus minimap dots locate remaining dust. Each wave fits a
+baseline tank; use the green shelter/depot to deposit, heal and resupply.
+
+Victory awards 1,000 + 250 per site credits and three parts, once. Deployment
+is blocked during the encounter and available after victory. Boss state and
+arena dust survive save/load and co-op reconnect. Normal 97% early deployment
+remains available before entering the arena, so existing progression is intact.
+
+Developer smoke test: choose **Clean entire site**, close the tools and shelter,
+and resume to trigger the teleport. Repeat cleanup during each phase to expose
+the core quickly. Travel/reload a site to leave the arena and reset the boss.
+Automated encounter and co-op regressions run with the existing `npm test`.
+
 ## Save isolation
 
 Normal progress uses `nsr1` and normal settings use `nsr_cfg`.
