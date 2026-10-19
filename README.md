@@ -138,12 +138,14 @@ Credits still buy station and weapon-stat upgrades.
 Each weapon starts at Basic. All requirements in a row must be met with that
 specific weapon; progress is cumulative and is never spent or reset on promotion.
 
-| Finish | Total kills | Glowers | Spitters | Brutes | Gunners |
-| --- | --- | --- | --- | --- | --- |
-| Tier 1: Gold | 50 | 20 | 5 | 0 | 0 |
-| Tier 2: Platin | 150 | 40 | 25 | 10 | 10 |
-| Tier 3: Polychrome | 400 | 100 | 60 | 40 | 40 |
+| Finish | Total kills | Glowers | Spitters | Brutes | Gunners | Shriekers |
+| --- | --- | --- | --- | --- | --- | --- |
+| Tier 1: Gold | 50 | 20 | 5 | 0 | 0 | 5 |
+| Tier 2: Platin | 150 | 40 | 25 | 10 | 10 | 15 |
+| Tier 3: Polychrome | 400 | 100 | 60 | 40 | 40 | 40 |
 
+Existing saves keep their kill counts, but finishes are recalculated against the
+new Shrieker requirements; collect the missing kills to regain a higher finish.
 The Weapons overview and picker show each weapon's currently earned finish.
 Mastery changes the weapon finish and weapon-slot border, not damage. Polychrome
 cycles through colors. Weapon slots also show mastery and kill counts on hover.
@@ -153,7 +155,7 @@ cannot count the same enemy twice; despawning enemies never awards kills.
 ### Achievements and saves
 
 - Lifetime dust removed: 500, 2,500, 10,000, and 50,000 units.
-- Each enemy type: 10, 50, and 200 kills (16 achievements in total).
+- Each enemy type, including Shriekers: 10, 50, and 200 kills.
 - Dust counts at collection, not delivery or refining; losing tank contents
   does not undo cleanup progress or count dust a second time.
 - Progress survives death, site changes, and reloads. Reset save clears it.

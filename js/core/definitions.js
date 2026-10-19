@@ -25,10 +25,10 @@ const ET=[{hp:30,sp:5.6,dm:12,sc:1,col:0x4f7a2c},{hp:30,sp:3.8,dm:9,sc:.95,col:0
 ET.push({hp:38,sp:5,dm:14,sc:.8,col:0x925cca,fly:true});
 const ENAMES=['Glower','Spitter','Brute','Gunner','Shrieker'];
 const WCLASS=[0,1,1,2,2,3,4],CNAMES=['Pistol','Machine pistol','Assault rifle','Shotgun','Sniper / DMR'],UNLOCK=[0,25,60,90,60];
-const TIERS=[{n:'Basic',col:null,k:0,types:[0,0,0,0]},
- {n:'Tier 1 · Gold',col:0xd4af37,k:50,types:[20,5,0,0]},
- {n:'Tier 2 · Platin',col:0xc7dce5,k:150,types:[40,25,10,10]},
- {n:'Tier 3 · Polychrome',col:0xe879f9,k:400,types:[100,60,40,40]}];
+const TIERS=[{n:'Basic',col:null,k:0,types:[0,0,0,0,0]},
+ {n:'Tier 1 · Gold',col:0xd4af37,k:50,types:[20,5,0,0,5]},
+ {n:'Tier 2 · Platin',col:0xc7dce5,k:150,types:[40,25,10,10,15]},
+ {n:'Tier 3 · Polychrome',col:0xe879f9,k:400,types:[100,60,40,40,40]}];
 const mkL=()=>({sweep:0,rad:0,suit:0,gei:0,boots:0,pouch:0,tank:0,ref:0,yld:0,dmg:0,fr:0,multi:0,w1:0,w2:0,w3:0,w4:0,w5:0,w6:0});
 function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 const ROOM_DESIGNS=[

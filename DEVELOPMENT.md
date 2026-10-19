@@ -69,6 +69,8 @@ or from a different elevation, and stays outside the shelter. Shoot the body and
 head at their visible height. Repeat with a co-op guest on high ground; verify
 the host and guest see the same altitude and that checkpoint reload preserves it.
 Existing four-enemy progress records migrate without losing kills.
+The Weapons overview lists 5/15/40 Shrieker kills for Gold/Platin/Polychrome;
+Shrieker hunter achievements unlock at 10/50/200 lifetime kills in solo and co-op.
 
 ## Dust Sovereign encounter
 

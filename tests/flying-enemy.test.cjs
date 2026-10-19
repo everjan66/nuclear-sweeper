@@ -64,6 +64,39 @@ test('co-op checkpoints retain flying altitude and migrate four-type progress wi
  const migrated=Sim.restore(legacy).players.host;assert.deepEqual(migrated.prog.enemies,[10,2,3,4,0]);assert.deepEqual(migrated.prog.weapons[0].types,[5,1,0,0,0]);
  for(const height of [-1,NaN,Infinity,Defs.WH]){const corrupt=Sim.snapshot(world);corrupt.E[0].h=height;assert.throws(()=>Sim.restore(corrupt),/Invalid enemy/);}
 });
+test('every mastery tier requires the matching per-weapon Shrieker kills',()=>{
+ for(const tier of Defs.TIERS)assert.equal(tier.types.length,Defs.ET.length);
+ assert.deepEqual(Defs.TIERS.slice(1).map(tier=>tier.types[4]),[5,15,40]);
+ for(let tier=1;tier<Defs.TIERS.length;tier++){
+  const requirement=Defs.TIERS[tier],progress={kills:requirement.k,types:requirement.types.slice()};
+  progress.types[4]--;assert.equal(Defs.weaponTier(progress),tier-1);
+  progress.types[4]++;assert.equal(Defs.weaponTier(progress),tier);
+  progress.kills--;assert.equal(Defs.weaponTier(progress),tier-1);
+ }
+ assert.equal(Defs.weaponTier({kills:500,types:[150,100,80,80]}),0);
+});
+test('solo lists and awards all Shrieker hunter achievements exactly at their thresholds',()=>{
+ const world=Sim.createWorld(),player=Sim.addPlayer(world,{id:'solo'}),notices=[];
+ const html=fs.readFileSync('nuclear-sweeper-reactor.html','utf8'),solo=vm.createContext({S:player,ENAMES:Defs.ENAMES,CNAMES:[],celebrate:notice=>notices.push(notice)});
+ vm.runInContext(html.slice(html.indexOf('const ACH='),html.indexOf('const count='))+html.slice(html.indexOf('function checkProgress('),html.indexOf('function recordKill('))+html.slice(html.indexOf('function progressionHTML('),html.indexOf('const SEC=')),solo);
+ for(const goal of [10,50,200]){
+  const id='enemy4_'+goal;player.prog.enemies[4]=goal-1;assert.equal(solo.checkProgress(),false);assert.ok(!player.prog.ach.includes(id));
+  player.prog.enemies[4]=goal;assert.equal(solo.checkProgress(),true);assert.ok(player.prog.ach.includes(id));assert.equal(solo.checkProgress(),false);
+ }
+ assert.equal(notices.length,3);assert.ok(notices.every(notice=>notice.title.startsWith('Shrieker hunter')));
+ assert.match(solo.progressionHTML(),/200 \/ 200 Shrieker kills/);
+});
+test('co-op Shrieker kills advance hunter achievements once and survive checkpoint reload',()=>{
+ const world=Sim.createWorld(),player=Sim.addPlayer(world,{id:'host'});world.E=[];
+ for(const goal of [10,50,200]){
+  const id='enemy4_'+goal;player.prog.enemies[4]=goal-1;Sim.step(world,{});assert.ok(!player.prog.ach.includes(id));
+  const enemy=shrieker();Sim.recordKill(world,player,enemy,0,false);Sim.recordKill(world,player,enemy,0,false);Sim.step(world,{});
+  assert.equal(player.prog.enemies[4],goal);assert.equal(player.prog.ach.filter(value=>value===id).length,1);
+ }
+ const restored=Sim.restore(Sim.snapshot(world)).players.host;
+ assert.equal(restored.prog.enemies[4],200);assert.equal(restored.prog.weapons[0].types[4],3);
+ for(const goal of [10,50,200])assert.ok(restored.prog.ach.includes('enemy4_'+goal));
+});
 test('guest frames replicate and interpolate flying height without sharing personal inventory',async()=>{
  const env=environment(),host=env.NSR.Session.create({dev:true,storage:env.storage()}),guest=env.NSR.Session.create({dev:true,storage:env.storage()});
  const result=await host.host();await guest.join(result.invitation);env.advance([host,guest],{},20);
