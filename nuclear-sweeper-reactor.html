@@ -185,39 +185,38 @@ button.u:not(:disabled):hover .buybar{background:#b6e65a}
 <canvas id="gl"></canvas><div id="vig"></div><div id="cx"></div><div id="scope"><svg viewBox="0 0 200 200"><g fill="#ff2a2a" stroke="#ff2a2a"><path d="M100 100l-11 13h5l6-7 6 7h5z" stroke="none"/><path d="M100 113V168" stroke-width="2"/><path d="M95 126h10M96 139h8M96 152h8M95 165h10" stroke-width="1.5"/></g></svg></div><div id="hm">✕</div><div id="hud"></div><div id="hint"><dl><dt>Click</dt><dd>capture the mouse</dd><dt>LMB · RMB</dt><dd>fire · aim</dd><dt>R</dt><dd>reload</dd><dt>1-7</dt><dd>weapons</dd><dt>Space</dt><dd>jump · vault · wallrun</dd><dt>Shift · C</dt><dd>slide · roll</dd><dt>E</dt><dd>shelter (Esc / Enter / E / Space leaves it)</dd><dt>Esc</dt><dd><b>settings and key bindings</b></dd><dt>M</dt><dd>music</dd></dl>Red marks a parkour route.</div><div id="shop"><div id="sp"></div></div><div id="bar"><div id="bl"></div><div id="wb"></div><div id="br"></div></div><div id="set"><div id="sw"></div></div><div id="log"></div><div id="tst"></div><div id="lvlup" role="status" aria-live="polite"></div>
 <div id="resume"><button class="go" id="resumeButton">CLICK TO RESUME</button><p id="resumeHint" class="j">Mouse capture is required to resume. Esc opens settings.</p></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="js/core/definitions.js"></script>
+<script src="js/core/map.js"></script>
+<script src="js/core/movement.js"></script>
+<script src="js/game/simulation.js"></script>
+<script src="js/net/protocol.js"></script>
+<script src="js/net/transport.js"></script>
+<script src="js/storage/coop.js"></script>
+<script src="js/net/session.js"></script>
+<script src="js/ui/remote-players.js"></script>
+<script src="js/ui/coop.js"></script>
 <script>
+let coopSession=null,coopUI=null,gameStarted=false,coopEdges={},coopWeapon=0,coopRemote=[],coopVisualCooldown=0;
 const DEV_MODE=new URLSearchParams(location.search).get('dev')==='1',DEV_TOOLS={invincible:false,infiniteAmmo:false,freezeEnemies:false};
 let devOpen=false;
 const $=s=>document.querySelector(s),cv=$('#gl'),TS=2,GW=60,GH=60,CH=1.1,BH=1.3,BT=2.6,WH=6.4,KEY=DEV_MODE?'nsr1_dev':'nsr1',CFG_KEY=DEV_MODE?'nsr_cfg_dev':'nsr_cfg',N8=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
-const TT=[0,WH,1.1,2.6,0,2.2,3.2,0,1.1,WH,0],TB=[0,0,0,1.3,0,0,2.9,0,0,0,0];
-const MOVE={tick:1/64,groundAccel:10,airAccel:12,friction:5.2,stopSpeed:80*7.2/250,airWishCap:30*7.2/250,slideMinSpeed:3.5,slideEndSpeed:2.5,slideDrag:2.4,slideTurnRate:1.2};
-const SCORE={kill:100,headshot:20,window:5,step:5,maxBonus:.5};
+const {TT,TB}=NSR.Defs;
+const {MOVE}=NSR.Defs;
+const {SCORE}=NSR.Defs;
 let streak={kills:0,heads:0,points:0,bonus:0,left:0};
 const cl=(v,a,b)=>Math.max(a,Math.min(b,v)),rnd=(a,b)=>a+Math.random()*(b-a),lerp=(a,b,t)=>a+(b-a)*t;
-const ST=L=>({sw:.6+.12*L.sweep,rad:3+.4*L.rad,suit:1+.6*L.suit,hp:100+10*L.suit,gei:6+2*L.gei,spd:9+.45*L.boots,cap:100+60*L.tank,rate:2+1.5*L.ref,yld:.5+.05*L.yld,reloads:3+L.pouch,w1:L.w1,w2:L.w2,w3:L.w3,w4:L.w4,w5:L.w5,w6:L.w6});
+const {ST}=NSR.Defs;
 // id, name, currency (s scrap / c credits), base cost, growth, max, stat key, label, decimals
-const U=[['sweep','Sweeper motor','s',8,1.32,40,'sw','suction /s',2],['rad','Nozzle width','s',8,1.3,40,'rad','sweep radius m',1],['suit','Hazard suit','s',12,1.34,40,'suit','radiation resistance',1],['gei','Geiger counter','s',8,1.3,40,'gei','detect radius m',0],['boots','Servo skates','s',10,1.3,30,'spd','top sprint speed m/s',1],
-['pouch','Ammo pouch','s',12,1.4,10,'reloads','spare reloads per weapon',0],
-['tank','Dust tank','c',40,1.38,40,'cap','capacity u',0],['ref','Refinery throughput','c',30,1.36,40,'rate','units /s',1],['yld','Refinery yield','c',60,1.45,30,'yld','credits per unit',2],['dmg','Weapon damage','c',25,1.4,40,'dm','damage x',2],['fr','Cyclic rate','c',35,1.4,30,'fr','fire rate x',2],['multi','Extended mags','c',40,1.5,8,'mg','magazine x',2],
-];
-const cost=(u,l)=>Math.ceil(u[3]*Math.pow(u[4],l));
+const {U}=NSR.Defs;
+const {cost}=NSR.Defs;
 const tierCol=t=>TIERS[t]&&TIERS[t].col?'#'+TIERS[t].col.toString(16).padStart(6,'0'):'#8da079',tierName=t=>TIERS[t].n.split(' · ').pop();
 // damage, fire rate and magazine are levelled per weapon (S.wl[i]); everything else in U is global (S.L)
 const WUP={dmg:['dm',.1],fr:['fr',.06],multi:['mg',.12]},WS=(i,extra={})=>{const l={...S.wl[i],...extra};return {dm:1+WUP.dmg[1]*l.dmg,fr:1+WUP.fr[1]*l.fr,mg:1+WUP.multi[1]*l.multi}};
-const WP=[{n:'Desert Eagle',d:14,pen:2,fall:.6,r:2.6,mag:7,rl:1.8,sp:.7,sa:.08,pel:1,auto:0,z:1.15,rc:.05,sc:0,vm:[0xb9bdc4,.075,.11,.3,.12,1,0]},
-{n:'MP7',d:11,r:15.8,mag:30,rl:1.7,sp:2.4,sa:.9,pel:1,auto:1,z:1.5,rc:.007,sc:1,vm:[0x2b2b2b,.06,.09,.38,.16,1,1]},
-{n:'SMG-11',d:10,r:21,mag:32,rl:1.6,sp:3.6,sa:2,pel:1,auto:1,z:1.5,rc:.009,sc:1,vm:[0x3a3a3a,.06,.1,.3,.12,1,1]},
-{n:'416-C',d:13,pen:2,fall:.6,r:12.3,mag:30,rl:2,sp:1.8,sa:.35,pel:1,auto:1,z:2,rc:.008,sc:1,vm:[0x23252a,.07,.1,.52,.3,1,1]},
-{n:'R4-C',d:13,pen:2,fall:.6,r:14.3,mag:30,rl:2.1,sp:2,sa:.4,pel:1,auto:1,z:2,rc:.01,sc:1,vm:[0x3b3326,.07,.1,.52,.3,1,1]},
-{n:'Breaker',d:3.8,pen:2,fall:.5,r:1.3,mag:6,rl:2.4,sp:5.5,sa:3.8,pel:9,auto:0,z:1.2,rc:.05,sc:0,vm:[0x4a3b2a,.08,.09,.5,.3,1,0]},
-{n:'Vector DMR',d:20,pen:3,fall:.75,big:2.5,r:1.8,mag:8,rl:1.9,sp:1.8,sa:.02,pel:1,auto:0,z:3,rc:.04,sc:1,vm:[0x2d3a2d,.07,.1,.6,.4,1,1]}];
-const ET=[{hp:30,sp:5.6,dm:12,sc:1,col:0x4f7a2c},{hp:30,sp:3.8,dm:9,sc:.95,col:0xa0522d,rg:1},{hp:130,sp:3.6,dm:26,sc:1.55,col:0x6a3a28},{hp:30,sp:4.4,dm:6,sc:1,col:0x5b6577,rg:2}];
-const ENAMES=['Glower','Spitter','Brute','Gunner'];
-const WCLASS=[0,1,1,2,2,3,4],CNAMES=['Pistol','Machine pistol','Assault rifle','Shotgun','Sniper / DMR'],UNLOCK=[0,25,60,90,60];
-const TIERS=[{n:'Basic',col:null,k:0,types:[0,0,0,0]},
- {n:'Tier 1 · Gold',col:0xd4af37,k:50,types:[20,5,0,0]},
- {n:'Tier 2 · Platin',col:0xc7dce5,k:150,types:[40,25,10,10]},
- {n:'Tier 3 · Polychrome',col:0xe879f9,k:400,types:[100,60,40,40]}];
+const {WP}=NSR.Defs;
+const {ET}=NSR.Defs;
+const {ENAMES}=NSR.Defs;
+const {WCLASS,CNAMES,UNLOCK}=NSR.Defs;
+const {TIERS}=NSR.Defs;
 const ACH=[...[500,2500,10000,50000].map((goal,index)=>({id:'dust'+index,n:['First cleanup','Dust collector','Fallout specialist','Reactor restorer'][index],goal,read:()=>S.prog.dust,unit:'u removed'})),
  ...ENAMES.flatMap((name,type)=>[10,50,200].map(goal=>({id:'enemy'+type+'_'+goal,n:name+' hunter · '+goal,goal,read:()=>S.prog.enemies[type],unit:name+' kills'}))),
  ...[10000,50000,250000].map(goal=>({id:'points'+goal,n:'Score collector - '+goal.toLocaleString('en-US'),goal,read:()=>S.score.total,unit:'lifetime points'})),
@@ -232,28 +231,24 @@ function tickPoints(dt){if(streak.left<=0)return;streak.left=Math.max(0,streak.l
 function finishScore(reason){if(S.score.run>0){S.score.board.push({points:S.score.run,site:S.sector,reason});S.score.board.sort((first,second)=>second.points-first.points);S.score.board.length=Math.min(5,S.score.board.length)}S.score.run=0;resetStreak();save()}
 function scoreHTML(){const format=value=>value.toLocaleString('en-US');return `<h3>Combat score · records only, buys nothing</h3><div class=j>Kill +100, head shot +20, chains within 5 seconds up to &times;1.5. Score counts for records and achievements. Purchases use credits, scrap and parts.</div><div class=g><div class=u><b>Current run - ${format(S.score.run)}</b><small>Personal best - ${format(S.score.best)} points</small><small>Lifetime - ${format(S.score.total)} points</small><small>Longest streak - ${S.score.chain} kills</small></div></div><div class=j>Local top 5: runs end on rescue or deployment. Reloading preserves your score, not your streak. Records stay on this browser.</div><div class=g>${S.score.board.length?S.score.board.map((entry,index)=>`<div class=u><b>#${index+1} - ${format(entry.points)} points</b><small>Site ${entry.site} / ${entry.reason}</small></div>`).join(''):'<div class=j>Finish a run to set your first record.</div>'}</div>`}
 function classKills(type){return S.prog.weapons.reduce((total,weapon,index)=>total+(WCLASS[index]==type?weapon.kills:0),0)}
-function weaponTier(index){const progress=S.prog.weapons[index];let tier=0;for(let next=1;next<TIERS.length;next++){const target=TIERS[next];if(progress.kills>=target.k&&target.types.every((goal,type)=>progress.types[type]>=goal))tier=next;else break}return tier}
+function weaponTier(index){return NSR.Defs.weaponTier(S.prog.weapons[index])}
 function checkProgress(notices=[]){let changed=false;
  for(let type=1;type<CNAMES.length;type++)if(classKills(type-1)>=UNLOCK[type]){const weapons=WP.map((_,index)=>index).filter(index=>WCLASS[index]==type);if(weapons.some(index=>!S.L['w'+index])){for(const index of weapons)S.L['w'+index]=1;celebrate({kind:'unlock',kicker:'NEW WEAPON CLASS',title:CNAMES[type]+' unlocked',sub:weapons.map(index=>WP[index].n).join(' · '),col:'#9acd32',mark:ico('check')});changed=true}}
  for(const achievement of ACH)if(!S.prog.ach.includes(achievement.id)&&achievement.read()>=achievement.goal){S.prog.ach.push(achievement.id);celebrate({kind:'ach',kicker:'ACHIEVEMENT',title:achievement.n,sub:achievement.goal.toLocaleString('en-US')+' '+achievement.unit,col:'#6ee7ff',mark:'★'});changed=true}
  if(notices.length)toast(notices.join(' · '));return changed}
 function recordKill(enemy,weapon,headshot=false){if(enemy.counted||enemy.gone)return;enemy.counted=true;const before=weaponTier(weapon),progress=S.prog.weapons[weapon];S.kills++;S.prog.enemies[enemy.t]++;progress.kills++;progress.types[enemy.t]++;awardPoints(headshot);const promoted=weaponTier(weapon)>before;if(promoted&&weapon==wi)applyWeaponSkin();if(promoted){const t=weaponTier(weapon),next=TIERS[t+1];celebrate({kind:'mastery',kicker:'WEAPON MASTERY',title:WP[weapon].n+' · '+tierName(t),sub:next?`Next: ${tierName(t+1)} at ${next.k} kills`:'All finishes earned',col:tierCol(t),mark:['B','I','II','III'][t]})}checkProgress();save()}
 function progressionHTML(){const format=value=>Math.floor(value).toLocaleString('en-US');return `<h3>Achievements · ${S.prog.ach.length}/${ACH.length}</h3><div class=j>Lifetime: ${format(S.prog.dust)} u dust removed · ${S.kills} kills. Progress survives death, deployment and reloads.</div><div class=g>${ACH.map(achievement=>{const done=S.prog.ach.includes(achievement.id);return `<div class="u mini${done?' done':''}"><b>${done?'✓ ':''}${achievement.n}</b><span class=lvl><i style="width:${Math.min(100,achievement.read()/achievement.goal*100)}%"></i></span><small>${format(Math.min(achievement.read(),achievement.goal))} / ${format(achievement.goal)} ${achievement.unit}</small></div>`}).join('')}</div>`}
-const SEC=[
-{n:'Kessel-7 Reactor Hall',b:[[0,'Hanne Voss','Sweeper, you\'re live inside Kessel-7. The hall is a maze of corridors and rubble. Skate fast, slide under the beams, vault the crates. Vacuum the dust and bring it home, or drop it at the blue depot pads in the outer rooms.'],[12,'Hanne Voss','Glowers: livestock, mostly. They\'re quick, but you\'re quicker. Keep moving.'],[35,'Intercept: Kessel Control, day 9','"Core is contained. The fields are only residue. Clean them and the site is safe." Hanne, this message was buried. Why?'],[60,'Hanne Voss','...The Council knew. Shelter Nine runs on the isotopes you refine. I should have told you.'],[97,'SITE CLEARED','Kessel-7 is cold. Return to the shelter and deploy to the next site. There are more.']]},
-{n:'Harrow Dam Turbine Complex',b:[[0,'Hanne Voss','Harrow Dam. Turbine halls, flooded galleries. The dust sticks harder here, and something shoots back: Spitters. Never stand still.'],[50,'Hanne Voss','The Council pays triple for Harrow isotopes. I\'ve stopped asking where it goes.'],[97,'SITE CLEARED','Dam sealed. The Council already has a new contract. Hanne: I\'m done carrying their messages. Deploy when ready.']]},
-{n:'Silo Nine Fuel Depot',b:[[0,'Hanne Voss','Silo Nine. Brutes patrol here, maintenance crews that never left. The dust is tar now. Upgrade your motor.'],[50,'Hanne Voss','I found the Council ledgers. Every site you clear, they sell the fallout to the highest bidder. Not anymore.'],[97,'SITE CLEARED','Ledgers are on every radio. Shelter Nine voted: you stay on. Next site.']]},
-{n:'Meridian Breeder Plant',b:[[0,'Hanne Voss','Meridian. The last site on the old maps. Everything here hits harder.'],[97,'SITE CLEARED','Meridian is cold. The old maps are empty, but the fallout isn\'t. There are more sites. You know what you do.']]}];
+const SEC=NSR.Defs.SEC;
 const THEMES=[
 {n:'Kessel-7',bg:0x0d100b,amb:0xb4c0a8,fl:[143,140,132],uw:[26,30,22],wall:[.5,.5,.47],crate:[.6,.42,.2],beam:[.85,.82,.14],plat:[.42,.45,.42],strip:[150,150,34],sh:[96,120,78],co:[120,92,70],vs:0x6f6c65,gl:0xff5a1f,ac:0x9acd32,dep:0x4f9dde,dl:[.6,.8,.2],dh:[1,.35,.12]},
 {n:'Harrow Dam',bg:0x07131a,amb:0x9fc4d6,fl:[118,132,140],uw:[18,30,38],wall:[.34,.46,.54],crate:[.3,.45,.5],beam:[.95,.65,.1],plat:[.3,.4,.46],strip:[60,150,170],sh:[70,110,130],co:[80,110,130],vs:0x3e5b6b,gl:0x2fd0ff,ac:0x45d6ff,dep:0xffb347,dl:[.15,.7,.8],dh:[1,.9,.4]},
 {n:'Silo Nine',bg:0x140c07,amb:0xd8b890,fl:[150,125,95],uw:[34,24,16],wall:[.55,.38,.26],crate:[.42,.3,.2],beam:[.9,.75,.1],plat:[.5,.4,.3],strip:[190,120,30],sh:[110,120,70],co:[150,90,60],vs:0x7a5a42,gl:0xff9a1f,ac:0xffb347,dep:0x5ec8e8,dl:[.85,.7,.2],dh:[1,.25,.1]},
 {n:'Meridian',bg:0x0f0a16,amb:0xb8a8d0,fl:[128,122,140],uw:[26,20,38],wall:[.42,.36,.55],crate:[.5,.35,.6],beam:[.9,.8,.15],plat:[.38,.34,.46],strip:[160,60,170],sh:[90,100,130],co:[120,80,140],vs:0x5a4a78,gl:0xd04aff,ac:0xc77dff,dep:0x7dff9a,dl:[.7,.3,.9],dh:[1,.5,.85]}];
 const TH=()=>THEMES[(S.sector-1)%THEMES.length];
-const getSec=s=>SEC[s-1]||{n:'Deep Site '+s,b:[[0,'Hanne Voss','Another reactor, another grave. Stickier dust, meaner things. Same job.'],[97,'SITE CLEARED','Site sealed. Another beacon goes dark. Next.']]};
+const getSec=NSR.Defs.getSec;
 let S,M,D,R,CO,SH,CORE,q=new Int32Array(GW*GH),dist=new Int16Array(GW*GH),distB=new Int16Array(GW*GH),PB=new Uint8Array(GW*GH),hitT=-9,POOLR=null,ISL=null,TERM=null,ZIP=[],DOORT=[],DOORM=[],BLD=[],bfsT=0,p,E=[],Dr=[],P=[],F=[],EP=[],TR=[],keys={},ml=0,hf=0,ads=false,fps=true,paused=true,canDock=false,locked=false,tt=0,spawnT=3,amb=0,clickAcc=0,hpFlash=0,expo=0,wcd=0,rel=0,ammo=WP.map(w=>w.mag),wi=0,boostT=0,boostCd=0,kick=0,adsT=0,msgT,hmT=0,hmH=0,dirty=[],fullRef=true,mute=false,ac=null,aim={x:0,y:0,z:-1},CP,W3,mzT=0,fpv=true,DEP=[],DEPT=[],adsE=false,relMax=1,relPh=0,swT=0,shopOpen=false,setOpen=false,listen=null,inten=0,SL=[],mbus,sbus,mast,arpBus,noiseB,musT=0,musStep=0;
 let reserves=WP.map(()=>3);
-const mkL=()=>({sweep:0,rad:0,suit:0,gei:0,boots:0,pouch:0,tank:0,ref:0,yld:0,dmg:0,fr:0,multi:0,w1:0,w2:0,w3:0,w4:0,w5:0,w6:0});
+const {mkL}=NSR.Defs;
 function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 const pct=()=>Math.min(100,(1-S.rem/S.total)*100),mag=()=>Math.ceil(WP[wi].mag*WS(wi).mg);
 function resupplyAmmo(){ammo=WP.map((weapon,index)=>Math.ceil(weapon.mag*WS(index).mg));reserves=WP.map(()=>ST(S.L).reloads);rel=0;relPh=0}
@@ -312,63 +307,11 @@ let tT;function toast(t){const e=$("#tst");e.textContent=t;e.style.opacity=1;cle
 function say(w,t){const l=$('#log');l.innerHTML=`<b>${w}</b><br>${t}`;l.style.display='block';clearTimeout(msgT);msgT=setTimeout(()=>l.style.display='none',9000+t.length*40)}
 function refine(dt){const s=ST(S.L);if(S.raw>0){const u=Math.min(S.raw,s.rate*dt);S.raw-=u;S.cred+=u*s.yld}}
 // ---------- map ----------
-const ROOM_DESIGNS=[
- {n:'CARGO STORAGE',color:0xd8aa59,tint:[12,5,-10]},
- {n:'TURBINE HALL',color:0x71c9d0,tint:[-12,7,12]},
- {n:'SAMPLE LAB',color:0x9dd5a2,tint:[-10,12,0]},
- {n:'SERVICE ARCHIVE',color:0xafa0dc,tint:[6,-6,14]},
- {n:'COLLAPSED WORKS',color:0xd58b6c,tint:[12,-8,-12]},
- {n:'TRANSFER ATRIUM',color:0xd4d6be,tint:[6,8,2]}
-];
-function designRooms(sec){const random=rng(7001+sec*193),order=ROOM_DESIGNS.map((_,index)=>index);
- for(let index=order.length-1;index>0;index--){const swap=random()*(index+1)|0;[order[index],order[swap]]=[order[swap],order[index]]}
- let next=0;for(const room of R){if(room.sh||room.core||room===POOLR)continue;room.design=order[next++%order.length];room.turn=random()<.5;
-  if(room.design!=1&&room.design!=4&&room.design!=5)continue;
-  for(let z=room.z0;z<=room.z1;z++)for(let x=room.x0;x<=room.x1;x++){
-   const edgeX=Math.min(x-room.x0,room.x1-x),edgeZ=Math.min(z-room.z0,room.z1-z);
-   if(Math.abs(x-room.cx)>1&&Math.abs(z-room.cz)>1&&(room.design==4?x<room.cx&&z<room.cz&&edgeX+edgeZ<3:edgeX+edgeZ<2))M[z*GW+x]=1}}}
-function furnishRoom(room,sec){const random=rng(sec*977+room.x0*61+room.z0),width=room.x1-room.x0,height=room.z1-room.z0;
- for(let z=room.z0+1;z<room.z1;z++)for(let x=room.x0+1;x<room.x1;x++){
-  if(Math.abs(x-room.cx)<=1||Math.abs(z-room.cz)<=1||M[z*GW+x]!=0)continue;
-  const along=room.turn?z-room.z0:x-room.x0,across=room.turn?x-room.x0:z-room.z0;
-  const edge=Math.min(x-room.x0,room.x1-x,z-room.z0,room.z1-z);let tile=0;
-  if(room.design==0&&across%3==1&&edge>1)tile=2;
-  else if(room.design==1&&Math.abs(x-room.cx)==2&&Math.abs(z-room.cz)==2)tile=1;
-  else if(room.design==2&&edge==1&&along%3!=0)tile=5;
-  else if(room.design==3&&across%3==1&&along>1&&along<(room.turn?height:width)-1)tile=1;
-  else if(room.design==4&&random()<.36)tile=2;
-  M[z*GW+x]=tile}}
-function genMap(sec){const r=rng(1000+sec*77);DOORT=[];ZIP=[];POOLR=null;ISL=null;TERM=null;M=new Uint8Array(GW*GH).fill(1);D=new Float32Array(GW*GH);R=[];CO=[];
- const sl=15,carve=(x0,z0,x1,z1)=>{for(let z=z0;z<=z1;z++)for(let x=x0;x<=x1;x++)if(x>0&&z>0&&x<GW-1&&z<GH-1)M[z*GW+x]=0};
- for(let j=0;j<4;j++)for(let i=0;i<4;i++){const core=i==1&&j==1,w=core?13:7+(r()*5|0),h=core?13:7+(r()*5|0),x0=i*sl+1+(r()*(sl-w-2)|0),z0=j*sl+1+(r()*(sl-h-2)|0);R.push({x0,z0,x1:x0+w-1,z1:z0+h-1,cx:x0+(w>>1),cz:z0+(h>>1),core,sh:!i&&!j});carve(x0,z0,x0+w-1,z0+h-1)}
- POOLR=[6,7,11,2,1,14,4,8].map(i=>R[i]).find(o=>o.x1-o.x0>=8&&o.z1-o.z0>=8)||null;
- if(S.roomDesign)designRooms(sec);
- for(let j=0;j<4;j++)for(let i=0;i<4;i++){const a=R[j*4+i];
-  if(i<3){const b=R[j*4+i+1];carve(a.cx,a.cz-1,b.cx,a.cz+1);carve(b.cx-1,Math.min(a.cz,b.cz),b.cx+1,Math.max(a.cz,b.cz));CO.push({h:1,a,b})}
-  if(j<3){const b=R[(j+1)*4+i];carve(a.cx-1,a.cz,a.cx+1,b.cz);carve(Math.min(a.cx,b.cx),b.cz-1,Math.max(a.cx,b.cx),b.cz+1);CO.push({h:0,a,b})}}
- const c5=R[5];for(let z=c5.cz-2;z<=c5.cz+1;z++)for(let x=c5.cx-2;x<=c5.cx+1;x++)M[z*GW+x]=1;
- for(const c of CO){const{a,b}=c,g0=c.h?a.x1+1:a.z1+1,g1=c.h?b.x0-1:b.z0-1;if(g1<g0+2)continue;const gt=g0+1+(r()*(g1-g0-1)|0),gty=(a===R[12]||b===R[12])?9:(r()<.3?10:3);
-  for(let k=g0;k<=g1;k++){const i=c.h?a.cz*GW+k:k*GW+a.cx;if(M[i]==0)M[i]=4}
-  for(let o=-1;o<=1;o++){const i=c.h?(a.cz+o)*GW+gt:gt*GW+a.cx+o;if(M[i]==0||M[i]==4){M[i]=gty;if(gty==9)DOORT.push(i)}}}
- if(POOLR){const o=POOLR;for(let dz=-3;dz<=3;dz++)for(let dx=-3;dx<=3;dx++)M[(o.cz+dz)*GW+o.cx+dx]=(Math.abs(dx)<=1&&Math.abs(dz)<=1)?0:7;ISL={x:(o.cx+.5)*TS,z:(o.cz+.5)*TS}}
- for(const o of R){if(o.sh)continue;const n=3+(r()*4|0);for(let k=0;k<n;k++){const len=1+(r()*3|0),hz=r()<.5,tx=o.x0+2+(r()*(o.x1-o.x0-3)|0),tz=o.z0+2+(r()*(o.z1-o.z0-3)|0);
-  for(let u=0;u<len;u++){const x=tx+(hz?u:0),z=tz+(hz?0:u);if(o.design===undefined&&x>o.x0&&x<o.x1&&z>o.z0&&z<o.z1&&Math.abs(x-o.cx)>1&&Math.abs(z-o.cz)>1&&M[z*GW+x]==0)M[z*GW+x]=2}}}
- for(const o of R){if(o.sh)continue;const ok=(x,z)=>x>o.x0&&x<o.x1&&z>o.z0&&z<o.z1&&Math.abs(x-o.cx)>1&&Math.abs(z-o.cz)>1;
-  for(let k=0,n=o.core?2:1+(r()<.6);k<n;k++){const len=3+(r()*4|0),hz=r()<.5,tx=o.x0+2+(r()*(o.x1-o.x0-3)|0),tz=o.z0+2+(r()*(o.z1-o.z0-3)|0);for(let u=0;u<len;u++){const x=tx+(hz?u:0),z=tz+(hz?0:u);if(o.design===undefined&&ok(x,z)&&M[z*GW+x]==0)M[z*GW+x]=1}}
-  if(o.design!==undefined)furnishRoom(o,sec);
-  if(o!==POOLR&&r()<(o.core?1:.7)){const sd=r()*4|0,hzP=sd<2,sp=hzP?o.x1-o.x0+1:o.z1-o.z0+1,len=Math.min(sp-2,5+(r()*4|0)),st0=1+(r()*(sp-len-1)|0),cells=[];
-   for(let u=0;u<len;u++)for(let d=0;d<3;d++){const x=hzP?o.x0+st0+u:(sd==2?o.x0+d:o.x1-d),z=hzP?(sd==0?o.z0+d:o.z1-d):o.z0+st0+u;cells.push([x,z])}
-   for(const[x,z]of cells)if(M[z*GW+x]!=1)M[z*GW+x]=6;o.pl={sd,hzP,st0,len};
-   const c=[];for(let u=0;u<len;u++){const a=(hzP?o.x0:o.z0)+st0+u;if(Math.abs(a-(hzP?o.cx:o.cz))>1)c.push(a)}
-   if(c.length){const a=c[r()*c.length|0];for(const[k,t]of[[1,5],[2,8]]){const x=hzP?a:(sd==2?o.x0+2+k:o.x1-2-k),z=hzP?(sd==0?o.z0+2+k:o.z1-2-k):a;if(M[z*GW+x]!=1)M[z*GW+x]=t}}}}
- DEP=[];DEPT=[];for(const k of[3,10,13,15]){const o=R[k];M[o.cz*GW+o.cx]=0;DEP.push({x:(o.cx+.5)*TS,z:(o.cz+.5)*TS});DEPT.push(o.cz*GW+o.cx)}{const o=R[9];M[o.cz*GW+o.cx]=0;TERM={x:(o.cx+.5)*TS,z:(o.cz+.5)*TS};DEPT.push(o.cz*GW+o.cx)}genZips();
- let tot=0;const dn=R.map(o=>o.sh?0:o.core?1.2:.55+r()*.5);
- for(let z=0;z<GH;z++)for(let x=0;x<GW;x++){const i=z*GW+x;if(M[i]!=0&&M[i]!=4&&M[i]!=6)continue;const k=R.findIndex(o=>x>=o.x0&&x<=o.x1&&z>=o.z0&&z<=o.z1);
-  const v=(M[i]==6?1.5:1)*(k>=0?(.15+.85*r())*dn[k]:(r()>.35?.2+.5*r():0));D[i]=v>.1?Math.min(1,v):0;tot+=D[i]}
- for(const t of DEPT){tot-=D[t];D[t]=0}
- S.total=tot;S.rem=tot;SH={x:(R[0].cx+.5)*TS,z:(R[0].cz+.5)*TS};CORE={x:c5.cx*TS,z:c5.cz*TS};
- if(S.vOpen){for(const i of DOORT)M[i]=0}rebuildPB();E=[];Dr=[];P=[];F=[];EP=[];TR=[];{const rm=R.filter(o=>!o.sh);for(let k=0;k<Math.min(6+3*sec,28);k++)spawnIn(rm[Math.random()*rm.length|0])}
- spawnIsland();if(S.vOpen)spawnVault();rebuildPB();build3D();fullRef=true}
+const {ROOM_DESIGNS}=NSR.Defs;
+function genMap(sec){const generated=NSR.Map.generate(sec,{roomDesign:S.roomDesign,vOpen:S.vOpen});
+ ({R,CO,SH,CORE,DEP,DEPT,POOLR,ISL,TERM,ZIP,DOORT}=generated);M=Uint8Array.from(generated.M);D=Float32Array.from(generated.D);S.total=generated.total;S.rem=generated.rem;
+ rebuildPB();E=[];Dr=[];P=[];F=[];EP=[];TR=[];const rooms=R.filter(room=>!room.sh);for(let index=0;index<Math.min(6+3*sec,28);index++)spawnIn(rooms[Math.random()*rooms.length|0]);
+ spawnIsland();if(S.vOpen)spawnVault();build3D();fullRef=true}
 const minimap={panel:$('#minimap'),ctx:$('#map-canvas').getContext('2d'),base:document.createElement('canvas'),map:null,vault:null,next:0,pad:8,scale:240/Math.max(GW,GH)};
 minimap.base.width=minimap.base.height=256;
 function rebuildMinimap(){const ctx=minimap.base.getContext('2d'),scale=minimap.scale,pad=minimap.pad,colors=['#46533b','#11170e','#777458','#b05a46','#914b3d','#777458','#647254','#254f58','#777458','#e6a248','#b05a46'];
@@ -383,7 +326,9 @@ function drawMinimap(now){const hidden=paused||!minimap.ctx;if(minimap.panel.hid
  if(minimap.map!==M||minimap.vault!==S.vOpen)rebuildMinimap();
  const ctx=minimap.ctx;ctx.clearRect(0,0,256,256);ctx.drawImage(minimap.base,0,0);ctx.save();ctx.translate(minimap.pad+p.x/TS*minimap.scale,minimap.pad+p.z/TS*minimap.scale);ctx.rotate(-p.yaw);
  ctx.fillStyle='#ffffff24';ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(-9,-19);ctx.lineTo(9,-19);ctx.closePath();ctx.fill();
- ctx.fillStyle='#f4ffe8';ctx.strokeStyle='#0b0e08';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(0,-8);ctx.lineTo(5,5);ctx.lineTo(0,2);ctx.lineTo(-5,5);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore()}
+ ctx.fillStyle='#f4ffe8';ctx.strokeStyle='#0b0e08';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(0,-8);ctx.lineTo(5,5);ctx.lineTo(0,2);ctx.lineTo(-5,5);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
+ for(const member of coopRemote){const pose=member.pose;ctx.fillStyle=member.id===coopRemote[0]?.id?'#6ee7ff':'#d69aff';ctx.beginPath();ctx.arc(minimap.pad+pose.x/TS*minimap.scale,minimap.pad+pose.z/TS*minimap.scale,3,0,Math.PI*2);ctx.fill()}}
+
 function pickT(){const s=S.sector,u=Math.random();if(Math.random()<.07+.01*s&&E.filter(e=>e.t==3).length<3)return 3;if(s>=3&&u<.12+.03*s)return 2;if(s>=2&&u<.4)return 1;return 0}
 const pass=i=>{const m=M[i];return m==0||m==4||m==3||m==6||m==10},solE=i=>{const m=M[i];return m==1||m==2||m==5||m==8||m==9||m==7};
 function passB(i){if(!pass(i))return false;const x=i%GW,z=i/GW|0;for(const[a,b]of N8){const X=x+a,Z=z+b;if(X<0||Z<0||X>=GW||Z>=GH||solE(Z*GW+X))return false}return true}
@@ -500,7 +445,7 @@ function build3D(){applyTheme();const th=TH();if(W3){if(W3.userData.details)W3.u
 const pm=new THREE.Group(),sm=new THREE.MeshLambertMaterial({color:0xf2c14e}),dk=new THREE.MeshLambertMaterial({color:0x22304d}),gy=new THREE.MeshLambertMaterial({color:0x5a5a5a});
 {const a=(g,m,x,y,z)=>{const o=new THREE.Mesh(g,m);o.position.set(x,y,z);pm.add(o);return o};
  a(new THREE.CylinderGeometry(.33,.4,1,12),sm,0,.8,0);const h=a(sph,sm,0,1.5,0);h.scale.set(.27,.27,.27);const v=a(sph,dk,0,1.5,-.18);v.scale.set(.2,.14,.12);
- a(new THREE.BoxGeometry(.5,.6,.25),new THREE.MeshLambertMaterial({color:0xbf8f3b}),0,.95,.34);a(new THREE.BoxGeometry(.5,.18,.7),gy,0,.2,-.5);a(new THREE.BoxGeometry(.1,.12,.5),gy,.32,1.0,-.5);sc.add(pm)}
+ a(new THREE.BoxGeometry(.5,.6,.25),new THREE.MeshLambertMaterial({color:0xbf8f3b}),0,.95,.34);a(new THREE.BoxGeometry(.5,.18,.7),gy,0,.2,-.5);a(new THREE.BoxGeometry(.1,.12,.5),gy,.32,1.0,-.5).name='held-weapon';sc.add(pm)}
 const gm=new THREE.Group(),gmat=new THREE.MeshLambertMaterial({color:0x8a9099}),dkm=new THREE.MeshLambertMaterial({color:0x1a1a1a}),bx=new THREE.BoxGeometry(1,1,1),gb=new THREE.Mesh(bx,gmat),gr=new THREE.Mesh(bx,dkm),gg=new THREE.Mesh(bx,dkm),gs=new THREE.Mesh(bx,dkm);gm.add(gb);gm.add(gr);gm.add(gg);gm.add(gs);const gmag=new THREE.Mesh(bx,dkm);gmag.scale.set(.04,.13,.07);gm.add(gmag);cam3.add(gm);
 const masteryMat=new THREE.MeshPhongMaterial({specular:0xffffff,shininess:100});
 let skinWeapon=-1,skinTier=-1,polychromeMap=null;
@@ -537,10 +482,10 @@ function cast(o,d,mx,noE,ignored){let t=0;while(t<mx){t+=.25;if(rs(o.x+d.x*t,o.y
 function fresh(){return fixProgress({roomDesign:1,L:mkL(),wl:WP.map(()=>({dmg:0,fr:0,multi:0})),scrap:0,cred:0,raw:0,tank:0,hp:100,sector:1,story:0,clr:0,total:1,rem:1,t:Date.now(),parts:0,att:WP.map(()=>({s:0,b:0,l:0})),unl:{s:0,b:0,l:0},mod:{gr:0,dash:0},vOpen:0,vTaken:0,iTaken:0,bossDead:0,bty:null,kills:0})}
 function load(){try{return cleanSave(JSON.parse(localStorage.getItem(KEY)),true)}catch(e){}return null}
 let saveLocked=false;
-function save(){if(saveLocked)return false;try{S.t=Date.now();localStorage.setItem(KEY,JSON.stringify({...S,d:Array.from(D,v=>+v.toFixed(2))}));return true}catch(e){return false}}
-function placeP(){p={x:SH.x,z:SH.z+4,h:0,vx:0,vz:0,vh:0,yaw:0,pit:0,g:1,sl:0,slideLock:0,st:0,peak:0,cy:0,jb:0,roll:0,cd:0,low:0,crP:-9,rl:0,rp:0,dashed:0,gr:null,zp:null,chain:0,ss:0,sa:0,sT:0};canDock=false}
+function save(){if(coopSession)return coopSession.save();if(!gameStarted||saveLocked)return false;try{S.t=Date.now();localStorage.setItem(KEY,JSON.stringify({...S,d:Array.from(D,v=>+v.toFixed(2))}));return true}catch(e){return false}}
+function placeP(){p=NSR.Movement.createPose(SH);canDock=false}
 function dockShelter(){S.raw+=S.tank;S.tank=0;S.hp=ST(S.L).hp;resupplyAmmo();canDock=false;save()}
-function openShop(){shopOpen=true;ml=0;ads=false;syncPause();S.raw+=S.tank;S.tank=0;S.hp=ST(S.L).hp;resupplyAmmo();canDock=false;if(document.exitPointerLock)document.exitPointerLock();$('#shop').style.display='block';walletOpen();renderShop();save()}
+function openShop(){if(coopSession){coopSession.perform('dock');shopOpen=true;ml=0;ads=false;syncPause();releaseMouse();$('#shop').style.display='block';walletOpen();renderShop();return}shopOpen=true;ml=0;ads=false;syncPause();S.raw+=S.tank;S.tank=0;S.hp=ST(S.L).hp;resupplyAmmo();canDock=false;if(document.exitPointerLock)document.exitPointerLock();$('#shop').style.display='block';walletOpen();renderShop();save()}
 function closeShop(){wallet.seen=walletNow();$('#shop').style.display='none';shopOpen=false;resumePending=true;syncPause();try{if(document.activeElement)document.activeElement.blur()}catch(e){}}
 function openSet(){if(setOpen)return;setOpen=true;ml=0;ads=false;syncPause();initAudio();releaseMouse();$('#set').style.display='block';renderSet()}
 function closeSet(){setOpen=false;listen=null;$('#set').style.display='none';saveCfg();if(!shopOpen)resumePending=true;syncPause();try{if(document.activeElement)document.activeElement.blur()}catch(e){}}
@@ -555,7 +500,7 @@ function renderSet(){const sl=(c,l,mn,mx,st)=>`<label class=r><span>${l}</span><
 $('#sw').addEventListener('input',e=>{const el=e.target,c=el.dataset&&el.dataset.c;if(!c)return;CFG[c]=el.type=='checkbox'?el.checked:+el.value;const v=$('#v_'+c);if(v)v.textContent=fmtV(c);applyVol();saveCfg()});
 // save backup: one JSON file with the game state and the settings
 const saveStamp=()=>{const d=new Date(),z=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}`};
-function exportSave(){const stored=save();let state=null;if(stored){try{state=JSON.parse(localStorage.getItem(KEY))}catch(e){}}// if storing failed, export the live state rather than an older stored copy
+function exportSave(){if(coopSession){$('#smsg').textContent='Use Expedition to export a separate co-op backup.';return}const stored=save();let state=null;if(stored){try{state=JSON.parse(localStorage.getItem(KEY))}catch(e){}}// if storing failed, export the live state rather than an older stored copy
  if(!state)state={...S,d:Array.from(D,v=>+v.toFixed(2))};
  const blob=new Blob([JSON.stringify({format:'nuclear-sweeper-save',version:1,exported:new Date().toString(),save:state,settings:CFG})],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
  a.href=url;a.download=`nuclear-sweeper-save-${saveStamp()}.json`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);$('#smsg').textContent='Backup file saved to your downloads.'}
@@ -578,14 +523,14 @@ function cleanSettings(raw){if(!raw||typeof raw!='object'||Array.isArray(raw))re
  if(raw.KB&&typeof raw.KB=='object')for(const action in KBD){const code=raw.KB[action];if(typeof code=='string'&&KEYCODE.test(code))KB[action]=code}
  return {fov:Math.round(num(raw.fov,70,120,CFG.fov)),sens:num(raw.sens,.2,3,CFG.sens),adsm:num(raw.adsm,.2,1.2,CFG.adsm),inv:bool(raw.inv,CFG.inv),adsT:bool(raw.adsT,CFG.adsT),mv:num(raw.mv,0,1,CFG.mv),sv:num(raw.sv,0,1,CFG.sv),mu:num(raw.mu,0,1,CFG.mu),music:bool(raw.music,CFG.music),geiger:bool(raw.geiger,CFG.geiger),KB}}
 let pendingImport=null;
-function readImport(file){const msg=$('#smsg');pendingImport=null;if(!file)return;if(file.size>5e6){msg.textContent='That file is too large to be a save.';return}
+function readImport(file){if(coopSession){$('#smsg').textContent='Leave co-op before importing a solo save.';return}const msg=$('#smsg');pendingImport=null;if(!file)return;if(file.size>5e6){msg.textContent='That file is too large to be a save.';return}
  file.text().then(text=>{let data;try{data=JSON.parse(text)}catch(e){msg.textContent='Not a save file: the file is not valid JSON.';return}
   const wrapped=data&&typeof data=='object'&&data.format=='nuclear-sweeper-save';if(wrapped&&data.version!==1){msg.textContent='This backup comes from a different game version and cannot be read here. Nothing was changed.';return}let state=null;try{state=cleanSave(wrapped?data.save:data)}catch(e){state=null}
   if(!state){msg.textContent='Not a Nuclear Sweeper save: the map data is missing or broken. Nothing was changed.';return}
   pendingImport={state,settings:wrapped?cleanSettings(data.settings):null};
   msg.textContent=`Found a save from Site ${state.sector} with ${Math.floor(state.cred).toLocaleString('en-US')} credits. This replaces your current progress. `;
   const confirm=document.createElement('button');confirm.className='kbtn';confirm.id='sic';confirm.textContent='Replace and reload';msg.append(confirm);confirm.focus()},()=>{msg.textContent='The file could not be read.'})}
-function confirmImport(){if(!pendingImport)return;const msg=$('#smsg'),saveText=JSON.stringify(pendingImport.state),cfgText=pendingImport.settings?JSON.stringify(pendingImport.settings):null;let old=null;try{old=localStorage.getItem(KEY)}catch(e){}
+function confirmImport(){if(coopSession)return;if(!pendingImport)return;const msg=$('#smsg'),saveText=JSON.stringify(pendingImport.state),cfgText=pendingImport.settings?JSON.stringify(pendingImport.settings):null;let old=null;try{old=localStorage.getItem(KEY)}catch(e){}
  saveLocked=true;// from here on no interval or event may overwrite the imported save before the reload
  try{localStorage.setItem(KEY,saveText);if(cfgText)localStorage.setItem(CFG_KEY,cfgText)}catch(e){let restored=false;try{if(old==null)localStorage.removeItem(KEY);else localStorage.setItem(KEY,old);restored=true}catch(_){}
   if(restored){saveLocked=false;msg.textContent='The browser refused to store the save. Nothing was changed.';return}}
@@ -612,8 +557,8 @@ function barUpd(){const s=ST(S.L);for(let i=0;i<WP.length;i++){const e=SL[i];if(
  $('#tkt').textContent=(Math.max(0,S.tank)|0)+'/'+s.cap;$('#tkb').style.width=cl(S.tank/s.cap*100,0,100)+'%';
  $('#dust-meter').setAttribute('aria-valuemax',s.cap);$('#dust-meter').setAttribute('aria-valuenow',cl(S.tank,0,s.cap));$('#cur').innerHTML='<span>'+cur('c',20)+' <b>'+(S.cred|0)+'</b></span> <span>'+cur('s',20)+' <b>'+S.scrap+'</b></span> <span>'+cur('p',20)+' <b>'+S.parts+'</b></span>'+(S.raw>0?'<div class=inc>Refinery '+(S.raw|0)+' u · +'+(s.rate*s.yld).toFixed(1)+' credits/s</div>':'')}
 function barReload(){for(let i=0;i<SL.length;i++){const w=i==wi&&rel>0?((1-rel/relMax)*100|0)+'%':'0%';if(SL[i].rw!=w){SL[i].rb.style.width=w;SL[i].rw=w}}}
-function deploy(){finishScore('Cleared');S.sector++;S.roomDesign=1;S.story=0;S.clr=0;S.vOpen=0;S.vTaken=0;S.iTaken=0;S.bossDead=0;S.bty=null;genMap(S.sector);placeP();S.hp=ST(S.L).hp;closeShop();save()}
-function buy(id,weapon){const u=U.find(x=>x[0]==id);if(!u||u[0].startsWith('w'))return;const per=WUP[id]&&weapon!=null,levels=per?S.wl[+weapon]:S.L;if(!levels||(per&&!(+weapon==0||S.L['w'+weapon]>0)))return;const l=levels[id],c=cost(u,l),k=u[2]=='s'?'scrap':'cred';if(l>=u[5]||S[k]<c)return;S[k]-=c;levels[id]++;celebrate({kind:'buy',kicker:'UPGRADE',title:u[1],sub:(per?WP[+weapon].n+' · ':'')+'Level '+levels[id],col:k=='scrap'?CUR.s.col:CUR.c.col,mark:ico(id)});if(id=='suit')S.hp=ST(S.L).hp;if(shopOpen&&(id=='pouch'||id=='multi'))resupplyAmmo();renderShop();snd(520,.1,'triangle',.05);save()}
+function deploy(){if(coopSession){coopSession.perform('deploy').then(result=>{if(result.ok)closeShop();else toast(result.reason)});return}finishScore('Cleared');S.sector++;S.roomDesign=1;S.story=0;S.clr=0;S.vOpen=0;S.vTaken=0;S.iTaken=0;S.bossDead=0;S.bty=null;genMap(S.sector);placeP();S.hp=ST(S.L).hp;closeShop();save()}
+function buy(id,weapon){if(coopSession){coopSession.perform('buy',{upgrade:id,weapon:weapon==null?wi:+weapon}).then(()=>{applyCoopView();renderShop()});return}const u=U.find(x=>x[0]==id);if(!u||u[0].startsWith('w'))return;const per=WUP[id]&&weapon!=null,levels=per?S.wl[+weapon]:S.L;if(!levels||(per&&!(+weapon==0||S.L['w'+weapon]>0)))return;const l=levels[id],c=cost(u,l),k=u[2]=='s'?'scrap':'cred';if(l>=u[5]||S[k]<c)return;S[k]-=c;levels[id]++;celebrate({kind:'buy',kicker:'UPGRADE',title:u[1],sub:(per?WP[+weapon].n+' · ':'')+'Level '+levels[id],col:k=='scrap'?CUR.s.col:CUR.c.col,mark:ico(id)});if(id=='suit')S.hp=ST(S.L).hp;if(shopOpen&&(id=='pouch'||id=='multi'))resupplyAmmo();renderShop();snd(520,.1,'triangle',.05);save()}
 const menuState={};
 function shelterContext(groups,state){
  const context=document.createElement('aside');context.className='shelter-context';context.setAttribute('aria-label','Overview and radio log');
@@ -726,13 +671,13 @@ function unstick(hg){if(!bl(p.x,p.z,.4,p.h,hg,0))return;const m=tm(p.x,p.z),top=
  if(top&&p.h<top&&top-p.h<=.7){p.h=top;p.vh=Math.max(p.vh,0);return}
  for(let r=.2;r<=2.2;r+=.2)for(let k=0;k<8;k++){const a=k*Math.PI/4,x=p.x+Math.cos(a)*r,z=p.z+Math.sin(a)*r;if(!bl(x,z,.4,p.h,hg,0)){p.x=x;p.z=z;return}}}
 // ---------- rare parts, attachments, modules ----------
-const ATT={s:['Suppressor',3,'quiet: only wakes enemies within 9 m; -6% damage'],b:['Extended barrel',4,'+12% damage, tighter aim down sights, +15% recoil'],l:['Laser sight',2,'-40% hip-fire spread, visible laser beam']};
-const MOD={gr:['Grapple hook',6,'G: aim at any surface. Hold to reel in, release to keep your momentum. Grabs ledges automatically.'],dash:['Air-dash',5,'F: burst of speed in your move direction. Once per jump, or every second on the ground.']};
+const {ATT}=NSR.Defs;
+const {MOD}=NSR.Defs;
 let gCd=0,dCd=0,gsp=0,bladeCd=0,tmsg=0,zpCd=0,zipTip=0;
 function fixS(j){j.parts=j.parts||0;
  // saves from before per-weapon upgrades: every weapon keeps the old shared level
  j.wl=WP.map((_,i)=>{const old=Array.isArray(j.wl)?j.wl[i]||{}:{},lvl=key=>{const v=Array.isArray(j.wl)?old[key]:j.L&&j.L[key];return Number.isFinite(v)&&v>0?Math.floor(v):0};return {dmg:lvl('dmg'),fr:lvl('fr'),multi:lvl('multi')}});j.att=j.att||WP.map(()=>({s:0,b:0,l:0}));j.unl=Object.assign({s:0,b:0,l:0},j.unl);j.mod=Object.assign({gr:0,dash:0},j.mod);j.vOpen=j.vOpen||0;j.vTaken=j.vTaken||0;j.iTaken=j.iTaken||0;j.bossDead=j.bossDead||0;j.bty=j.bty||null;j.kills=count(j.kills);return fixProgress(j)}
-function shopClick(b){if(b.dataset.pick){armory=+b.dataset.pick;renderShop();snd(400,.05,'square',.03);return true}
+function shopClick(b){if(coopSession&&!b.dataset.pick){let type,fields;if(b.dataset.un){type='unlockAttachment';fields={key:b.dataset.un}}else if(b.dataset.md){type='buyModule';fields={key:b.dataset.md}}else if(b.dataset.eq){const [weapon,key]=b.dataset.eq.split(',');type='equipAttachment';fields={weapon:+weapon,key}}if(type){coopSession.perform(type,fields).then(()=>{applyCoopView();renderShop()});return true}}if(b.dataset.pick){armory=+b.dataset.pick;renderShop();snd(400,.05,'square',.03);return true}
  if(b.dataset.un){const k=b.dataset.un;if(!S.unl[k]&&S.parts>=ATT[k][1]){S.parts-=ATT[k][1];S.unl[k]=1;celebrate({kind:'buy',kicker:'ATTACHMENT UNLOCKED',title:ATT[k][0],sub:'Fits every weapon',col:CUR.p.col,mark:ico(k)});renderShop();snd(520,.1,'triangle',.05);save()}return true}
  if(b.dataset.eq){const[i,k]=b.dataset.eq.split(',');if(S.unl[k]){S.att[+i][k]=S.att[+i][k]?0:1;renderShop();snd(400,.05,'square',.03);save()}return true}
  if(b.dataset.md){const k=b.dataset.md;if(!S.mod[k]&&S.parts>=MOD[k][1]){S.parts-=MOD[k][1];S.mod[k]=1;celebrate({kind:'buy',kicker:'MODULE INSTALLED',title:MOD[k][0],sub:MOD[k][2].split('.')[0],col:CUR.p.col,mark:ico(k)});renderShop();snd(520,.1,'triangle',.05);save()}return true}return false}
@@ -757,7 +702,7 @@ function zipUpd(dt,cr){const q=p.zp,z=q.z;q.sp=Math.min(15,q.sp+9*dt);q.t+=q.dir
  p.vx=(z.x1-z.x0)/z.len*q.sp*q.dir;p.vz=(z.z1-z.z0)/z.len*q.sp*q.dir;p.vh=(z.h1-z.h0)/z.len*q.sp*q.dir;p.g=0;p.peak=p.h;
  if(p.jb>0||end||cr){p.vh=(p.jb>0&&!end)?6:0;p.jb=0;p.st=0;p.zp=null;p.cd=.3;zpCd=.6}}
 // ---------- hazards, vault, loot ----------
-function hazUpd(dt,s,ti){bladeCd-=dt;tmsg-=dt;zpCd-=dt;gCd-=dt;dCd-=dt;
+function hazUpd(dt,s,ti){bladeCd-=dt;tmsg-=dt;
  if(M[ti]==10&&p.h<.9&&bladeCd<=0&&p.st==0){hurt(28);p.vx*=-.5;p.vz*=-.5;bladeCd=.8;shake=6;snd(90,.15,'sawtooth',.06)}
  if(TERM&&!S.vOpen&&Math.hypot(p.x-TERM.x,p.z-TERM.z)<2.6){if(S.tank>=20){S.tank-=20;openVault(true)}else if(tmsg<=0){toast('SAMPLE TERMINAL: feed it 20 u of dust to unlock the vault');tmsg=4}}
  if(p.st==0&&zpCd<=0){const n=nearZip();if(n&&zipTip<=0){toast('['+kn(CFG.KB.use)+'] grab the zip line');zipTip=3}}zipTip-=dt}
@@ -775,48 +720,13 @@ function shoot(s){const w=WP[wi],at=S.att[wi],o=fpv?CP:CP.H,sp=(adsE?w.sa*(at.b?
    for(let j=0;j<3;j++)F.push({x:h.x,y:h.y,z:h.z,vx:rnd(-3,3),vy:rnd(0,4),vz:rnd(-3,3),l:.3,m:.3,c:h.e?'#8dff4a':'#ffb84a',r:.14});
    if(!h.e)break;const e=h.e;let dm=w.d*WS(wi).dm*dmul*(ET[e.t].sc>1.2?(w.big||1):1);if(h.hd)dm=e.t==2?dm*4:Math.max(dm*4,e.mh*1.01);e.hp-=dm*power;if(e.hp<=0)recordKill(e,wi,h.hd);hit.add(e);hmT=.18;hmH=h.hd;if(!e.al)wake(e)}}
  noise(p.x,p.z,at.s?9:34);if(!(DEV_MODE&&DEV_TOOLS.infiniteAmmo))ammo[wi]--;wcd+=1/(w.r*WS(wi).fr);hf=1;kick=.06+w.rc*3;p.rp=Math.min(.3,p.rp+w.rc*(adsE?.5:1)*(at.b?1.15:1));mzT=at.s?0:.06;snd(at.s?140:180+wi*60,.06,'sawtooth',at.s?.008:.025)}
-function setW(i){if(i==0||S.L['w'+i]>0){wi=i;vmSet(WP[wi]);rel=0;relPh=0;wcd=.25;swT=.28}}
+function setW(i){if(i==0||S.L['w'+i]>0){if(coopSession){coopWeapon=i;return}wi=i;vmSet(WP[wi]);rel=0;relPh=0;wcd=.25;swT=.28}}
 function upd(dt){tt+=dt;tickPoints(dt);const s=ST(S.L);
  p.yaw+=((keys.ArrowLeft?1:0)-(keys.ArrowRight?1:0))*2.2*dt;p.pit=cl(p.pit+((keys.ArrowUp?1:0)-(keys.ArrowDown?1:0))*1.6*dt,-1.45,1.45);
- const fx=-Math.sin(p.yaw),fz=-Math.cos(p.yaw),cy=Math.cos(p.yaw),sy=Math.sin(p.yaw);
- const fwK=(kd('fw')?1:0)-(kd('bk')?1:0),stK=(kd('rt')?1:0)-(kd('lf')?1:0),cr=kd('crouch')||kd('crouch2');
- if(!cr)p.slideLock=0;
- let wx=fx*fwK+cy*stK,wz=fz*fwK-sy*stK;const wm=Math.hypot(wx,wz);if(wm>0){wx/=wm;wz/=wm}
- p.jb-=dt;p.cd-=dt;p.cy-=dt;p.roll-=dt;const sp0=Math.hypot(p.vx,p.vz);
- const m0=tm(p.x,p.z),top0=(m0==2||m0==3||m0==5||m0==6||m0==8)?TT[m0]:0,gh=p.h>=top0-.1?top0:0;
- let hg=p.low?1.22:(!p.g&&cr&&p.st==0?1.2:1.8);
- if(p.st==1){const a=p.an;a.t+=dt;const f=Math.min(1,a.t/a.d),e=f*f*(3-2*f);p.x=lerp(a.x0,a.x1,e);p.z=lerp(a.z0,a.z1,e);p.h=lerp(a.h0,a.h1,Math.min(1,f*1.4))+Math.sin(Math.PI*f)*a.arc;
-  if(f>=1){p.st=0;p.g=1;p.vh=0;p.vx=a.dx*a.sp;p.vz=a.dz*a.sp;p.peak=p.h;p.chain=0}}
- else if(p.st==2){p.vx=p.vz=p.vh=0;if(cr){p.st=0;p.cd=.4}else if(p.jb>0||fwK>0){p.jb=0;anim(p.hd.x,p.hd.z,p.hT,.55,0,3.5,.8)}}
- else{
-  const slideJump=!!(p.sl&&p.jb>0);
-  if(!p.sl&&!p.slideLock&&cr&&p.g&&p.roll<=0&&p.st==0&&sp0>=MOVE.slideMinSpeed){p.sl=1;p.sT=0;p.ss=sp0;p.sa=Math.atan2(-p.vx,-p.vz);snd(150,.25,'sawtooth',.03)}
-  if(p.sl&&(p.jb>0||!cr||!p.g||sp0<MOVE.slideEndSpeed)){p.sl=0;p.slideLock=cr?1:0}
-  else if(p.sl){p.sT+=dt;p.ss=Math.max(0,Math.min(p.ss,sp0)-MOVE.slideDrag*dt);if(wm>0){const target=Math.atan2(-wx,-wz),turn=Math.atan2(Math.sin(target-p.sa),Math.cos(target-p.sa));p.sa+=cl(turn,-MOVE.slideTurnRate*dt,MOVE.slideTurnRate*dt)}p.vx=-Math.sin(p.sa)*p.ss;p.vz=-Math.cos(p.sa)*p.ss}
-  p.low=!!(p.sl||p.roll>0||(cr&&p.g)||(p.low&&bl(p.x,p.z,.4,p.h,1.8,0)));hg=p.low?1.22:(!p.g&&cr&&p.st==0?1.2:1.8);if(p.st<6)unstick(hg);
-  if(p.st==0){
-   if(p.g)p.cy=.12;
-   if(p.jb>0&&(p.g||p.cy>0)&&!p.sl&&p.roll<=0){if(!slideJump&&fwK>0&&climb(wm>0?wx:fx,wm>0?wz:fz))p.jb=0;else{p.vh=6.3;p.g=0;p.cy=0;p.jb=0;p.peak=p.h;snd(380,.08,'triangle',.03)}}
-   if(p.st==0&&!p.sl){
-    if(p.g){const top=p.roll>0?sp0:s.spd*(cr?.35:1)*(m0==4?1.3:1)*(m0==7?.5:1);if(p.roll<=0)groundFriction(p,dt);if(wm>0)moveAccelerate(p,wx,wz,top,MOVE.groundAccel,dt,top,Math.max(s.spd*(cr?.35:1),top))}
-    else if(wm>0)moveAccelerate(p,wx,wz,s.spd,MOVE.airAccel,dt,Math.min(s.spd,MOVE.airWishCap));
-   }
-   if(p.st==0&&!p.g){p.vh-=16.4*dt;p.peak=Math.max(p.peak,p.h);
-    if(fwK>0&&(sp0>1.5||wm>0)){if(p.vh>-6)climb(sp0>1.5?p.vx/sp0:wx,sp0>1.5?p.vz/sp0:wz);if(p.st==0&&p.cd<=0)wallStart(sp0,fwK,gh)}}}
-  else if(p.st==4){const N=p.wn,t=p.wt;p.vh-=(p.vh>0?8.2:5)*dt;p.wa*=1-.05*dt;p.vx=t.x*p.wa;p.vz=t.z*p.wa;
-   if(p.jb>0){const lk=cl(fx*N.x+fz*N.z,0,1),al=p.wa*lerp(1,.1,lk),out=1.2+4*lk;p.vx=t.x*al+N.x*out;p.vz=t.z*al+N.z*out;p.vh=Math.sqrt(2*16.4*(1+.6*lk));p.st=0;p.cd=.25;p.jb=0;p.g=0;snd(420,.1,'triangle',.04)}
-   else if(!(fwK>0)||p.vh<-5||tm(p.x-N.x*.55,p.z-N.z*.55)!=1||Math.abs(p.wa)<1.5){p.st=0;p.cd=.2}}
-  else if(p.st==5){const N=p.wn;p.vh-=8*dt;p.vx=p.vz=0;
-   if(p.jb>0){p.vx=N.x*4;p.vz=N.z*4;p.vh=9;p.st=0;p.cd=.4;p.jb=0;snd(420,.1,'triangle',.04)}
-   else if(cr||p.vh<-1||tm(p.x-N.x*.55,p.z-N.z*.55)!=1){p.st=0;p.cd=.4}}
-  else if(p.st==6)zipUpd(dt,cr);
-  gripUpd(dt);
-  if(p.st==0||p.st==4||p.st==5){
-   p.h+=p.vh*dt;
-   if(p.h<=gh&&p.vh<=0){if(!p.g){const fh=p.peak-p.h;if(fh>=2){if(tt-p.crP<.25){p.roll=.5;p.low=1;snd(160,.2,'sawtooth',.03)}else{p.vx*=.7;p.vz*=.7;shake=3}}p.chain=0;p.dashed=0;snd(110,.06,'sine',.04)}p.h=gh;p.vh=0;p.g=1;p.peak=p.h;if(p.st>3)p.st=0}else if(p.h>gh+.02)p.g=0;
-   if(m0==6&&p.h<2.9&&p.h+hg>2.9){p.h=2.9-hg;if(p.vh>0)p.vh=0}else if(p.h+hg>WH){p.h=WH-hg;p.vh=Math.min(0,p.vh)}
-   const nx=p.x+p.vx*dt;if(!bl(nx,p.z,.4,p.h,hg,0))p.x=nx;else{p.vx=0;if(p.st==4)p.wa*=.5}const nz=p.z+p.vz*dt;if(!bl(p.x,nz,.4,p.h,hg,0))p.z=nz;else{p.vz=0;if(p.st==4)p.wa*=.5}}}
- {const rtg=p.st==4?((-cy*p.wn.x+sy*p.wn.z)>0?.21:-.21):0;p.rl+=(rtg-p.rl)*Math.min(1,dt*8)}
+ const movementPlayer={pose:p,L:S.L,mod:S.mod,move:{gCd,dCd,gsp,zpCd,crouch:!!p.lastCrouch}};
+ NSR.Movement.step({M,SH,ZIP,time:tt},movementPlayer,{yaw:p.yaw,pit:p.pit,fw:kd('fw'),bk:kd('bk'),lf:kd('lf'),rt:kd('rt'),crouch:kd('crouch')||kd('crouch2'),grapple:kd('grapple')},dt);
+ ({gCd,dCd,gsp,zpCd}=movementPlayer.move);p.lastCrouch=movementPlayer.move.crouch;
+ const hg=p.low?1.22:1.8;
  if((p.sl||p.st==4)&&Math.random()<.5)F.push({x:p.x,y:p.h+.05,z:p.z,vx:rnd(-1,1),vy:rnd(1,3),vz:rnd(-1,1),l:.3,m:.3,c:'#ffb84a',r:.2});
  fpv=fps||(adsE&&!!WP[wi].sc);
  camCalc();
@@ -880,7 +790,7 @@ function draw(){const s=ST(S.L);
  cam3.position.set(CP.x,CP.y,CP.z);cam3.rotation.set(p.pit+p.rp,p.yaw,p.rl);
  const so=scoped&&adsT>.7;$("#scope").style.display=so?"block":"none";$("#scope").style.opacity=Math.min(1,(adsT-.7)*5);$("#cx").style.display=so?"none":"block";gm.visible=true;const sA=!!w.sc,rp=rel>0?1-rel/relMax:0,dp=rp<.15?rp/.15:rp<.82?1:(1-rp)/.18,sw=swT/.28;gm.position.set(lerp(.27,0,adsT),lerp(-.25,sA?-.3:-.17,adsT)-.2*dp-.35*sw,lerp(-.55,sA?-.62:-.55,adsT)+kick+.05*dp);gm.rotation.set(-.55*dp+.45*sw,0,.5*dp);vmSet(w);if(sA&&adsT>.5)gs.visible=false;
  {const bh=w.vm[2],bl=w.vm[3];let off=0;gmag.visible=true;if(rp>.2&&rp<.45)off=-(rp-.2)/.25*.4;else if(rp>=.45&&rp<.55)gmag.visible=false;else if(rp>=.55&&rp<.8)off=-(1-(rp-.55)/.25)*.4;gmag.position.set(0,-bh/2-.07+off,-bl*.45);if(rp>.86&&rp<.97)gb.position.z+=.03*Math.sin((rp-.86)/.11*Math.PI)}barReload();drawMod(w,S.att[wi]);
- rend.render(sc,cam3);
+ drawCoopPlayers();rend.render(sc,cam3);
  if(so){const vm=Math.min(innerWidth,innerHeight),sd=vm*.45,vx=(innerWidth-sd)/2,vy=(innerHeight-sd)/2;cam4.position.copy(cam3.position);cam4.rotation.copy(cam3.rotation);cam4.fov=2*Math.atan(sd/innerHeight*Math.tan(fov*Math.PI/360)/w.z)*180/Math.PI;cam4.updateProjectionMatrix();
   rend.setScissorTest(true);rend.setViewport(vx,vy,sd,sd);rend.setScissor(vx,vy,sd,sd);rend.render(sc,cam4);rend.setScissorTest(false);rend.setViewport(0,0,innerWidth,innerHeight)}
  $('#hm').style.opacity=Math.min(1,Math.max(0,hmT*8));$('#hm').style.color=hmH?'#ff5a1f':'#fff';$('#cx').style.transform=`scale(${1+(1-adsT)*(.4+Math.hypot(p.vx,p.vz)/30)*.5})`;
@@ -889,6 +799,7 @@ function hud(){const s=ST(S.L),c=pct(),w=WP[wi],T0=[SH,...DEP].reduce((a,b)=>Mat
  $('#hud').innerHTML=`<section class="hud-category"><strong>MISSION</strong><b style="color:var(--ac)">SITE ${S.sector}</b> ${getSec(S.sector).n}<br>CLEANED ${c.toFixed(1)}%${S.clr?' <b style="color:#4f9dde">CLEARED</b>':''}<div class=bar><i style="width:${c}%;background:var(--ac)"></i></div></section><section class="hud-category"><strong>MOVEMENT</strong>${Math.hypot(p.vx,p.vz).toFixed(1)} m/s ${p.sl?'SLIDE':p.st==4?'WALLRUN':p.st==5?'WALLCLIMB':p.st==2?'HANG':p.st==1?'VAULT':p.roll>0?'ROLL':''}</section><section class="hud-category"><strong>AMMO</strong>${w.n}: ${ammo[wi]}/${mag()}<br>${rel>0?'RELOADING &middot; ':''}Spare reloads: ${reserves[wi]}/${s.reloads}${ammo[wi]<=0&&reserves[wi]<=0?'<br><b style="color:#ff6a4a">OUT OF AMMO - RETURN TO SHELTER</b>':''}</section><section class="hud-category"><strong>NAVIGATION</strong>${T0===SH?"Shelter":"Depot"} ${ar} ${Math.hypot(dx,dz)|0} m${Math.hypot(p.x-SH.x,p.z-SH.z)<9?`<br>[${kn(CFG.KB.use)}] open shelter shop`:''}</section>`;$('#hud').insertAdjacentHTML('beforeend',`<section class="hud-category"><strong>COMBAT SCORE</strong>${S.score.run.toLocaleString('en-US')} <small> / BEST ${S.score.best.toLocaleString('en-US')}</small></section>`);barUpd()}
 // ---------- input ----------
 function inputDown(e){
+ if(DEV_MODE&&e.code=='F2'&&coopSession){e.preventDefault();coopUI.show();return}
  if(DEV_MODE&&e.code=='F2'&&typeof toggleDev==='function'){e.preventDefault();if(!e.repeat)toggleDev();return}
  if(devOpen){if(e.code=='Escape'){e.preventDefault();toggleDev(false)}return}
  if(e.code=='Escape'){e.preventDefault();if(e.repeat)return;escapeDown=true;if(performance.now()<escapeUnlockUntil)return}
@@ -900,7 +811,15 @@ function inputDown(e){
  if(shopOpen){if(e.code=='Escape'||e.code=='Enter'||e.code=='Space'||e.code==CFG.KB.use){e.preventDefault();closeShop()}return}
  if(e.code=='Escape'){openSet();return}
  if(paused)return;
- const K=CFG.KB;if(e.code==K.jump&&!e.repeat)p.jb=.15;if((e.code==K.crouch||e.code==K.crouch2)&&!e.repeat)p.crP=tt;
+ const K=CFG.KB;if(coopSession){
+  if(e.code==K.jump&&!e.repeat)coopEdges.jump=true;
+  if(e.code==K.grapple&&!e.repeat)coopEdges.grapplePressed=true;
+  if(e.code==K.dash&&!e.repeat)coopEdges.dash=true;
+  if(e.code==K.use){if(Math.hypot(p.x-SH.x,p.z-SH.z)<9)openShop();else coopEdges.use=true}
+  if(e.code==K.music&&!e.repeat){CFG.music=!CFG.music;saveCfg();applyVol()}
+  for(let index=0;index<7;index++)if(e.code==K['w'+(index+1)])coopWeapon=index;
+  return;
+ }if(e.code==K.jump&&!e.repeat)p.jb=.15;if((e.code==K.crouch||e.code==K.crouch2)&&!e.repeat)p.crP=tt;
  if(e.code==K.music&&!e.repeat){CFG.music=!CFG.music;saveCfg();applyVol();toast('Music '+(CFG.music?'on':'off'))}
  if(e.code==K.use){const n=p.st==0&&zpCd<=0?nearZip():null;if(n)attachZip(n);else if(Math.hypot(p.x-SH.x,p.z-SH.z)<9)openShop()}if(e.code==K.grapple&&!e.repeat)tryGrapple();if(e.code==K.dash&&!e.repeat)tryDash();
  for(let i=0;i<7;i++)if(e.code==K['w'+(i+1)])setW(i)}
@@ -916,16 +835,54 @@ addEventListener('blur',()=>{ml=0;hf=0;ads=false;keys={};escapeDown=false;escape
 addEventListener('mousemove',e=>{if(locked&&document.pointerLockElement==cv&&!paused){if(e.buttons!==undefined){ml=e.buttons&1?1:0;if(!CFG.adsT)ads=!!(e.buttons&2)}const k=.0022*CFG.sens*(ads?CFG.adsm:1);p.yaw-=e.movementX*k;p.pit=cl(p.pit-(CFG.inv?-1:1)*e.movementY*k,-1.45,1.45)}});
 // re-rendering replaces the buttons; put keyboard focus back on the one that was used
 const refocus=attr=>{if(!attr)return;const node=$(`#sp [${attr.name}="${attr.value}"]`);(node&&!node.disabled&&!node.closest('[hidden]')?node:$('#sp .menu-nav [aria-pressed=true]'))?.focus({preventScroll:true})};
-$('#sp').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const attr=[...b.attributes].find(a=>/^data-(pick|eq|un|md|u)$/.test(a.name));if(shopClick(b)){refocus(attr);return}if(b.dataset.u){buy(b.dataset.u,b.dataset.w);refocus(attr)}else if(b.id=='dp')deploy();else if(b.id=='st2')openSet();else if(b.id=='rs'){if(b.dataset.s){try{localStorage.removeItem(KEY)}catch(_){}location.reload()}else{b.dataset.s=1;b.textContent='Really reset?'}}else closeShop()});
+$('#sp').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const attr=[...b.attributes].find(a=>/^data-(pick|eq|un|md|u)$/.test(a.name));if(shopClick(b)){refocus(attr);return}if(b.dataset.u){buy(b.dataset.u,b.dataset.w);refocus(attr)}else if(b.id=='dp')deploy();else if(b.id=='st2')openSet();else if(b.id=='rs'){if(coopSession){toast('Leave co-op before resetting a solo save.');return}if(b.dataset.s){try{localStorage.removeItem(KEY)}catch(_){}location.reload()}else{b.dataset.s=1;b.textContent='Really reset?'}}else closeShop()});
 function rs2(){rend.setSize(innerWidth,innerHeight,false);cam3.aspect=innerWidth/innerHeight}addEventListener('resize',rs2);rs2();
-// ---------- start ----------
-{const j=load();S=j||fresh();vmSet(WP[wi]);genMap(S.sector);if(j){D=Float32Array.from(j.d);let r=0;for(const v of D)r+=v;S.rem=r;fullRef=true}placeP();camCalc();buildBar();checkProgress();
- const off=Math.min(28800,(Date.now()-S.t)/1000);if(off>5)refine(off)}
-setTimeout(()=>$('#hint').style.display='none',70000);
-dockShelter();syncPause();
+function startSolo(){
+ if(gameStarted&&!coopSession){syncPause();return}
+ coopSession=null;const loaded=load();S=loaded||fresh();vmSet(WP[wi]);genMap(S.sector);
+ if(loaded){D=Float32Array.from(loaded.d);S.rem=D.reduce((total,value)=>total+value,0);fullRef=true}
+ placeP();camCalc();buildBar();checkProgress();const offline=Math.min(28800,(Date.now()-S.t)/1000);if(offline>5)refine(offline);
+ gameStarted=true;dockShelter();syncPause();
+ if(DEV_MODE){const devScript=document.createElement('script');devScript.src='nuclear-sweeper-dev.js';devScript.onerror=()=>alert('Keep nuclear-sweeper-dev.js beside the game HTML to load developer tools.');document.body.append(devScript)}
+}
+function applyCoopView(){const view=coopSession?.view();if(!view)return;const {world,player}=view,previousWeapon=wi;
+ S={...fresh(),...player,sector:world.sector,total:world.total,rem:world.rem,clr:world.clr,story:world.story,vOpen:world.vOpen,vTaken:world.vTaken,iTaken:world.iTaken,roomDesign:world.roomDesign,...world.team,L:{...player.L,ref:world.team.ref,yld:world.team.yld}};
+ p=player.pose;E=view.enemies;Dr=world.Dr;EP=world.EP;ammo=player.ammo;reserves=player.reserves;wi=player.wi;rel=player.rel;relMax=player.relMax;streak=player.streak;tt=world.time;expo=player.exposure||0;coopRemote=view.remote;
+ if(wi!==previousWeapon)vmSet(WP[wi]);else applyWeaponSkin();
+ adsE=ads&&rel<=0;fpv=true;({gCd=0,dCd=0,gsp=0,zpCd=0}=player.move||{});camCalc();
+}
+function coopWorldChanged(){const view=coopSession?.view();if(!view)return;
+ const world=view.world;({M,D,R,CO,SH,CORE,DEP,DEPT,POOLR,ISL,TERM,ZIP,DOORT}=world);applyCoopView();coopWeapon=view.player.wi;
+ rebuildPB();build3D();fullRef=true;P=[];F=[];TR=[];gameStarted=true;buildBar();syncPause();if(shopOpen)renderShop();
+}
+const remotePlayers=NSR.RemotePlayers.create({THREE,scene:sc,template:pm});
+function drawCoopPlayers(){remotePlayers.update(coopRemote);}
+function coopGameEvent(event){const own=event.playerId===coopSession?.view()?.localId;
+ if(event.type==='story'){const message=getSec(event.sector).b[event.index];if(message)say(message[1],message[2]);}
+ if(event.type==='shot'){if(!own)remotePlayers.shot(event.playerId);for(const hit of event.traces||[])if(TR.length<48)TR.push({a:event.origin,b:hit,l:.08});if(!own)snd(200,.04,'sawtooth',.008)}
+ if(event.type==='hit'&&own){hmT=.18;hmH=event.headshot}
+ if(event.type==='hurt'&&own)hpFlash=.25;
+ if(event.type==='rescue'&&own){toast('Rescued to shelter. Half your tank was lost.');coopEdges={}}
+ if(event.type==='pickup'&&own){toast('Team +'+event.amount+' '+event.kind);snd(800,.07,'triangle',.04)}
+ if(event.type==='vault'){toast('TEAM: VAULT UNLOCKED');coopWorldChanged()}
+}
+function coopInput(){return {yaw:p.yaw,pit:p.pit,fw:kd('fw'),bk:kd('bk'),lf:kd('lf'),rt:kd('rt'),crouch:kd('crouch')||kd('crouch2'),grapple:kd('grapple'),reload:kd('reload'),fire:!!ml,ads:!!ads,weapon:coopWeapon,menu:paused||!coopUI.hidden(),...coopEdges}}
 let last=performance.now(),moveAcc=0;
-function loop(n){const dt=Math.min(.05,(n-last)/1000);last=n;refine(dt);if(!paused){moveAcc+=dt;while(moveAcc+1e-9>=MOVE.tick&&!paused){upd(MOVE.tick);moveAcc=Math.max(0,moveAcc-MOVE.tick)}}else moveAcc=0;draw();drawMinimap(n);requestAnimationFrame(loop)}
-setInterval(()=>{hud();if(checkProgress())save();if(paused)tickShop()},150);setInterval(save,8000);
-requestAnimationFrame(loop);
-if(DEV_MODE){const devScript=document.createElement('script');devScript.src='nuclear-sweeper-dev.js';devScript.onerror=()=>alert('Keep nuclear-sweeper-dev.js beside the game HTML to load developer tools.');document.body.append(devScript)}
+function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;
+ if(gameStarted){
+  if(coopSession){const input=coopInput();coopSession.advance(dt,input);applyCoopView();
+   coopVisualCooldown=Math.max(0,coopVisualCooldown-dt);if(!ml)hf=0;
+   if(!input.menu&&input.fire&&ammo[wi]>0&&rel<=0&&coopVisualCooldown<=0&&(WP[wi].auto||!hf)){hf=1;coopVisualCooldown=1/(WP[wi].r*WS(wi).fr);mzT=.06;kick=.06;snd(180+wi*60,.06,'sawtooth',.025)}
+   adsT=lerp(adsT,adsE?1:0,1-Math.exp(-14*dt));kick*=Math.exp(-14*dt);hmT-=dt;hpFlash-=dt;mzT-=dt;
+   for(let index=TR.length-1;index>=0;index--)if((TR[index].l-=dt)<=0)TR.splice(index,1);
+  }else{refine(dt);if(!paused){moveAcc+=dt;while(moveAcc+1e-9>=MOVE.tick&&!paused){upd(MOVE.tick);moveAcc=Math.max(0,moveAcc-MOVE.tick)}}else moveAcc=0}
+  draw();drawMinimap(now);
+ }requestAnimationFrame(loop);
+}
+coopUI=NSR.CoopUI.install({dev:DEV_MODE,started:()=>gameStarted,startSolo,bindSession:session=>{if(!coopSession&&gameStarted)save();coopSession=session},
+ startCoop:session=>{coopSession=session},worldChanged:coopWorldChanged,dustChanged:cells=>{for(const [tile]of cells)dirty.push(tile)},gameEvent:coopGameEvent,
+ consumeInput:()=>{coopEdges={}},transaction:()=>{applyCoopView();if(shopOpen)renderShop()},
+ menuOpen:()=>{resumePending=true;syncPause();releaseMouse()},menuClose:()=>{resumePending=true;syncPause()}});
+setInterval(()=>{if(!gameStarted)return;hud();if(!coopSession&&checkProgress())save();if(paused)tickShop();renderPoints()},150);setInterval(()=>{if(gameStarted)save()},8000);
+setTimeout(()=>$('#hint').style.display='none',70000);requestAnimationFrame(loop);
 </script></body></html>

@@ -1,0 +1,98 @@
+{
+  "date": "2026-10-18",
+  "environment": "Windows; Node through bundled Electron; local software WebGL browser checks",
+  "wireProtocol": 2,
+  "automatedTests": 26,
+  "soak": {
+    "scenario": "four-player deterministic network soak",
+    "requestedSeconds": 1800,
+    "simulatedSeconds": 2075,
+    "wallSeconds": 94.73,
+    "latencyMs": 150,
+    "jitterMs": 45,
+    "unreliableLoss": 0.02,
+    "players": 4,
+    "purchases": 15,
+    "deployments": 15,
+    "reconnects": 14,
+    "rescues": 14,
+    "restores": 1,
+    "errors": 0,
+    "bytes": 506030755,
+    "averageKbps": 1950.8,
+    "bytesByType": {
+      "identify": 2820,
+      "events": 1708267,
+      "introduce": 3878,
+      "identity": 3540,
+      "snapshot": 3842206,
+      "frame": 427436314,
+      "synced": 6072,
+      "inputs": 69873146,
+      "dust": 3135405,
+      "action": 12744,
+      "action-result": 6363
+    },
+    "droppedMessages": 5682,
+    "maxQueuedMessages": 23,
+    "finalSector": 16,
+    "maxBatchAverageMillisecondsPerTick": 4.194
+  },
+  "payloadBaseline": {
+    "bytes": 863790194,
+    "averageKbps": 3329.9,
+    "inputBytes": 371777675
+  },
+  "payloadReductionPercent": 41.4,
+  "browserChecks": [
+    {
+      "browser": "chromium",
+      "version": "154.0.8037.92",
+      "clients": 4,
+      "transport": "real WebRTC / localhost",
+      "checks": [
+        "narrow mode menu",
+        "normal solo save round trip",
+        "developer iframe/max loadout isolation",
+        "join",
+        "host-confirmed hotbar selection",
+        "movement",
+        "equipped weapon, attachments and mastery",
+        "grapple rope",
+        "pause",
+        "deployment",
+        "guest reload/reconnect",
+        "avatar disposal"
+      ],
+      "errors": []
+    },
+    {
+      "browser": "firefox",
+      "version": "157.0",
+      "clients": 4,
+      "transport": "real WebRTC / localhost",
+      "checks": [
+        "narrow mode menu",
+        "normal solo save round trip",
+        "developer iframe/max loadout isolation",
+        "join",
+        "host-confirmed hotbar selection",
+        "movement",
+        "equipped weapon, attachments and mastery",
+        "grapple rope",
+        "pause",
+        "deployment",
+        "guest reload/reconnect",
+        "avatar disposal"
+      ],
+      "errors": []
+    }
+  ],
+  "limitations": [
+    "Simulated endurance duration is not a real-time human play session.",
+    "Scripted fixtures fund, teleport and clear sites to exercise lifecycle transitions.",
+    "Payload totals exclude WebRTC/IP overhead.",
+    "Browser harness drives simulation with timers and invokes rendering explicitly; no sustained GPU benchmark.",
+    "Separate networks, deployed TURN, service outage and real tab visibility acceptance remain open."
+  ]
+}

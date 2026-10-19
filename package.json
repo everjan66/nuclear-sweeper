@@ -1,0 +1,11 @@
+{
+  "name": "nuclear-sweeper",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "test": "node --test tests/*.test.cjs",
+    "test:soak": "node scripts/coop-soak.cjs",
+    "start": "node services/signaling/server.cjs"
+  },
+  "engines": { "node": ">=22" }
+}

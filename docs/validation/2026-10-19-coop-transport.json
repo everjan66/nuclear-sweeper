@@ -1,0 +1,109 @@
+{
+  "date": "2026-10-19",
+  "scope": "Transport backpressure and signaling request recovery",
+  "tests": {
+    "command": "node --test tests/*.test.cjs",
+    "passed": 33,
+    "failed": 0
+  },
+  "transportChecks": [
+    "UTF-8 byte accounting including chunk envelopes and SCTP buffers",
+    "Ordered queue drain after backpressure",
+    "Snapshot reassembly with escaped Unicode and reordered/duplicate chunks",
+    "Bounded repeated snapshot bursts and single disconnect on overflow",
+    "Congested unreliable packet drops without queueing",
+    "SCTP send failure handling",
+    "Malformed message envelope rejection",
+    "Signaling outage and recovery status"
+  ],
+  "browsers": [
+    {
+      "browser": "chromium",
+      "version": "154.0.8037.92",
+      "clients": 4,
+      "transport": "real WebRTC / localhost",
+      "checks": [
+        "narrow mode menu",
+        "normal solo save round trip",
+        "developer iframe/max loadout isolation",
+        "join",
+        "host-confirmed hotbar selection",
+        "movement",
+        "equipped weapon, attachments and mastery",
+        "grapple rope",
+        "pause",
+        "deployment",
+        "guest reload/reconnect",
+        "signaling request outage with RTC continuity",
+        "signaling recovery and identity-preserving rejoin",
+        "avatar disposal"
+      ],
+      "errors": []
+    },
+    {
+      "browser": "firefox",
+      "version": "157.0",
+      "clients": 4,
+      "transport": "real WebRTC / localhost",
+      "checks": [
+        "narrow mode menu",
+        "normal solo save round trip",
+        "developer iframe/max loadout isolation",
+        "join",
+        "host-confirmed hotbar selection",
+        "movement",
+        "equipped weapon, attachments and mastery",
+        "grapple rope",
+        "pause",
+        "deployment",
+        "guest reload/reconnect",
+        "signaling request outage with RTC continuity",
+        "signaling recovery and identity-preserving rejoin",
+        "avatar disposal"
+      ],
+      "errors": []
+    }
+  ],
+  "shortSimulatedSoak": {
+    "scenario": "four-player deterministic network soak",
+    "requestedSeconds": 120,
+    "simulatedSeconds": 131,
+    "wallSeconds": 7,
+    "latencyMs": 150,
+    "jitterMs": 45,
+    "unreliableLoss": 0.02,
+    "players": 4,
+    "purchases": 1,
+    "deployments": 1,
+    "reconnects": 0,
+    "rescues": 0,
+    "restores": 1,
+    "errors": 0,
+    "bytes": 27269445,
+    "averageKbps": 1671.3,
+    "bytesByType": {
+      "identify": 846,
+      "events": 96963,
+      "introduce": 966,
+      "identity": 1062,
+      "snapshot": 478128,
+      "frame": 21985496,
+      "synced": 837,
+      "inputs": 4516360,
+      "dust": 187524,
+      "action": 843,
+      "action-result": 420
+    },
+    "droppedMessages": 362,
+    "maxQueuedMessages": 18,
+    "maxBatchAverageMillisecondsPerTick": 1.707,
+    "finalSector": 2
+  },
+  "limitations": [
+    "RTC runs on localhost. Signaling requests are aborted by browser interception; the server process and TURN service are not restarted.",
+    "Browser harness drives simulation with timers and invokes rendering explicitly; no sustained GPU or frame-time benchmark.",
+    "Backpressure tests control mock SCTP buffers; real internet congestion and TURN fallback still need qualification.",
+    "The short soak uses an accelerated simulated clock and scripted fixtures; it is not a real-time human gameplay session.",
+    "Public HTTPS/TURN, separate networks, actual host tab visibility behavior, solo combat/economy migration and gameplay parity remain open."
+  ]
+}

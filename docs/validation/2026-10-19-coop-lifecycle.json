@@ -1,0 +1,84 @@
+{
+  "date": "2026-10-19",
+  "scope": "Merge readiness for experimental private co-op foundation",
+  "tests": {
+    "command": "node --test tests/*.test.cjs",
+    "passed": 35,
+    "failed": 0
+  },
+  "lifecycleChecks": [
+    "Reliable sequenced pause/resume survives complete unreliable packet loss",
+    "Guest actions arriving after host pause are rejected without spending funds",
+    "Expired signaling authentication stops poll retries while keeping established RTC connections",
+    "Managed signaling child process is killed and restarted on the same loopback port",
+    "Host checkpoint reopens with the same world, sector, four character identities and equipment"
+  ],
+  "browsers": [
+    {
+      "browser": "chromium",
+      "version": "154.0.8037.92",
+      "clients": 4,
+      "transport": "real WebRTC / localhost",
+      "checks": [
+        "narrow mode menu",
+        "normal solo save round trip",
+        "developer iframe/max loadout isolation",
+        "join",
+        "host-confirmed hotbar selection",
+        "movement",
+        "equipped weapon, attachments and mastery",
+        "grapple rope",
+        "pause",
+        "deployment",
+        "guest reload/reconnect",
+        "signaling request outage with RTC continuity",
+        "signaling recovery and identity-preserving rejoin",
+        "avatar disposal",
+        "signaling process restart with RTC continuity",
+        "checkpoint rehost preserves world and all four identities"
+      ],
+      "errors": []
+    },
+    {
+      "browser": "firefox",
+      "version": "157.0",
+      "clients": 4,
+      "transport": "real WebRTC / localhost",
+      "checks": [
+        "narrow mode menu",
+        "normal solo save round trip",
+        "developer iframe/max loadout isolation",
+        "join",
+        "host-confirmed hotbar selection",
+        "movement",
+        "equipped weapon, attachments and mastery",
+        "grapple rope",
+        "pause",
+        "deployment",
+        "guest reload/reconnect",
+        "signaling request outage with RTC continuity",
+        "signaling recovery and identity-preserving rejoin",
+        "avatar disposal",
+        "signaling process restart with RTC continuity",
+        "checkpoint rehost preserves world and all four identities"
+      ],
+      "errors": []
+    }
+  ],
+  "ci": {
+    "simulation": "Node 24 automated tests and two-minute simulated soak",
+    "browsers": "Chromium/Firefox matrix with four contexts and managed process restart"
+  },
+  "followUps": {
+    "20": "Complete shared simulation parity for solo and co-op",
+    "21": "Qualify public co-op deployment and real-network lifecycle",
+    "22": "Profile and tune demanding four-player gameplay"
+  },
+  "limitations": [
+    "These are localhost WebRTC checks, not separate-network or forced-TURN qualification.",
+    "The browser harness disables requestAnimationFrame and drives simulation separately; it does not measure sustained rendering performance.",
+    "Actual host-tab visibility and prolonged browser suspension on real hardware remain in issue #21.",
+    "No public service has been deployed, and no four-human real-time session is claimed.",
+    "The full multiplayer plan remains in progress; this evidence supports review of the foundation PR."
+  ]
+}

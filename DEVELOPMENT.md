@@ -1,5 +1,36 @@
 # Developer version
 
+For multiplayer setup, source boundaries and outstanding release checks, see
+[MULTIPLAYER.md](MULTIPLAYER.md). Run `npm start` for both the static game and
+signaling service, and `npm test` for automated checks. Keep `js/` next to the
+HTML entries. Normal/developer solo continue to work from local files.
+
+The controls below describe solo. In developer co-op, F2 opens the expedition
+menu. Only the host receives co-op controls for funding, maximum equipment,
+cleanup, resupply and temporary assists. Guest clients cannot invoke host tools.
+Co-op local menus neutralize input; the host visibility pause stops the shared
+simulation and refinery. Co-op saves use `nsr_coop_v1` and `nsr_coop_dev_v1`,
+with reconnect identities stored under each key's `_identities` suffix.
+
+## Regression workflow
+
+Before a change, run the automated suite and note the affected source boundaries
+listed in MULTIPLAYER.md. After a shared movement/map change, check both HTML
+entries: baseline walking, jumping, crouch/slide, wall movement, vault/mantle,
+grapple and zipline; repeat with upgraded boots and movement modules. Fire,
+reload, switch weapons, buy gear/weapon/attachment upgrades, collect dust and
+loot, deposit and refine, get rescued and deploy. Export/reload/import a save.
+Confirm normal/developer and solo/co-op saves never overwrite each other.
+
+For network changes, add a second browser client, test late join and reconnect,
+compare transactions and deployment, and test host pause/resume. Check the
+diagnostics and console. Complete the external-network release checklist before
+describing a local smoke test as multiplayer release acceptance.
+
+Contributors should follow the issue/branch/review workflow in roadmap.md and
+include relevant validation and known limitations in the PR description. Mark
+roadmap rows Done only after merge.
+
 Open `nuclear-sweeper-dev.html` beside `nuclear-sweeper-reactor.html` and
 `nuclear-sweeper-dev.js`. The developer entry uses the same game code, so movement,
 combat, purchases and progression match the normal build. A static web server
