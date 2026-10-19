@@ -47,6 +47,7 @@ function damage(world,amount){
  }
  return actual;
 }
+function isClean(world){world.rem=world.D.reduce((total,value)=>total+value,0);return world.rem===0;}
 function step(world,players,dt){
  const boss=world.boss,effects=[];
  if(!boss)return effects;
@@ -58,10 +59,7 @@ function step(world,players,dt){
  let remaining=dt;
  do{
   const elapsed=Math.min(remaining,.05);remaining=Math.max(0,remaining-elapsed);
-  if(boss.state==='shielded'&&world.rem<1e-6){
-   const sum=world.D.reduce((total,value)=>total+value,0);world.rem=sum;
-   if(sum===0){boss.state='exposed';boss.timer=11-boss.phase;boss.warning=null;boss.ring=null;}
-  }
+  if(boss.state==='shielded'&&isClean(world)){boss.state='exposed';boss.timer=11-boss.phase;boss.warning=null;boss.ring=null;}
   if(boss.state==='exposed'){
    boss.timer=Math.max(0,boss.timer-elapsed);
    if(boss.timer<=1e-9)shield(world);
@@ -119,6 +117,6 @@ function restore(raw,sector){
  if(boss.state!=='dead'&&boss.victory)return null;
  return boss;
 }
-NSR.Boss={arena,create,seedDust,step,damage,restore};
+NSR.Boss={arena,create,seedDust,isClean,step,damage,restore};
 if(typeof module!=='undefined')module.exports=NSR.Boss;
 })(typeof globalThis!=='undefined'?globalThis:window);

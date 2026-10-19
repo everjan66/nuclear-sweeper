@@ -1,6 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const Boss=require('../js/game/boss.js');
+const Maps=require('../js/core/map.js');
 function fixture(phase=1){const world=Boss.arena({sector:1,dirty:[]});world.boss=Boss.create(1);world.boss.phase=phase;world.boss.hp=world.boss.mh*(4-phase)/3;Boss.seedDust(world);return world;}
 function clean(world){world.D.fill(0);world.rem=0;Boss.step(world,[],0);}
 function player(id,x=56,z=58,h=0){return {id,pose:{x,z,h}};}
@@ -34,6 +35,13 @@ test('only actual zero cleanup exposes the core, not a percentage or stale count
 });
 test('each exposure expires and reseeds a complete phase wave',()=>{
  for(let phase=1;phase<=3;phase++){const world=fixture(phase);clean(world);assert.equal(world.boss.timer,11-phase);Boss.step(world,[],10-phase);assert.equal(world.boss.state,'exposed');Boss.step(world,[],1);assert.equal(world.boss.state,'shielded');assert.equal(world.D.filter(Boolean).length,[12,18,24][phase-1]);}
+});
+test('Float32 sweeping drift cannot block full-site completion or boss exposure',()=>{
+ function sweep(world){for(let tile=0;tile<world.D.length;tile++)while(world.D[tile]>0){const value=world.D[tile];let taken=Math.min(value,.6/(1+.4*(world.sector-1))/64*1.2),remaining=value-taken;if(remaining<.02){taken=value;remaining=0}world.D[tile]=remaining;world.rem-=taken;}}
+ const site=Maps.generate(1);site.D=Float32Array.from(site.D);sweep(site);
+ assert.ok(Math.abs(site.rem)>1e-6);assert.ok(site.D.every(value=>value===0));assert.equal(Boss.isClean(site),true);assert.equal(site.rem,0);
+ const world=Boss.arena(Maps.generate(2));world.boss=Boss.create(2);world.D=Float32Array.from(world.D);Boss.seedDust(world);sweep(world);
+ assert.ok(world.rem>1e-6);Boss.step(world,[],0);assert.equal(world.rem,0);assert.equal(world.boss.state,'exposed');
 });
 test('huge damage stops at each boundary and cannot skip shields or phases',()=>{
  const world=fixture();

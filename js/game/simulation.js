@@ -261,7 +261,7 @@ function step(world,inputs={},dt=MOVE.tick){
  if(!world.boss&&world.total&&world.rem/world.total<=.03)world.clr=1;
  const transmissions=Defs.getSec(world.sector).b,cleared=100*(1-world.rem/world.total);
  if(!world.boss&&world.story<transmissions.length&&cleared>=transmissions[world.story][0])event(world,'story',{index:world.story++,sector:world.sector});
- if(!world.boss&&world.rem<=1e-6&&world.D.every(value=>value===0))enterBoss(world);
+ if(!world.boss&&bossApi().isClean(world))enterBoss(world);
  if(world.dirty.length>GW*GH)world.dirty=[...new Set(world.dirty)];return world;
 }
 function snapshot(world){const value=clone(world);delete value.assists;value.events=[];value.dirty=[];return value;}

@@ -777,7 +777,7 @@ function upd(dt){tt+=dt;tickPoints(dt);const s=ST(S.L);
  for(const d of DEP)if(Math.hypot(p.x-d.x,p.z-d.z)<2.4&&p.h<1.2&&S.tank>.5){const u=S.tank|0;S.raw+=S.tank;S.tank=0;toast('DEPOT: '+u+' u sent to the refinery');snd(660,.12,'triangle',.05)}
  const bd=Math.hypot(p.x-SH.x,p.z-SH.z);if(bd>11)canDock=true;if(bd<4&&canDock)dockShelter();
  if(S.hp<=0){finishScore('Rescued');S.tank*=.5;placeP();E=E.filter(e=>Math.hypot(e.x-SH.x,e.z-SH.z)>14);EP=[];dockShelter();say('Hanne Voss','Got you. Dragging you back. Half the dust in your tank is gone.')}
- if(!S.boss){if(!S.clr&&cp>=97)S.clr=1;if(S.rem<.000001&&!D.some(value=>value>0))enterBoss()}else if(!(DEV_MODE&&DEV_TOOLS.freezeEnemies))tickBoss(dt);
+ if(!S.boss){if(!S.clr&&cp>=97)S.clr=1;const world=bossWorld();if(NSR.Boss.isClean(world))enterBoss();else S.rem=world.rem}else if(!(DEV_MODE&&DEV_TOOLS.freezeEnemies))tickBoss(dt);
  if(!S.boss){const b=getSec(S.sector).b;if(S.story<b.length&&cp>=b[S.story][0]){const x=b[S.story++];say(x[1],x[2])}}
  hpFlash-=dt;hmT-=dt;mzT-=dt}
 // ---------- render ----------
