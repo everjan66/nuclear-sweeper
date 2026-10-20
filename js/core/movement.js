@@ -17,7 +17,7 @@ function ray(world,o,d,max){let t=0;while(t<max){t=Math.min(max,t+.1);if(solid(w
 const flightPaths=new WeakMap();
 function fly(world,enemy,target,dt,speed){
  const radius=.5*ET[enemy.t].sc,body=1.8*ET[enemy.t].sc,cruise=Math.min(WH-body-.1,Math.max(3.35,target.h||0));
- const blocked=(x,z,height)=>height<0||height+body>WH||Math.hypot(x-world.SH.x,z-world.SH.z)<7||collide(world,x,z,radius,height,body);
+ const blocked=(x,z,height)=>height<0||height+body>WH||!enemy.bossMinion&&Math.hypot(x-world.SH.x,z-world.SH.z)<7||collide(world,x,z,radius,height,body);
  const current=(enemy.z/TS|0)*GW+(enemy.x/TS|0),goal=(target.z/TS|0)*GW+(target.x/TS|0);
  let path=flightPaths.get(enemy);
  if(!path||path.goal!==goal||path.world.M!==world.M||path.cruise!==cruise||path.left<=0){
@@ -145,6 +145,14 @@ if(input.grapplePressed&&!input.menu)tryGrapple();if(input.dash&&!input.menu)try
 player.move={gCd,dCd,gsp,zpCd,crouch:!!input.crouch};
 }
 
-NSR.Movement={createPose,tile,solid,collide,ray,fly,step};
+function renderPose(previous,current,alpha){
+ const pose={...current};
+ if(!previous||Math.hypot(current.x-previous.x,current.z-previous.z,current.h-previous.h)>4)return pose;
+ const scale=cl(alpha,0,1);
+ pose.eyeHeight=lerp(previous.low?.85:1.5,current.low?.85:1.5,scale);
+ for(const key of ['x','z','h','rl'])pose[key]=lerp(previous[key],current[key],scale);
+ return pose;
+}
+NSR.Movement={createPose,tile,solid,collide,ray,fly,step,renderPose};
 if(typeof module!=='undefined')module.exports=NSR.Movement;
 })(globalThis);

@@ -119,6 +119,11 @@ Developer smoke test: choose **Clean entire site**, close the tools and shelter,
 and resume to trigger the teleport. Repeat cleanup during each phase to expose
 the core quickly. Travel/reload a site to leave the arena and reset the boss.
 Automated encounter and co-op regressions run with the existing `npm test`.
+For each phase, check the magenta floor rings, vertical beacons and minimap
+squares during the 1.5-second reinforcement countdown. Enemies must arrive at
+those marked positions, and the core must stay shielded until they are cleared.
+Pause or reload during the countdown: it must resume, not restart or duplicate
+the wave. A co-op guest should see the same marked positions as the host.
 
 ## Save isolation
 

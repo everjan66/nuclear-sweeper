@@ -73,6 +73,9 @@ and reinforcements scale with unlocked weapon upgrades and party strength.
 There is no player healing or safe pad during combat. Reserve reloads are unlimited
 until victory, but still take time. The green pad deposits dust only; defeat resets
 the entire encounter for a fresh attempt. Victory grants credits and rare parts.
+Reinforcements are announced 1.5 seconds before arrival by magenta floor rings,
+tall beacons, minimap markers and a boss-HUD countdown at the exact spawn points.
+Every boss wave includes a flying Shrieker; the final phase includes at least two.
 Solo and private co-op both support the encounter and save its progress.
 The existing 97% early-deployment option remains available before entering.
 The HUD shows early deployment separately from full cleanup and counts remaining
@@ -85,6 +88,21 @@ In **Settings / Key bindings**, select an action and press a keyboard key or
 either mouse side button (**Mouse 4 / Back**, **Mouse 5 / Forward**) to bind it.
 Left-click fire and right-click aim stay fixed. Dust collection plays a subtle
 pickup sound, controlled by the existing Effects and Master volume sliders.
+
+## Performance and combat feedback
+
+Open **Esc / Settings / Performance** to toggle the FPS counter or set a render
+limit from 1 to 240 FPS; **0 means unlimited** (subject to the display/browser).
+The counter is enabled by default. These preferences are saved separately for
+normal and developer play. Limiting rendering does not change the 64 Hz simulation.
+
+Red chevrons around the crosshair show the direction of incoming melee, projectile
+and boss damage. They follow your current view and fade after a hit; ambient
+radiation and contact hazards retain the general damage vignette.
+
+Local camera position interpolates between simulation ticks while mouse look
+updates immediately, including in co-op. Collision and weapon simulation retain
+the authoritative position; teleports snap instead of sliding across the map.
 
 ## Collaboration
 
