@@ -2,13 +2,14 @@
 (function(root){
 'use strict';
 const NSR=root.NSR||(root.NSR={});
+const Maps=NSR.Map||(typeof require==='function'&&require('./map.js'));
 const {TS,GW,GH,WH,TT,TB,MOVE,SCORE,cl,lerp,ST,U,cost,WP,ET,ENAMES,WCLASS,CNAMES,UNLOCK,TIERS,mkL,rng,ROOM_DESIGNS,ATT,MOD}=NSR.Defs||(typeof require==='function'&&require('./definitions.js'));
 function createPose(SH){return {x:SH.x,z:SH.z+4,h:0,vx:0,vz:0,vh:0,yaw:0,pit:0,g:1,sl:0,slideLock:0,st:0,peak:0,cy:0,jb:0,roll:0,cd:0,low:0,crP:-9,rl:0,rp:0,dashed:0,gr:null,zp:null,chain:0,ss:0,sa:0,sT:0}}
 function tile(world,x,z){return x<0||z<0||x>=GW*TS||z>=GH*TS?1:world.M[(z/TS|0)*GW+(x/TS|0)];}
-function solid(world,x,y,z){if(y<0||y>WH)return true;const m=tile(world,x,z);return TT[m]>0&&y<TT[m]&&y>=TB[m];}
+function solid(world,x,y,z){if(y<0||y>Maps.ceiling(world,x,z))return true;const m=tile(world,x,z);return m===1||m===9||TT[m]>0&&y<TT[m]&&y>=TB[m];}
 function collide(world,x,z,r,f,h,en=0){const {M,SH}=world;
 const rs=(x,y,z)=>{if(x<0||z<0||y<0||y>WH)return 1;const tx=x/TS|0,tz=z/TS|0;if(tx>=GW||tz>=GH)return 1;const m=M[tz*GW+tx];return TT[m]>0&&y<TT[m]&&y>=TB[m]};
-const sol=(tx,tz,f,h,en)=>{if(tx<0||tz<0||tx>=GW||tz>=GH)return 1;const m=M[tz*GW+tx];if(en&&m==7)return 1;if(!TT[m])return 0;if(en)return m==1||m==2||m==5||m==8||m==9;return f<TT[m]-.05&&f+h>TB[m]};
+const sol=(tx,tz,f,h,en)=>{if(tx<0||tz<0||tx>=GW||tz>=GH)return 1;const m=M[tz*GW+tx];if(f+h>Maps.ceiling(world,(tx+.5)*TS,(tz+.5)*TS)||m==1||m==9)return 1;if(en&&m==7)return 1;if(!TT[m])return 0;if(en)return m==2||m==5||m==8;return f<TT[m]-.05&&f+h>TB[m]};
 function bl(x,z,r,f,h,en){if(en&&Math.hypot(x-SH.x,z-SH.z)<7)return 1;for(let tz=Math.floor((z-r)/TS);tz<=Math.floor((z+r)/TS);tz++)for(let tx=Math.floor((x-r)/TS);tx<=Math.floor((x+r)/TS);tx++)if(sol(tx,tz,f,h,en))return 1;return 0}
 
 return bl(x,z,r,f,h,en);}
@@ -22,8 +23,8 @@ function step(world,player,input,dt){
  if(input.jump&&!input.menu)p.jb=.15;
  if(input.crouch&&!player.move?.crouch)p.crP=tt;
 const tm=(x,z)=>{if(x<0||z<0)return 1;const tx=x/TS|0,tz=z/TS|0;return tx>=GW||tz>=GH?1:M[tz*GW+tx]};
-const rs=(x,y,z)=>{if(x<0||z<0||y<0||y>WH)return 1;const tx=x/TS|0,tz=z/TS|0;if(tx>=GW||tz>=GH)return 1;const m=M[tz*GW+tx];return TT[m]>0&&y<TT[m]&&y>=TB[m]};
-const sol=(tx,tz,f,h,en)=>{if(tx<0||tz<0||tx>=GW||tz>=GH)return 1;const m=M[tz*GW+tx];if(en&&m==7)return 1;if(!TT[m])return 0;if(en)return m==1||m==2||m==5||m==8||m==9;return f<TT[m]-.05&&f+h>TB[m]};
+const rs=(x,y,z)=>solid(world,x,y,z);
+const sol=(tx,tz,f,h,en)=>{if(tx<0||tz<0||tx>=GW||tz>=GH)return 1;const m=M[tz*GW+tx];if(f+h>Maps.ceiling(world,(tx+.5)*TS,(tz+.5)*TS)||m==1||m==9)return 1;if(en&&m==7)return 1;if(!TT[m])return 0;if(en)return m==2||m==5||m==8;return f<TT[m]-.05&&f+h>TB[m]};
 function bl(x,z,r,f,h,en){if(en&&Math.hypot(x-SH.x,z-SH.z)<7)return 1;for(let tz=Math.floor((z-r)/TS);tz<=Math.floor((z+r)/TS);tz++)for(let tx=Math.floor((x-r)/TS);tx<=Math.floor((x+r)/TS);tx++)if(sol(tx,tz,f,h,en))return 1;return 0}
 function mv(o,dx,dz,r,en){if(!bl(o.x+dx,o.z,r,0,1.8,en))o.x+=dx;if(!bl(o.x,o.z+dz,r,0,1.8,en))o.z+=dz}
 function groundFriction(vel,dt){const speed=Math.hypot(vel.vx,vel.vz);if(speed<=0)return;const scale=Math.max(0,speed-Math.max(speed,MOVE.stopSpeed)*MOVE.friction*dt)/speed;vel.vx*=scale;vel.vz*=scale}
@@ -93,7 +94,7 @@ if(input.grapplePressed&&!input.menu)tryGrapple();if(input.dash&&!input.menu)try
   if(p.st==0||p.st==4||p.st==5){
    p.h+=p.vh*dt;
    if(p.h<=gh&&p.vh<=0){if(!p.g){const fh=p.peak-p.h;if(fh>=2){if(tt-p.crP<.25){p.roll=.5;p.low=1;}else{p.vx*=.7;p.vz*=.7;}}p.chain=0;p.dashed=0;}p.h=gh;p.vh=0;p.g=1;p.peak=p.h;if(p.st>3)p.st=0}else if(p.h>gh+.02)p.g=0;
-   if(m0==6&&p.h<2.9&&p.h+hg>2.9){p.h=2.9-hg;if(p.vh>0)p.vh=0}else if(p.h+hg>WH){p.h=WH-hg;p.vh=Math.min(0,p.vh)}
+   const ceiling=Maps.ceiling(world,p.x,p.z);if(m0==6&&p.h<2.9&&p.h+hg>2.9){p.h=2.9-hg;if(p.vh>0)p.vh=0}else if(p.h+hg>ceiling){p.h=ceiling-hg;p.vh=Math.min(0,p.vh)}
    const nx=p.x+p.vx*dt;if(!bl(nx,p.z,.4,p.h,hg,0))p.x=nx;else{p.vx=0;if(p.st==4)p.wa*=.5}const nz=p.z+p.vz*dt;if(!bl(p.x,nz,.4,p.h,hg,0))p.z=nz;else{p.vz=0;if(p.st==4)p.wa*=.5}}}
  {const rtg=p.st==4?((-cy*p.wn.x+sy*p.wn.z)>0?.21:-.21):0;p.rl+=(rtg-p.rl)*Math.min(1,dt*8)}
 
