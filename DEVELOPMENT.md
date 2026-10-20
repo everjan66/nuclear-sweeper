@@ -92,15 +92,23 @@ Shrieker hunter achievements unlock at 10/50/200 lifetime kills in solo and co-o
 Sweep **every** dust tile on a site (not the existing 97% early-deployment
 threshold) to teleport into the Dust Sovereign arena. The clear floor is 54 by
 38 meters, roughly six average site rooms, with a large, crowned reactor boss.
-Entering deposits carried dust and resupplies the player or entire co-op team.
+Entering deposits carried dust without healing the player or co-op team.
 
-The boss shields and regenerates while dust remains. Sweep all highlighted
-patches to open a 10/9/8-second damage window. Health gates at two-thirds and
+The boss shields while enemies or dust remain and regenerates while dusty.
+Clear the mandatory enemy wave and all highlighted patches to open a
+10/9/8-second damage window. Health gates at two-thirds and
 one-third start the next phase; regeneration never undoes a completed phase.
 Phase one uses telegraphed blasts; phase two uses double blasts; phase three
 adds expanding shock rings that can be jumped. Orange circles warn of blasts,
 and green beacons plus minimap dots locate remaining dust. Each wave fits a
-baseline tank; use the green shelter/depot to deposit, heal and resupply.
+baseline tank; use the green shelter/depot to deposit only. There is no passive,
+pad, or upgrade healing during combat, and the pad is not safe from attacks.
+Reserve reloads are unlimited until victory, including at zero saved reserves;
+magazines and reload time still apply. Boss health, wave size and enemy health
+scale with the strongest unlocked weapon upgrades and party strength. Attacks
+continue during exposed windows and accelerate in later phases. A rescue resets
+the whole team's encounter to phase one with fresh health, rather than preserving
+damage dealt. Reload/rehost preserves injured health and surviving reinforcements.
 
 Victory awards 1,000 + 250 per site credits and three parts, once. Deployment
 is blocked during the encounter and available after victory. Boss state and

@@ -10,6 +10,7 @@ const caches=new WeakMap();
 const clone=value=>JSON.parse(JSON.stringify(value));
 const distance=(first,second)=>Math.hypot(first.x-second.x,first.z-second.z);
 const inShelter=(world,player,radius=9)=>distance(player.pose,world.SH)<radius&&player.pose.h<1.2;
+const activeBoss=world=>!!world.boss&&!world.bossDead;
 const finite=(value,min,max)=>Number.isFinite(value)&&value>=min&&value<=max;
 function random(world){world.rngState=(Math.imul(world.rngState,1664525)+1013904223)>>>0;return world.rngState/4294967296;}
 function event(world,type,data={}){if(world.events.length<256)world.events.push({type,...data});}
@@ -33,11 +34,11 @@ function addPlayer(world,{id,name='Sweeper'}){
   lastSeq:0,lastActionId:0,actionResults:[],fireHeld:false,bladeCd:0,canDock:false,exposure:0,present:false,disconnectedRescued:false};
  world.players[id]=player;if(!world.hostId)world.hostId=id;return player;
 }
-function resupply(player){const stats=ST(player.L);player.hp=stats.hp;player.ammo=WP.map((weapon,index)=>Math.ceil(weapon.mag*(1+.12*player.wl[index].multi)));player.reserves=WP.map(()=>stats.reloads);player.rel=0;}
-function dock(world,player){world.team.raw+=player.tank;player.tank=0;resupply(player);player.canDock=false;}
-function rescue(world,id){const player=world.players[id];if(!player||(!player.connected&&player.disconnectedRescued))return;if(!player.connected)player.disconnectedRescued=true;finishScore(world,player,'Rescued');player.tank*=.5;player.pose=Movement.createPose(world.SH);player.move={};player.ready=false;dock(world,player);event(world,'rescue',{playerId:id});}
+function resupply(player,{heal=true}={}){const stats=ST(player.L);if(heal)player.hp=stats.hp;player.ammo=WP.map((weapon,index)=>Math.ceil(weapon.mag*(1+.12*player.wl[index].multi)));player.reserves=WP.map(()=>stats.reloads);player.rel=0;}
+function dock(world,player,{supply=!activeBoss(world),heal=true}={}){world.team.raw+=player.tank;player.tank=0;if(supply)resupply(player,{heal});player.canDock=false;}
+function rescue(world,id){const player=world.players[id];if(!player||(!player.connected&&player.disconnectedRescued))return;if(activeBoss(world)){retryBoss(world,id);return;}if(!player.connected)player.disconnectedRescued=true;finishScore(world,player,'Rescued');player.tank*=.5;player.pose=Movement.createPose(world.SH);player.move={};player.ready=false;dock(world,player);event(world,'rescue',{playerId:id});}
 function disconnect(world,id){const player=world.players[id];if(player){player.connected=false;player.present=true;player.disconnectedRescued=false;player.ready=false;player.pose.vx=player.pose.vz=0;}}
-function restart(world){world.EP=[];world.events=[];for(const player of Object.values(world.players)){player.pose=Movement.createPose(world.SH);player.move={};player.connected=false;player.present=false;player.disconnectedRescued=false;player.ready=false;player.lastSeq=0;player.fireHeld=false;dock(world,player);}return world;}
+function restart(world){const fighting=activeBoss(world);if(!fighting)world.EP=[];world.events=[];for(const player of Object.values(world.players)){if(!fighting)player.pose=Movement.createPose(world.SH);player.move={};player.connected=false;player.present=false;player.disconnectedRescued=false;player.ready=false;player.lastSeq=0;player.fireHeld=false;if(!fighting)dock(world,player);}return world;}
 function finishScore(world,player,reason){if(player.score.run>0){player.score.board.push({points:player.score.run,site:world.sector,reason});player.score.board.sort((first,second)=>second.points-first.points);player.score.board.length=Math.min(5,player.score.board.length);}player.score.run=0;player.streak={kills:0,heads:0,points:0,bonus:0,left:0};}
 function action(world,id,request){
  const player=world.players[id];
@@ -50,7 +51,7 @@ function action(world,id,request){
   const upgrade=U.find(entry=>entry[0]===request.upgrade),weapon=Number(request.weapon);
   if(request.type==='dock'){dock(world,player);result={ok:true};}
   else if(request.type==='ready'){player.ready=!!request.value;result={ok:true};}
-  else if(request.type==='buy'&&upgrade){
+  else if(request.type==='buy'&&upgrade&&!activeBoss(world)){
    const personalWeapon=['dmg','fr','multi'].includes(request.upgrade),shared=['ref','yld'].includes(request.upgrade);
    const levels=shared?world.team:personalWeapon?player.wl[weapon]:player.L;
    if(levels&&(!personalWeapon||(Number.isInteger(weapon)&&(weapon===0||player.L['w'+weapon]>0)))){
@@ -58,7 +59,7 @@ function action(world,id,request){
     result={ok:false,reason:'Maximum level or insufficient team funds.'};
     if(level<upgrade[5]&&world.team[currency]>=price){world.team[currency]-=price;levels[request.upgrade]++;if(['suit','pouch','multi'].includes(request.upgrade))resupply(player);result={ok:true};}
    }
-  }else if(request.type==='unlockAttachment'||request.type==='buyModule'){
+  }else if(!activeBoss(world)&&(request.type==='unlockAttachment'||request.type==='buyModule')){
    const definitions=request.type==='buyModule'?MOD:ATT,owned=request.type==='buyModule'?player.mod:player.unl;
    const definition=Object.hasOwn(definitions,request.key)?definitions[request.key]:null;
    result={ok:false,reason:'Already owned or insufficient team parts.'};
@@ -149,14 +150,14 @@ function openVault(world){
 }
 function updatePlayer(world,player,input,dt){
  Movement.step(world,player,input,dt);
- const pose=player.pose,stats=ST(player.L),sheltered=inShelter(world,player,7);
+ const pose=player.pose,stats=ST(player.L),sheltered=!activeBoss(world)&&inShelter(world,player,7);
  if(!inShelter(world,player))player.ready=false;
  if(Number.isInteger(input.weapon)&&input.weapon>=0&&input.weapon<WP.length&&input.weapon!==player.wi&&(input.weapon===0||player.L['w'+input.weapon]>0)){player.wi=input.weapon;player.rel=0;player.wcd=.25;}
  const weapon=WP[player.wi],magazine=Math.ceil(weapon.mag*(1+.12*player.wl[player.wi].multi));
  player.wcd=Math.max(0,player.wcd-dt);pose.rp*=Math.exp(-(input.fire?1.5:7)*dt);player.streak.left=Math.max(0,player.streak.left-dt);
- if(player.rel>0){player.rel-=dt;if(player.rel<=0&&player.reserves[player.wi]>0){player.reserves[player.wi]--;player.ammo[player.wi]=magazine;}}
+ if(player.rel>0){player.rel-=dt;if(player.rel<=0&&(activeBoss(world)||player.reserves[player.wi]>0)){if(!activeBoss(world))player.reserves[player.wi]--;player.ammo[player.wi]=magazine;}}
  else if(!input.menu){
-  if((input.reload||player.ammo[player.wi]<=0)&&player.ammo[player.wi]<magazine&&player.reserves[player.wi]>0)player.rel=player.relMax=weapon.rl/(1+.06*player.wl[player.wi].fr);
+  if((input.reload||player.ammo[player.wi]<=0)&&player.ammo[player.wi]<magazine&&(activeBoss(world)||player.reserves[player.wi]>0))player.rel=player.relMax=weapon.rl/(1+.06*player.wl[player.wi].fr);
   else if(input.fire&&player.wcd<=0&&player.ammo[player.wi]>0&&(weapon.auto||!player.fireHeld))shoot(world,player,input);
  }
  player.fireHeld=!!input.fire&&!input.menu;
@@ -173,7 +174,7 @@ function updatePlayer(world,player,input,dt){
  const tile=(pose.z/TS|0)*GW+(pose.x/TS|0),height=world.M[tile]===6?3.2:0,radiation=(pose.h>=height-.3?world.D[tile]||0:0)*(1+.25*(world.sector-1));
  const damage=(sheltered||pose.h-height>.5?0:Math.max(0,radiation*5-stats.suit*.8))+(world.M[tile]===7&&pose.h<.45?Math.max(5,24-stats.suit*2.5):0);
  const laserDamage=Maps.laserDamage(world,pose,world.time);player.exposure=damage+laserDamage;if(!world.dev||!world.assists?.invincible)player.hp-=(damage+laserDamage)*dt;
- if(damage+laserDamage<=0)player.hp=Math.min(stats.hp,player.hp+(sheltered?25:1.5)*dt);
+ if(damage+laserDamage<=0&&!activeBoss(world))player.hp=Math.min(stats.hp,player.hp+(sheltered?25:1.5)*dt);
  player.bladeCd-=dt;if(world.M[tile]===10&&pose.h<.9&&player.bladeCd<=0&&pose.st===0){hurt(world,player,28);pose.vx*=-.5;pose.vz*=-.5;player.bladeCd=.8;}
  if(world.TERM&&!world.vOpen&&distance(pose,world.TERM)<2.6&&player.tank>=20){player.tank-=20;openVault(world);}
  for(const depot of world.DEP)if(distance(pose,depot)<2.4&&pose.h<1.2&&player.tank>.5){world.team.raw+=player.tank;player.tank=0;event(world,'deposit',{playerId:player.id});}
@@ -198,7 +199,7 @@ function pathFields(world,players){
 function clearLine(world,first,second){const length=distance(first,second);for(let travel=.4;travel<length;travel+=.4){const scale=travel/length;if(Movement.solid(world,first.x+(second.x-first.x)*scale,1,first.z+(second.z-first.z)*scale))return false;}return true;}
 function updateEnemies(world,players,dt){
  if(world.dev&&world.assists?.freezeEnemies)return;
- const targets=players.filter(player=>!inShelter(world,player,7)),fields=pathFields(world,targets);
+ const targets=players.filter(player=>activeBoss(world)||!inShelter(world,player,7)),fields=pathFields(world,targets);
  for(const enemy of world.E){if(enemy.hp<=0)continue;const definition=ET[enemy.t],radius=.5*definition.sc,current=(enemy.z/TS|0)*GW+(enemy.x/TS|0);
   const candidates=targets.filter(player=>definition.fly||fields[player.id]?.[definition.sc>1.2?1:0][current]>=0||clearLine(world,enemy,player.pose)).sort((first,second)=>distance(enemy,first.pose)-distance(enemy,second.pose));
   let target=candidates[0];const previous=candidates.find(player=>player.id===enemy.target);if(previous&&target&&distance(enemy,previous.pose)<distance(enemy,target.pose)*1.25)target=previous;
@@ -211,23 +212,25 @@ function updateEnemies(world,players,dt){
   if(definition.rg&&visible&&separation<16){const direction=separation<8?-1:separation>12?1:0;deltaX=(target.pose.x-enemy.x)/separation*direction;deltaZ=(target.pose.z-enemy.z)/separation*direction;length=1;}
   const speed=definition.sp*(1+.04*(world.sector-1));
   const nextX=enemy.x+deltaX/length*speed*dt,nextZ=enemy.z+deltaZ/length*speed*dt;
-  if(!Movement.collide(world,nextX,enemy.z,radius,0,1.8,1))enemy.x=nextX;if(!Movement.collide(world,enemy.x,nextZ,radius,0,1.8,1))enemy.z=nextZ;
+  const collisionMode=enemy.bossMinion?0:1;
+  if(!Movement.collide(world,nextX,enemy.z,radius,0,1.8,collisionMode))enemy.x=nextX;if(!Movement.collide(world,enemy.x,nextZ,radius,0,1.8,collisionMode))enemy.z=nextZ;
   enemy.cd-=dt;enemy.fc-=dt;
-  if(!definition.rg&&separation<definition.sc*.9+.8&&target.pose.h<1.4&&enemy.cd<=0){enemy.cd=.9;hurt(world,target,definition.dm*(1+.3*(world.sector-1)));}
+  if(!definition.rg&&separation<definition.sc*.9+.8&&target.pose.h<1.4&&enemy.cd<=0){enemy.cd=.9;hurt(world,target,definition.dm*(1+.3*(world.sector-1))*(enemy.bossMinion?ST(target.L).hp/100:1));}
   if(definition.rg&&visible&&separation<(definition.rg===2?22:16)&&enemy.fc<=0){
    enemy.fc=definition.rg===2?.3:1.8;const originY=1.1*definition.sc,delta={x:target.pose.x-enemy.x,y:target.pose.h+1-originY,z:target.pose.z-enemy.z},scale=(definition.rg===2?38:17)/(Math.hypot(delta.x,delta.y,delta.z)||1);
-   if(world.EP.length<128)world.EP.push({id:nextId(world,'b'),x:enemy.x,y:originY,z:enemy.z,vx:delta.x*scale,vy:delta.y*scale,vz:delta.z*scale,l:3,sz:definition.rg===2?.12:.22,dm:definition.dm*(1+.3*(world.sector-1))});
+   if(world.EP.length<128)world.EP.push({id:nextId(world,'b'),x:enemy.x,y:originY,z:enemy.z,vx:delta.x*scale,vy:delta.y*scale,vz:delta.z*scale,l:3,sz:definition.rg===2?.12:.22,dm:definition.dm*(1+.3*(world.sector-1)),bossMinion:!!enemy.bossMinion});
   }
  }
  world.E=world.E.filter(enemy=>enemy.hp>0);
 }
 function updateProjectiles(world,players,dt){
+ if(world.dev&&world.assists?.freezeEnemies)return;
  world.EP=world.EP.filter(projectile=>{
   projectile.l-=dt;if(projectile.l<=0)return false;const steps=Math.max(1,Math.ceil(Math.hypot(projectile.vx,projectile.vy,projectile.vz)*dt/.3));
   for(let index=0;index<steps;index++){
    projectile.x+=projectile.vx*dt/steps;projectile.y+=projectile.vy*dt/steps;projectile.z+=projectile.vz*dt/steps;
    if(Movement.solid(world,projectile.x,projectile.y,projectile.z))return false;
-   for(const player of players)if(!inShelter(world,player,7)&&Math.abs(projectile.x-player.pose.x)<.6&&Math.abs(projectile.z-player.pose.z)<.6&&projectile.y>player.pose.h&&projectile.y<player.pose.h+(player.pose.low?1.22:1.8)){hurt(world,player,projectile.dm);return false;}
+   for(const player of players)if((activeBoss(world)||!inShelter(world,player,7))&&Math.abs(projectile.x-player.pose.x)<.6&&Math.abs(projectile.z-player.pose.z)<.6&&projectile.y>player.pose.h&&projectile.y<player.pose.h+(player.pose.low?1.22:1.8)){hurt(world,player,projectile.dm*(projectile.bossMinion?ST(player.L).hp/100:1));return false;}
   }return true;
  });
 }
@@ -240,24 +243,41 @@ function updateLoot(world,players,dt){
   if(separation<7){loot.vx+=(nearest.pose.x-loot.x)/(separation||1)*60*dt;loot.vz+=(nearest.pose.z-loot.z)/(separation||1)*60*dt;}return true;
  });
 }
-function enterBoss(world){
+function enterBoss(world,retryId=null){
  const Boss=bossApi();
- Object.assign(world,Boss.arena(Maps.generate(world.sector)),{E:[],Dr:[],EP:[],dirty:[],clr:0,vOpen:0,vTaken:0,iTaken:0,bossDead:0,bty:null,boss:Boss.create(world.sector)});
- for(const player of Object.values(world.players)){dock(world,player);player.pose=Movement.createPose(world.SH);player.pose.z=world.SH.z;player.move={};player.ready=false;player.fireHeld=false;}
- Boss.seedDust(world);world.generation++;caches.delete(world);event(world,'boss');
+ Object.assign(world,Boss.arena(Maps.generate(world.sector)),{E:[],Dr:[],EP:[],dirty:[],clr:0,vOpen:0,vTaken:0,iTaken:0,bossDead:0,bty:null,boss:Boss.create(world.sector,Object.values(world.players).filter(player=>player.connected))});
+ for(const player of Object.values(world.players)){dock(world,player,{supply:true,heal:false});player.pose=Movement.createPose(world.SH);player.pose.z=world.SH.z;player.move={};player.ready=false;player.fireHeld=false;}
+ Boss.seedDust(world);world.generation++;caches.delete(world);event(world,retryId===null?'boss':'boss-retry',retryId===null?{}:{playerId:retryId});
+}
+function retryBoss(world,playerId){
+ const maximum=world.boss.mh;
+ for(const player of Object.values(world.players))finishScore(world,player,'Rescued');
+ enterBoss(world,playerId);world.boss.mh=maximum;world.boss.hp=maximum;
+ for(const player of Object.values(world.players)){resupply(player);player.present=player.connected;player.disconnectedRescued=!player.connected;player.wcd=0;player.bladeCd=0;}
+}
+function summon(world,units){
+ for(const unit of units){const hp=ET[unit.t].hp*(1+.4*(world.sector-1))*unit.hpScale;
+  world.E.push({id:nextId(world,'e'),t:unit.t,x:unit.x,z:unit.z,hp,mh:hp,cd:0,fc:1,al:1,ph:random(world)*6,target:null,bossMinion:true});
+ }
 }
 function step(world,inputs={},dt=MOVE.tick){
  if(dt!==MOVE.tick)throw new Error('Simulation requires a fixed 64 Hz tick.');
  world.time+=dt;world.tick++;
  const players=Object.values(world.players).filter(player=>player.connected||player.present);
+ const fallen=players.find(player=>player.hp<=0);
+ if(activeBoss(world)&&fallen){retryBoss(world,fallen.id);return world;}
  for(const player of players){const input=inputs[player.id]||{menu:true};updatePlayer(world,player,input,dt);if(Number.isSafeInteger(input.seq))player.lastSeq=Math.max(player.lastSeq,input.seq);}
+ const casualty=players.find(player=>player.hp<=0);
+ if(activeBoss(world)&&casualty){retryBoss(world,casualty.id);return world;}
  const refined=Math.min(world.team.raw,(2+1.5*world.team.ref)*dt);world.team.raw-=refined;world.team.cred+=refined*(.5+.05*world.team.yld);
  if(world.boss){
   if(!world.bossDead&&(!world.dev||!world.assists?.freezeEnemies))for(const effect of bossApi().step(world,players,dt)||[]){
    if(effect.type==='hurt'){const player=world.players[effect.playerId];if(player)hurt(world,player,effect.damage);}
+   else if(effect.type==='summon')summon(world,effect.units);
    else if(effect.type==='victory'&&!world.bossDead){world.bossDead=1;world.clr=1;world.team.cred+=1000+world.sector*250;world.team.parts+=3;event(world,'boss-victory');}
   }
- }else{updateEnemies(world,players,dt);updateProjectiles(world,players,dt);updateLoot(world,players,dt);}
+ }
+ updateEnemies(world,players,dt);updateProjectiles(world,players,dt);updateLoot(world,players,dt);
  for(const player of players){if(player.hp<=0)rescue(world,player.id);achievements(player);}
  if(!world.boss&&(!world.dev||!world.assists?.freezeEnemies)){world.spawnT-=dt;if(world.spawnT<=0){world.spawnT=3.5;if(world.E.length<Math.min(8+2*world.sector,26))spawn(world,true);}}
  if(!world.boss&&world.total&&world.rem/world.total<=.03)world.clr=1;
