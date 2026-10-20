@@ -55,7 +55,7 @@ test('huge damage stops at each boundary and cannot skip shields or phases',()=>
 test('telegraphed blasts hit, can be dodged, and never hurt sheltered players',()=>{
  const world=fixture(),target=player('target'),safe=player('safe',40);world.boss.attack=0;
  Boss.step(world,[safe,target],0);assert.deepEqual(world.boss.warning,{x:56,z:58,left:1.4,radius:3});
- assert.deepEqual(Boss.step(world,[safe,target],1.3),[]);assert.deepEqual(Boss.step(world,[safe,target],.1),[{type:'hurt',playerId:'target',damage:18}]);
+ assert.deepEqual(Boss.step(world,[safe,target],1.3),[]);assert.deepEqual(Boss.step(world,[safe,target],.1),[{type:'hurt',playerId:'target',damage:18,source:{x:world.boss.x,z:world.boss.z}}]);
  world.boss.attack=0;Boss.step(world,[target],0);target.pose.z+=4;assert.deepEqual(Boss.step(world,[target],1.4),[]);
  world.boss.attack=0;assert.deepEqual(Boss.step(world,[safe],0),[]);assert.equal(world.boss.warning,null);
  world.boss.warning={x:47,z:58,left:.1,radius:3};assert.deepEqual(Boss.step(world,[player('edge',47)],.1),[]);
@@ -67,7 +67,7 @@ test('phase two fires a faster second blast after the first warning',()=>{
 test('phase three shockwave expands, hits once, and can be jumped',()=>{
  const world=fixture(3),ground=player('ground',62),jump=player('jump',62,58,1),safe=player('safe',40);world.boss.attack=0;
  Boss.step(world,[ground,jump,safe],0);assert.equal(world.boss.ring.radius,0);
- const effects=Boss.step(world,[ground,jump,safe],1);assert.deepEqual(effects,[{type:'hurt',playerId:'ground',damage:18}]);
+ const effects=Boss.step(world,[ground,jump,safe],1);assert.deepEqual(effects,[{type:'hurt',playerId:'ground',damage:18,source:{x:world.boss.x,z:world.boss.z}}]);
  assert.deepEqual(Boss.step(world,[ground,jump,safe],.1),[]);assert.ok(world.boss.ring.radius>10);
 });
 test('restore validates state, clamps timers and preserves pending attacks without aliases',()=>{

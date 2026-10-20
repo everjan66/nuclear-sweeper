@@ -178,7 +178,7 @@ function updatePlayer(world,player,input,dt){
  for(const depot of world.DEP)if(distance(pose,depot)<2.4&&pose.h<1.2&&player.tank>.5){world.team.raw+=player.tank;player.tank=0;event(world,'deposit',{playerId:player.id});}
  const separation=distance(pose,world.SH);if(separation>11)player.canDock=true;if(separation<4&&player.canDock)dock(world,player);
 }
-function hurt(world,player,damage){if(world.dev&&world.assists?.invincible)return;player.hp-=damage;event(world,'hurt',{playerId:player.id});}
+function hurt(world,player,damage,source){if(world.dev&&world.assists?.invincible)return;player.hp-=damage;event(world,'hurt',{playerId:player.id,source:source?{x:source.x,z:source.z}:null});}
 function pathFields(world,players){
  let cache=caches.get(world);if(!cache){cache={next:0,fields:{}};caches.set(world,cache);}if(world.time<cache.next)return cache.fields;cache.next=world.time+.3;
  const neighbors=[[1,0],[-1,0],[0,1],[0,-1]];
@@ -211,7 +211,7 @@ function updateEnemies(world,players,dt){
   const nextX=enemy.x+deltaX/length*speed*dt,nextZ=enemy.z+deltaZ/length*speed*dt;
   if(!Movement.collide(world,nextX,enemy.z,radius,0,1.8,1))enemy.x=nextX;if(!Movement.collide(world,enemy.x,nextZ,radius,0,1.8,1))enemy.z=nextZ;
   enemy.cd-=dt;enemy.fc-=dt;
-  if(!definition.rg&&separation<definition.sc*.9+.8&&target.pose.h<1.4&&enemy.cd<=0){enemy.cd=.9;hurt(world,target,definition.dm*(1+.3*(world.sector-1)));}
+  if(!definition.rg&&separation<definition.sc*.9+.8&&target.pose.h<1.4&&enemy.cd<=0){enemy.cd=.9;hurt(world,target,definition.dm*(1+.3*(world.sector-1)),enemy);}
   if(definition.rg&&visible&&separation<(definition.rg===2?22:16)&&enemy.fc<=0){
    enemy.fc=definition.rg===2?.3:1.8;const originY=1.1*definition.sc,delta={x:target.pose.x-enemy.x,y:target.pose.h+1-originY,z:target.pose.z-enemy.z},scale=(definition.rg===2?38:17)/(Math.hypot(delta.x,delta.y,delta.z)||1);
    if(world.EP.length<128)world.EP.push({id:nextId(world,'b'),x:enemy.x,y:originY,z:enemy.z,vx:delta.x*scale,vy:delta.y*scale,vz:delta.z*scale,l:3,sz:definition.rg===2?.12:.22,dm:definition.dm*(1+.3*(world.sector-1))});
@@ -225,7 +225,7 @@ function updateProjectiles(world,players,dt){
   for(let index=0;index<steps;index++){
    projectile.x+=projectile.vx*dt/steps;projectile.y+=projectile.vy*dt/steps;projectile.z+=projectile.vz*dt/steps;
    if(Movement.solid(world,projectile.x,projectile.y,projectile.z))return false;
-   for(const player of players)if(!inShelter(world,player,7)&&Math.abs(projectile.x-player.pose.x)<.6&&Math.abs(projectile.z-player.pose.z)<.6&&projectile.y>player.pose.h&&projectile.y<player.pose.h+(player.pose.low?1.22:1.8)){hurt(world,player,projectile.dm);return false;}
+   for(const player of players)if(!inShelter(world,player,7)&&Math.abs(projectile.x-player.pose.x)<.6&&Math.abs(projectile.z-player.pose.z)<.6&&projectile.y>player.pose.h&&projectile.y<player.pose.h+(player.pose.low?1.22:1.8)){hurt(world,player,projectile.dm,{x:projectile.x-projectile.vx,z:projectile.z-projectile.vz});return false;}
   }return true;
  });
 }
@@ -252,7 +252,7 @@ function step(world,inputs={},dt=MOVE.tick){
  const refined=Math.min(world.team.raw,(2+1.5*world.team.ref)*dt);world.team.raw-=refined;world.team.cred+=refined*(.5+.05*world.team.yld);
  if(world.boss){
   if(!world.bossDead&&(!world.dev||!world.assists?.freezeEnemies))for(const effect of bossApi().step(world,players,dt)||[]){
-   if(effect.type==='hurt'){const player=world.players[effect.playerId];if(player)hurt(world,player,effect.damage);}
+   if(effect.type==='hurt'){const player=world.players[effect.playerId];if(player)hurt(world,player,effect.damage,effect.source);}
    else if(effect.type==='victory'&&!world.bossDead){world.bossDead=1;world.clr=1;world.team.cred+=1000+world.sector*250;world.team.parts+=3;event(world,'boss-victory');}
   }
  }else{updateEnemies(world,players,dt);updateProjectiles(world,players,dt);updateLoot(world,players,dt);}
