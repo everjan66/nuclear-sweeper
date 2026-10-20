@@ -36,6 +36,25 @@ See [MULTIPLAYER.md](MULTIPLAYER.md) for deployment, implementation status and
 release checks. Run `npm test` for the dependency-free simulation/network tests.
 Keep the `js/` directory beside the HTML when copying or hosting the game.
 
+## Large traversal rooms
+
+New expeditions add **Gantry Exchange**, **Laser Foundry**, and **Relay Chamber**
+to the room pool. Each occupies at least twice its original room footprint and
+has a 9.6 m ceiling instead of 6.4 m. Four elevated corner platforms have
+1.1 m / 2.2 m stepping blocks: baseline boots, jumps and mantles reach every
+platform without buying a grapple. Gantry and relay catwalks connect platforms;
+the grapple skips the longer approach and can use the higher ceiling.
+
+Floor and elevated laser beams cycle independently: amber warns before red
+becomes damaging, then the beam switches off. Contact deals **18 health per
+second**, not an instant kill; prolonged exposure can still require a rescue.
+Jump the low beam, wait for a safe phase, or run around its ends. The elevated
+beam can be avoided on the floor. Laser damage is the same in solo and co-op.
+
+Existing saves retain their current room layout and dust. Start a fresh
+expedition or deploy to the next site to get the expanded pool. Developer and
+normal builds share these rooms, with their usual separate save slots.
+
 ## Dust Sovereign boss
 
 Sweep a site completely to teleport into an arena roughly six rooms in size.

@@ -29,6 +29,6 @@ test('saved solo boss guards validate and restore their combat state',()=>{
 });
 test('solo passive regeneration and pad immunity are disabled for active bosses',()=>{
  assert.ok(source.includes('const safe=!bossActive()&&Math.hypot(p.x-SH.x,p.z-SH.z)<7'));
- assert.ok(source.includes('if(!bossActive()&&dm<=0&&S.hp<s.hp)'));
+ assert.ok(source.includes('if(!bossActive()&&dm+laserDamage<=0&&S.hp<s.hp)'));
  assert.ok(source.includes('bossEnemies:bossActive()?E.filter(enemy=>enemy.hp>0&&!enemy.gone):[]'));
 });
