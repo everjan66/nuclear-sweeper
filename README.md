@@ -75,6 +75,9 @@ until victory, but still take time. The green pad deposits dust only; defeat res
 the entire encounter for a fresh attempt. Victory grants credits and rare parts.
 Solo and private co-op both support the encounter and save its progress.
 The existing 97% early-deployment option remains available before entering.
+The HUD shows early deployment separately from full cleanup and counts remaining
+dust patches. It never displays 100.0% while any dust remains; removing the last
+patch triggers the boss teleport.
 
 ## Mouse side buttons and collection audio
 
