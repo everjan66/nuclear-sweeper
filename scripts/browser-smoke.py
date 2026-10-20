@@ -190,6 +190,7 @@ async def smoke(args, server=None):
             after_restart = await host.evaluate("({worldId:coopSession.exportCheckpoint().worldId,sector:coopSession.view().world.sector,gear:Object.fromEntries(Object.values(coopSession.view().world.players).map(p=>[p.id,p.L]))})")
             assert after_restart == before_restart, (before_restart, after_restart)
             assert [await page.evaluate("coopSession.view().localId") for page in pages] == ids
+        await pages[1].wait_for_function('coopSession.view().remote.length===3', polling=100)
         disposal = await pages[1].evaluate("""() => {remotePlayers.update(coopSession.view().remote);const models=coopSession.view().remote.map(p=>sc.getObjectByName('sweeper:'+p.id));let disposed=0;for(const model of models)model.getObjectByName('equipped-weapon').children[0].geometry.addEventListener('dispose',()=>disposed++);remotePlayers.clear();return {disposed,remaining:remotePlayers.stats().players};} """)
         assert disposal == {"disposed": 3, "remaining": 0}, disposal
         assert not errors, errors
