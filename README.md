@@ -36,6 +36,14 @@ See [MULTIPLAYER.md](MULTIPLAYER.md) for deployment, implementation status and
 release checks. Run `npm test` for the dependency-free simulation/network tests.
 Keep the `js/` directory beside the HTML when copying or hosting the game.
 
+## Flying melee enemies
+
+Shriekers are purple, winged melee enemies that can appear from the first site.
+They fly over crates and raised walkways, climb to floating platforms, and dive
+to attack nearby players. High ground alone is no longer safe: shoot them at
+their actual height or retreat to the shelter. Full-height walls still block
+their movement and attacks. Solo and private co-op both include Shriekers.
+
 ## Large traversal rooms
 
 New expeditions add **Gantry Exchange**, **Laser Foundry**, and **Relay Chamber**
@@ -58,10 +66,13 @@ normal builds share these rooms, with their usual separate save slots.
 ## Dust Sovereign boss
 
 Sweep a site completely to teleport into an arena roughly six rooms in size.
-The Dust Sovereign shields and regenerates while dust remains: sweep every
-glowing patch, then shoot the exposed core. Three phases add double blasts and
-jumpable shockwaves, with a boss health bar and clear attack warnings. The green
-pad deposits dust, heals and resupplies; victory grants credits and rare parts.
+The Dust Sovereign shields while enemies or dust remain: clear each mandatory
+enemy wave and glowing patch, then shoot the exposed core. Three phases add faster
+double blasts and jumpable shockwaves, even during damage windows. Boss health
+and reinforcements scale with unlocked weapon upgrades and party strength.
+There is no player healing or safe pad during combat. Reserve reloads are unlimited
+until victory, but still take time. The green pad deposits dust only; defeat resets
+the entire encounter for a fresh attempt. Victory grants credits and rare parts.
 Solo and private co-op both support the encounter and save its progress.
 The existing 97% early-deployment option remains available before entering.
 
@@ -164,12 +175,14 @@ Credits still buy station and weapon-stat upgrades.
 Each weapon starts at Basic. All requirements in a row must be met with that
 specific weapon; progress is cumulative and is never spent or reset on promotion.
 
-| Finish | Total kills | Glowers | Spitters | Brutes | Gunners |
-| --- | --- | --- | --- | --- | --- |
-| Tier 1: Gold | 50 | 20 | 5 | 0 | 0 |
-| Tier 2: Platin | 150 | 40 | 25 | 10 | 10 |
-| Tier 3: Polychrome | 400 | 100 | 60 | 40 | 40 |
+| Finish | Total kills | Glowers | Spitters | Brutes | Gunners | Shriekers |
+| --- | --- | --- | --- | --- | --- | --- |
+| Tier 1: Gold | 50 | 20 | 5 | 0 | 0 | 5 |
+| Tier 2: Platin | 150 | 40 | 25 | 10 | 10 | 15 |
+| Tier 3: Polychrome | 400 | 100 | 60 | 40 | 40 | 40 |
 
+Existing saves keep their kill counts, but finishes are recalculated against the
+new Shrieker requirements; collect the missing kills to regain a higher finish.
 The Weapons overview and picker show each weapon's currently earned finish.
 Mastery changes the weapon finish and weapon-slot border, not damage. Polychrome
 cycles through colors. Weapon slots also show mastery and kill counts on hover.
@@ -179,7 +192,7 @@ cannot count the same enemy twice; despawning enemies never awards kills.
 ### Achievements and saves
 
 - Lifetime dust removed: 500, 2,500, 10,000, and 50,000 units.
-- Each enemy type: 10, 50, and 200 kills (16 achievements in total).
+- Each enemy type, including Shriekers: 10, 50, and 200 kills.
 - Dust counts at collection, not delivery or refining; losing tank contents
   does not undo cleanup progress or count dust a second time.
 - Progress survives death, site changes, and reloads. Reset save clears it.

@@ -55,7 +55,7 @@ test('an action times out even after the guest stops prediction during an outage
 });
 test('remote equipment uses host-confirmed attachments and mastery without sharing inventory',async()=>{
  const env=environment(),host=env.NSR.Session.create({storage:env.storage()}),guest=env.NSR.Session.create({storage:env.storage()});const result=await host.host();await guest.join(result.invitation);env.advance([host,guest],{},20);
- const player=host.view().player;player.L.w3=1;player.wi=3;player.att[3]={s:1,b:1,l:1};player.prog.weapons[3]={kills:200,types:[50,30,20,20]};env.advance([host,guest],{},20);
+ const player=host.view().player;player.L.w3=1;player.wi=3;player.att[3]={s:1,b:1,l:1};player.prog.weapons[3]={kills:200,types:[50,30,20,20,20]};env.advance([host,guest],{},20);
  const remote=guest.view().remote.find(member=>member.id===player.id);assert.equal(remote.wi,3);assert.equal(remote.appearance.tier,2);assert.equal(remote.appearance.attachments.s,true);assert.equal(remote.prog,undefined);
  assert.ok(Math.abs(env.NSR.Defs.lerpAngle(3.1,-3.1,.5)-Math.PI)<.01);await guest.close();await host.close();
 });
