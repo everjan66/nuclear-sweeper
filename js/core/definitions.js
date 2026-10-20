@@ -55,6 +55,7 @@ const getSec=s=>SEC[s-1]||{n:'Deep Site '+s,b:[[0,'Hanne Voss','Another reactor,
 function weaponTier(progress){let tier=0;for(let next=1;next<TIERS.length;next++){const target=TIERS[next];if(progress&&progress.kills>=target.k&&target.types.every((goal,type)=>progress.types[type]>=goal))tier=next;else break;}return tier;}
 function appearance(player){return {tier:weaponTier(player.prog?.weapons[player.wi]),attachments:{s:!!player.att?.[player.wi]?.s,b:!!player.att?.[player.wi]?.b,l:!!player.att?.[player.wi]?.l}};}
 const lerpAngle=(first,last,amount)=>first+Math.atan2(Math.sin(last-first),Math.cos(last-first))*amount;
-NSR.Defs={SEC,getSec,weaponTier,appearance,lerpAngle,TS,GW,GH,WH,TT,TB,MOVE,SCORE,cl,lerp,ST,U,cost,WP,ET,ENAMES,WCLASS,CNAMES,UNLOCK,TIERS,mkL,rng,ROOM_DESIGNS,ATT,MOD};
+function cleanupProgress(total,dust){let remaining=0,patches=0;for(const amount of dust)if(amount>0){remaining+=amount;patches++;}const percent=patches===0?100:Math.min(99.9,Math.round(Math.max(0,Number.isFinite(total)&&total>0?(1-remaining/total)*100:0)*10)/10);return {percent,remaining,patches};}
+NSR.Defs={cleanupProgress,SEC,getSec,weaponTier,appearance,lerpAngle,TS,GW,GH,WH,TT,TB,MOVE,SCORE,cl,lerp,ST,U,cost,WP,ET,ENAMES,WCLASS,CNAMES,UNLOCK,TIERS,mkL,rng,ROOM_DESIGNS,ATT,MOD};
 if(typeof module!=='undefined')module.exports=NSR.Defs;
 })(globalThis);

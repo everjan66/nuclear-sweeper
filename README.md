@@ -78,6 +78,9 @@ tall beacons, minimap markers and a boss-HUD countdown at the exact spawn points
 Every boss wave includes a flying Shrieker; the final phase includes at least two.
 Solo and private co-op both support the encounter and save its progress.
 The existing 97% early-deployment option remains available before entering.
+The HUD shows early deployment separately from full cleanup and counts remaining
+dust patches. It never displays 100.0% while any dust remains; removing the last
+patch triggers the boss teleport.
 
 ## Mouse side buttons and collection audio
 
