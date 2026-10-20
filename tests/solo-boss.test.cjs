@@ -1,6 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const source=fs.readFileSync('nuclear-sweeper-reactor.html','utf8');
+const Defs=require('../js/core/definitions.js');
 function fixture(names,extra={}){
  const context=vm.createContext({S:{boss:{state:'shielded'},bossDead:0,hp:37,L:{},raw:3,tank:12},ammo:[0],reserves:[0],wi:0,mag:()=>7,ST:()=>({hp:100}),canDock:true,save:()=>{},resupplyAmmo:()=>{throw Error('Unexpected resupply');},toast:()=>{},...extra});
  for(const name of ['bossActive',...names]){const line=source.split('\n').find(line=>line.startsWith('function '+name+'('));assert.ok(line,name);vm.runInContext(line,context);}
@@ -31,4 +32,11 @@ test('solo passive regeneration and pad immunity are disabled for active bosses'
  assert.ok(source.includes('const safe=!bossActive()&&Math.hypot(p.x-SH.x,p.z-SH.z)<7'));
  assert.ok(source.includes('if(!bossActive()&&dm+laserDamage<=0&&S.hp<s.hp)'));
  assert.ok(source.includes('bossEnemies:bossActive()?E.filter(enemy=>enemy.hp>0&&!enemy.gone):[]'));
+});
+test('saved solo boss Shriekers retain flying altitude and boss minion status',()=>{
+ const context=fixture(['cleanBossEnemies'],{ET:Defs.ET,WH:Defs.WH,cl:Defs.cl});
+ const flyer={t:4,x:45,z:58,h:3.2,hp:20,mh:38,fc:1,bossMinion:true};
+ const restored=context.cleanBossEnemies(JSON.parse(JSON.stringify([flyer])));
+ assert.equal(restored[0].h,3.2);assert.equal(restored[0].t,4);assert.equal(restored[0].bossMinion,true);
+ const legacy={...flyer};delete legacy.h;assert.equal(context.cleanBossEnemies([legacy])[0].h,.7);
 });

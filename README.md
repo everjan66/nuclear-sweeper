@@ -75,6 +75,7 @@ until victory, but still take time. The green pad deposits dust only; defeat res
 the entire encounter for a fresh attempt. Victory grants credits and rare parts.
 Reinforcements are announced 1.5 seconds before arrival by magenta floor rings,
 tall beacons, minimap markers and a boss-HUD countdown at the exact spawn points.
+Every boss wave includes a flying Shrieker; the final phase includes at least two.
 Solo and private co-op both support the encounter and save its progress.
 The existing 97% early-deployment option remains available before entering.
 

@@ -205,7 +205,7 @@ function updateEnemies(world,players,dt){
   let target=candidates[0];const previous=candidates.find(player=>player.id===enemy.target);if(previous&&target&&distance(enemy,previous.pose)<distance(enemy,target.pose)*1.25)target=previous;
   if(!target)continue;enemy.target=target.id;const separation=distance(enemy,target.pose)||1,visible=separation<24&&clearLine(world,enemy,target.pose);
   if(!enemy.al){if((visible&&separation<15)||separation<5)enemy.al=1;else continue;}
-  if(definition.fly){if(Movement.fly(world,enemy,target.pose,dt,definition.sp*(1+.04*(world.sector-1))))hurt(world,target,definition.dm*(1+.3*(world.sector-1)),enemy);continue;}
+  if(definition.fly){if(Movement.fly(world,enemy,target.pose,dt,definition.sp*(1+.04*(world.sector-1))))hurt(world,target,definition.dm*(1+.3*(world.sector-1))*(enemy.bossMinion?ST(target.L).hp/100:1),enemy);continue;}
   let destination=target.pose;const field=fields[target.id]?.[definition.sc>1.2?1:0];
   if(!visible&&field){let best=current;for(const offset of [-GW,GW,-1,1]){const next=current+offset;if(next>=0&&next<field.length&&field[next]>=0&&(field[best]<0||field[next]<field[best]))best=next;}destination={x:(best%GW+.5)*TS,z:((best/GW|0)+.5)*TS};}
   let deltaX=destination.x-enemy.x,deltaZ=destination.z-enemy.z,length=Math.hypot(deltaX,deltaZ)||1;
@@ -257,7 +257,7 @@ function retryBoss(world,playerId){
 }
 function summon(world,units){
  for(const unit of units){const hp=ET[unit.t].hp*(1+.4*(world.sector-1))*unit.hpScale;
-  world.E.push({id:nextId(world,'e'),t:unit.t,x:unit.x,z:unit.z,hp,mh:hp,cd:0,fc:1,al:1,ph:random(world)*6,target:null,bossMinion:true});
+  world.E.push({id:nextId(world,'e'),t:unit.t,x:unit.x,z:unit.z,h:ET[unit.t].fly?.7:0,hp,mh:hp,cd:0,fc:1,al:1,ph:random(world)*6,target:null,bossMinion:true});
  }
 }
 function step(world,inputs={},dt=MOVE.tick){

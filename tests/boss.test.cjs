@@ -111,6 +111,7 @@ test('waves gate damage and exposure once per phase, not once per cleanup',()=>{
  for(let phase=1;phase<=3;phase++){
   const effects=spawnWave(world,[player('target')]);assert.equal(effects.length,1);assert.equal(effects[0].type,'summon');assert.equal(effects[0].units.length,phase+2);assert.equal(world.boss.summonedPhase,phase);assert.equal(world.boss.state,'shielded');
   if(phase>=2){assert.ok(effects[0].units.some(unit=>unit.t===2));assert.ok(effects[0].units.some(unit=>unit.t===3));}
+  assert.equal(effects[0].units.filter(unit=>unit.t===4).length,phase===3?2:1);
   world.E=[{hp:1,gone:false}];world.D.fill(0);Boss.step(world,[],0);assert.equal(world.boss.state,'shielded');
   world.boss.state='exposed';assert.equal(Boss.damage(world,100000),0);world.boss.state='shielded';world.E[0].gone=true;clean(world);assert.equal(world.boss.state,'exposed');
   Boss.step(world,[],11-phase);assert.equal(world.boss.state,'shielded');assert.equal(Boss.step(world,[],0).filter(effect=>effect.type==='summon').length,0);

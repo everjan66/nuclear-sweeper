@@ -385,7 +385,7 @@ function spawnE(x,z,al,type){let t=type===undefined?pickT():type;const ti=(z/TS|
 function spawnIn(o){for(let k=0;k<12;k++){const x=o.x0+(Math.random()*(o.x1-o.x0+1)|0),z=o.z0+(Math.random()*(o.z1-o.z0+1)|0);if(M[z*GW+x]==0&&spawnE((x+.5)*TS,(z+.5)*TS,0))return}}
 function eAI(e,dt,safe){if(DEV_MODE&&DEV_TOOLS.freezeEnemies)return;const c=ET[e.t],hitScale=e.bossMinion?ST(S.L).hp/100:1,r=.5*c.sc,big=c.sc>1.2,dx=p.x-e.x,dz=p.z-e.z,d=Math.hypot(dx,dz)||1,spd=c.sp*(1+.04*(S.sector-1)),los=d<24&&clr(e.x,e.z,p.x,p.z,0);
  if(!e.al){e.ph+=dt;if(!safe&&((los&&d<15)||d<5))wake(e);else return}
- if(c.fly){if(!safe&&NSR.Movement.fly({M,SH},e,p,dt,spd)){hurt(c.dm*(1+.3*(S.sector-1)),e);snd(90,.12,'sawtooth',.05)}return}
+ if(c.fly){if(!safe&&NSR.Movement.fly({M,SH},e,p,dt,spd)){hurt(c.dm*(1+.3*(S.sector-1))*hitScale,e);snd(90,.12,'sawtooth',.05)}return}
  e.pf-=dt;const direct=los&&e.pf<=0&&clrW(e.x,e.z,p.x,p.z,r);let tx=p.x,tz=p.z,vx=0,vz=0;
  if(!direct){const bi=nextT((e.z/TS|0)*GW+(e.x/TS|0),big);if(bi>=0){tx=(bi%GW+.5)*TS;tz=((bi/GW|0)+.5)*TS}}
  const tdx=tx-e.x,tdz=tz-e.z,td=Math.hypot(tdx,tdz)||1;
@@ -519,7 +519,7 @@ function cast(o,d,mx,noE,ignored){let t=0;while(t<mx){t+=.25;if(rs(o.x+d.x*t,o.y
  if(!noE&&S.boss&&!S.bossDead){const boss=S.boss,offset={x:boss.x-o.x,y:2.8-o.y,z:boss.z-o.z},along=offset.x*d.x+offset.y*d.y+offset.z*d.z,across=offset.x**2+offset.y**2+offset.z**2-along**2;if(across<2.7**2){const near=along-Math.sqrt(2.7**2-across);if(near>0&&near<t){t=near;be=null;hd=0;bossHit=true}}}
  return{t,e:be,boss:bossHit,hd,x:o.x+d.x*t,y:o.y+d.y*t,z:o.z+d.z*t}}
 // ---------- game flow ----------
-function cleanBossEnemies(raw){if(raw==null)return [];if(!Array.isArray(raw)||raw.length>12)return null;const guards=[];for(const enemy of raw){if(!enemy||!Number.isInteger(enemy.t)||!ET[enemy.t]||!['x','z','hp','mh'].every(key=>Number.isFinite(enemy[key]))||enemy.x<32||enemy.x>86||enemy.z<40||enemy.z>78||enemy.hp<=0||enemy.mh<enemy.hp||enemy.mh>1e6)return null;const guard={t:enemy.t,x:enemy.x,z:enemy.z,hp:enemy.hp,mh:enemy.mh,al:1,bossMinion:true};for(const [key,fallback]of Object.entries({cd:0,fc:1,sd:1,ph:0,bn:0,bt:0,px:enemy.x,pz:enemy.z,sT:.5,sk:0,pf:0}))guard[key]=Number.isFinite(enemy[key])?cl(enemy[key],-100,200):fallback;guards.push(guard)}return guards}
+function cleanBossEnemies(raw){if(raw==null)return [];if(!Array.isArray(raw)||raw.length>12)return null;const guards=[];for(const enemy of raw){if(!enemy||!Number.isInteger(enemy.t)||!ET[enemy.t]||!['x','z','hp','mh'].every(key=>Number.isFinite(enemy[key]))||enemy.x<32||enemy.x>86||enemy.z<40||enemy.z>78||enemy.hp<=0||enemy.mh<enemy.hp||enemy.mh>1e6)return null;const guard={t:enemy.t,x:enemy.x,z:enemy.z,h:ET[enemy.t].fly?cl(Number.isFinite(enemy.h)?enemy.h:.7,0,WH-1.8*ET[enemy.t].sc):0,hp:enemy.hp,mh:enemy.mh,al:1,bossMinion:true};for(const [key,fallback]of Object.entries({cd:0,fc:1,sd:1,ph:0,bn:0,bt:0,px:enemy.x,pz:enemy.z,sT:.5,sk:0,pf:0}))guard[key]=Number.isFinite(enemy[key])?cl(enemy[key],-100,200):fallback;guards.push(guard)}return guards}
 function fresh(){return fixProgress({roomDesign:2,L:mkL(),wl:WP.map(()=>({dmg:0,fr:0,multi:0})),scrap:0,cred:0,raw:0,tank:0,hp:100,sector:1,story:0,clr:0,total:1,rem:1,t:Date.now(),parts:0,att:WP.map(()=>({s:0,b:0,l:0})),unl:{s:0,b:0,l:0},mod:{gr:0,dash:0},vOpen:0,vTaken:0,iTaken:0,boss:null,bossEnemies:[],bossDead:0,bty:null,kills:0})}
 function load(){try{return cleanSave(JSON.parse(localStorage.getItem(KEY)),true)}catch(e){}return null}
 let saveLocked=false;

@@ -1,7 +1,7 @@
 (function(root){
 'use strict';
 const NSR=root.NSR||(root.NSR={});
-const {TS,GW,GH,WP,ST}=NSR.Defs||(typeof require==='function'&&require('../core/definitions.js'));
+const {TS,GW,GH,WP,ST,ET}=NSR.Defs||(typeof require==='function'&&require('../core/definitions.js'));
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 const distance=(first,second)=>Math.hypot(first.x-second.x,first.z-second.z);
 const plain=value=>!!value&&typeof value==='object'&&(Object.getPrototypeOf(value)===Object.prototype||Object.getPrototypeOf(value)===null);
@@ -38,7 +38,7 @@ function summons(world,players){
  const count=Math.min(10,2+boss.phase+Math.floor(Math.log2(boss.power)/2)),units=[];
  for(let index=0;index<Math.min(count,available.length);index++){
   const point=available[(boss.phase*11+Math.floor(index*available.length/count))%available.length];
-  units.push({t:boss.phase>=2&&index===0?2:boss.phase>=2&&index===1?3:index%2,x:point.x,z:point.z,hpScale:Math.min(12,Math.sqrt(boss.power))});
+  units.push({t:index===2||boss.phase===3&&index>=4&&index%2===0?4:boss.phase>=2&&index===0?2:boss.phase>=2&&index===1?3:index%2,x:point.x,z:point.z,hpScale:Math.min(12,Math.sqrt(boss.power))});
  }
  return {type:'summon',units};
 }
@@ -134,7 +134,7 @@ function restore(raw,sector){
  if(raw.spawnWarning!==undefined&&raw.spawnWarning!==null){
   const warning=raw.spawnWarning;
   if(raw.state!=='shielded'||boss.summonedPhase!==boss.phase||!plain(warning)||!Number.isFinite(warning.left)||warning.left<0||warning.left>1.5||!Array.isArray(warning.units)||warning.units.length<1||warning.units.length>10)return null;
-  if(!warning.units.every(unit=>plain(unit)&&Number.isInteger(unit.t)&&unit.t>=0&&unit.t<=3&&Number.isFinite(unit.x)&&unit.x>=35&&unit.x<=83&&Number.isFinite(unit.z)&&unit.z>=43&&unit.z<=75&&Number.isFinite(unit.hpScale)&&unit.hpScale>=1&&unit.hpScale<=12))return null;
+  if(!warning.units.every(unit=>plain(unit)&&Number.isInteger(unit.t)&&!!ET[unit.t]&&Number.isFinite(unit.x)&&unit.x>=35&&unit.x<=83&&Number.isFinite(unit.z)&&unit.z>=43&&unit.z<=75&&Number.isFinite(unit.hpScale)&&unit.hpScale>=1&&unit.hpScale<=12))return null;
   boss.spawnWarning={left:warning.left,units:warning.units.map(unit=>({t:unit.t,x:unit.x,z:unit.z,hpScale:unit.hpScale}))};
  }
  boss.hp=clamp(raw.hp,0,boss.mh*(4-boss.phase)/3);boss.timer=clamp(raw.timer,0,11-boss.phase);boss.attack=clamp(raw.attack,0,10);boss.wave=clamp(Math.floor(raw.wave),0,1000000);

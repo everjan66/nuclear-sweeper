@@ -211,3 +211,14 @@ test('host and guest receive the same pending spawn positions and subsequent ene
  assert.ok(world.E.length>0);assert.deepEqual(guest.view().world.E.map(enemy=>enemy.id),world.E.map(enemy=>enemy.id));
  await guest.close();await host.close();
 });
+test('boss Shriekers spawn airborne, scale melee damage and gate exposure until cleared',()=>{
+ const {world,host,guest}=fixture();enter(world);spawnWave(world);
+ const flyer=world.E.find(enemy=>enemy.t===4);assert.ok(flyer);assert.ok(flyer.h>0);assert.equal(flyer.bossMinion,true);
+ world.E=[flyer];world.D.fill(0);world.rem=0;world.boss.attack=10;world.boss.warning=null;
+ guest.pose.x=80;guest.pose.z=72;host.L.suit=20;host.hp=Defs.ST(host.L).hp;
+ flyer.x=host.pose.x+1;flyer.z=host.pose.z;flyer.h=.7;flyer.cd=0;
+ const before=host.hp;Sim.step(world);assert.equal(flyer.target,host.id);assert.equal(host.hp,before-Defs.ET[4].dm*3);
+ assert.equal(world.boss.state,'shielded');assert.equal(Boss.damage(world,100),0);
+ flyer.h=3.2;const restored=Sim.restore(Sim.snapshot(world));assert.equal(restored.E[0].h,3.2);assert.equal(restored.E[0].bossMinion,true);
+ flyer.hp=0;Sim.step(world);assert.equal(world.E.length,0);Sim.step(world);assert.equal(world.boss.state,'exposed');
+});
