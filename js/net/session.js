@@ -21,7 +21,7 @@ function create({dev=false,name='Sweeper',url,relay=false,onEvent=()=>{},storage
   }
   const precision=value=>Math.round(value*1000)/1000;
   return {type:'frame',session:sessionId,generation:world.generation,tick:world.tick,time:world.time,players,team:world.team,rem:world.rem,total:world.total,clr:world.clr,story:world.story,vOpen:world.vOpen,boss:world.boss,bossDead:world.bossDead,paused:pausedByHost,pauseSequence,
-   E:world.E.map(enemy=>[enemy.id,enemy.t,precision(enemy.x),precision(enemy.z),precision(enemy.hp),enemy.mh,enemy.al,enemy.ph]),
+   E:world.E.map(enemy=>[enemy.id,enemy.t,precision(enemy.x),precision(enemy.z),precision(enemy.hp),enemy.mh,enemy.al,enemy.ph,precision(enemy.h||0)]),
    EP:world.EP.map(projectile=>[projectile.id,precision(projectile.x),precision(projectile.y),precision(projectile.z),projectile.sz]),
    Dr:world.Dr.map(loot=>[loot.id,precision(loot.x),precision(loot.z),loot.k,loot.a])};
  }
@@ -112,7 +112,7 @@ function create({dev=false,name='Sweeper',url,relay=false,onEvent=()=>{},storage
    world.boss=data.boss||null;world.bossDead=data.bossDead||0;if(Number.isFinite(data.total))world.total=data.total;
    if(data.vOpen&&!world.vOpen){world.vOpen=1;for(const tile of world.DOORT)world.M[tile]=0;emit('geometry');}
    world.players=data.players;reconcile(data.players[localId]);
-   world.E=data.E.map(([id,type,x,z,hp,mh,al,ph])=>({id,t:type,x,z,hp,mh,al,ph}));
+   world.E=data.E.map(([id,type,x,z,hp,mh,al,ph,h=0])=>({id,t:type,x,z,hp,mh,al,ph,h}));
    world.EP=data.EP.map(([id,x,y,z,size])=>({id,x,y,z,sz:size}));
    world.Dr=data.Dr.map(([id,x,z,kind,amount])=>({id,x,z,k:kind,a:amount}));
    remoteFrames.push({at:performance.now(),players:copy(data.players),E:copy(world.E)});if(remoteFrames.length>8)remoteFrames.shift();return;
@@ -175,7 +175,7 @@ function create({dev=false,name='Sweeper',url,relay=false,onEvent=()=>{},storage
   const target=performance.now()-100,older=remoteFrames.filter(frame=>frame.at<=target).at(-1),newer=remoteFrames.find(frame=>frame.at>target);
   if(older&&newer){const scale=clamp((target-older.at)/(newer.at-older.at));for(const member of remote){const before=older.players[member.id],after=newer.players[member.id];if(before&&after){for(const key of ['x','z','h','pit'])member.pose[key]=before.pose[key]+(after.pose[key]-before.pose[key])*scale;member.pose.yaw=Defs.lerpAngle(before.pose.yaw,after.pose.yaw,scale);}}}
   let enemies=world.E;
-  if(older&&newer){const scale=clamp((target-older.at)/(newer.at-older.at)),before=new Map(older.E.map(enemy=>[enemy.id,enemy])),after=new Map(newer.E.map(enemy=>[enemy.id,enemy]));enemies=world.E.map(enemy=>{const first=before.get(enemy.id),last=after.get(enemy.id);return first&&last?{...enemy,x:first.x+(last.x-first.x)*scale,z:first.z+(last.z-first.z)*scale}:enemy;});}
+  if(older&&newer){const scale=clamp((target-older.at)/(newer.at-older.at)),before=new Map(older.E.map(enemy=>[enemy.id,enemy])),after=new Map(newer.E.map(enemy=>[enemy.id,enemy]));enemies=world.E.map(enemy=>{const first=before.get(enemy.id),last=after.get(enemy.id);return first&&last?{...enemy,x:first.x+(last.x-first.x)*scale,z:first.z+(last.z-first.z)*scale,h:(first.h||0)+((last.h||0)-(first.h||0))*scale}:enemy;});}
   return {world,player,remote,enemies,role,waiting,paused:pausedByHost,localId,saveError};
  }
  const clamp=value=>Math.max(0,Math.min(1,value));

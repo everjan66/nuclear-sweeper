@@ -53,7 +53,7 @@ test('reliable backpressure drains in order and counts UTF-8 bytes including chu
  for(const text of reliable.sent.slice(1).reverse()){reliable.onmessage({data:text});reliable.onmessage({data:text});}
  reliable.onmessage({data:reliable.sent[0]});
  const messages=events.filter(event=>event.type==='message');assert.equal(messages.length,1);assert.equal(messages[0].data.text,payload.text);
- assert.equal(transport.stats().bytesReceived,Buffer.byteLength(JSON.stringify({kind:'hello',version:2,dev:false}))+queued*2-Buffer.byteLength(reliable.sent[0]));
+ assert.equal(transport.stats().bytesReceived,Buffer.byteLength(JSON.stringify({kind:'hello',version:require('../js/net/protocol.js').VERSION,dev:false}))+queued*2-Buffer.byteLength(reliable.sent[0]));
 });
 
 test('reliable burst overflow includes SCTP buffered bytes and disconnects once',async t=>{
