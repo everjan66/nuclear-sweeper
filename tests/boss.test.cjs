@@ -57,7 +57,7 @@ test('huge damage stops at each boundary and cannot skip shields or phases',()=>
 test('telegraphed blasts hit depot/menu players, scale with health, and can be dodged',()=>{
  const world=fixture(),target={...geared(),pose:{x:40,z:58,h:0},menu:true};target.L.suit=20;world.boss.attack=0;
  Boss.step(world,[target],0);const delay=world.boss.warning.left;assert.ok(delay<=1);assert.equal(world.boss.warning.x,40);
- assert.deepEqual(Boss.step(world,[target],delay-.1),[]);assert.deepEqual(Boss.step(world,[target],.1),[{type:'hurt',playerId:target.id,damage:66}]);
+ assert.deepEqual(Boss.step(world,[target],delay-.1),[]);assert.deepEqual(Boss.step(world,[target],.1),[{type:'hurt',playerId:target.id,damage:66,source:{x:world.boss.x,z:world.boss.z}}]);
  world.boss.attack=0;Boss.step(world,[target],0);target.pose.z+=4;assert.deepEqual(Boss.step(world,[target],delay),[]);
  world.boss.attack=0;Boss.step(world,[{...target,connected:false}],0);assert.equal(world.boss.warning,null);
 });
