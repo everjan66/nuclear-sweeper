@@ -73,6 +73,8 @@ and reinforcements scale with unlocked weapon upgrades and party strength.
 There is no player healing or safe pad during combat. Reserve reloads are unlimited
 until victory, but still take time. The green pad deposits dust only; defeat resets
 the entire encounter for a fresh attempt. Victory grants credits and rare parts.
+Reinforcements are announced 1.5 seconds before arrival by magenta floor rings,
+tall beacons, minimap markers and a boss-HUD countdown at the exact spawn points.
 Solo and private co-op both support the encounter and save its progress.
 The existing 97% early-deployment option remains available before entering.
 

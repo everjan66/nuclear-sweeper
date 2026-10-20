@@ -8,7 +8,8 @@ function fixture(){
  world.E=[];world.Dr=[];return {world,host,guest};
 }
 function enter(world){world.D.fill(0);world.rem=0;Sim.step(world);}
-function expose(world){Sim.step(world);world.E=[];world.D.fill(0);world.rem=0;Sim.step(world);assert.equal(world.boss.state,'exposed');}
+function spawnWave(world){Sim.step(world);if(world.boss.spawnWarning){world.boss.spawnWarning.left=0;Sim.step(world);}}
+function expose(world){spawnWave(world);world.E=[];world.D.fill(0);world.rem=0;Sim.step(world);assert.equal(world.boss.state,'exposed');}
 test('97% cleanup permits optional deployment but only actual full cleanup enters the boss arena',()=>{
  const {world,host,guest}=fixture();world.D.fill(0);world.D[0]=.01;world.rem=.01;
  Sim.step(world);assert.equal(world.clr,1);assert.equal(world.boss,null);assert.equal(world.generation,1);
@@ -52,7 +53,7 @@ test('developer freeze pauses boss timers and attacks without blocking sweeping'
  world.assists.freezeEnemies=false;expose(world);assert.equal(world.boss.state,'exposed');
 });
 test('boss effects hurt players, disable regular spawns and reward victory only once before deployment',()=>{
- const {world,host,guest}=fixture();enter(world);world.spawnT=0;
+ const {world,host,guest}=fixture();enter(world);spawnWave(world);world.spawnT=0;
  host.pose=Movement.createPose({x:60,z:58});host.pose.z=58;world.boss.warning={x:60,z:58,left:.001,radius:3};
  const hp=host.hp;Sim.step(world);assert.ok(host.hp<hp-17);assert.ok(world.events.some(event=>event.type==='hurt'&&event.playerId==='host'));assert.ok(world.E.length>0&&world.E.every(enemy=>enemy.bossMinion));
  host.pose=Movement.createPose(world.SH);host.ready=true;guest.ready=true;world.clr=1;
@@ -90,7 +91,7 @@ test('boss creation uses connected gear and authoritative mandatory waves surviv
  const {world,host,guest}=fixture();host.L.w4=1;host.wl[4].dmg=30;host.wl[4].fr=20;host.att[4].b=1;
  guest.connected=false;guest.L.w4=1;guest.wl[4].dmg=40;
  const expected=Boss.create(world.sector,[host]);enter(world);assert.equal(world.boss.mh,expected.mh);
- world.D.fill(0);world.rem=0;Sim.step(world);
+ world.D.fill(0);world.rem=0;spawnWave(world);
  assert.equal(world.boss.state,'shielded');assert.equal(world.boss.summonedPhase,1);assert.ok(world.E.length>=3);
  const ids=world.E.map(enemy=>enemy.id);assert.equal(new Set(ids).size,ids.length);
  for(const enemy of world.E){assert.equal(enemy.bossMinion,true);assert.equal(enemy.mh,Defs.ET[enemy.t].hp*Math.min(12,Math.sqrt(expected.power)));for(const key of ['hp','cd','fc','ph'])assert.ok(Number.isFinite(enemy[key]));}
@@ -98,7 +99,7 @@ test('boss creation uses connected gear and authoritative mandatory waves surviv
  assert.deepEqual(restored.E.map(enemy=>enemy.id),ids);assert.equal(restored.boss.state,'shielded');
  restored.boss.state='exposed';assert.equal(Boss.damage(restored,100),0);restored.boss.state='shielded';
  restored.E.forEach(enemy=>enemy.hp=0);Sim.step(restored);assert.equal(restored.boss.state,'exposed');assert.equal(restored.E.length,0);
- Boss.damage(restored,1e9);assert.equal(restored.boss.phase,2);restored.D.fill(0);restored.rem=0;Sim.step(restored);
+ Boss.damage(restored,1e9);assert.equal(restored.boss.phase,2);restored.D.fill(0);restored.rem=0;spawnWave(restored);
  assert.equal(restored.boss.state,'shielded');assert.equal(restored.boss.summonedPhase,2);assert.ok(restored.E.length>0);
 });
 test('boss pad deposits only dust and all health or purchased resupply paths remain disabled',()=>{
@@ -124,7 +125,7 @@ test('boss reloads take normal time without consuming finite reserves and normal
  host.reserves[0]=2;Sim.step(world,{host:{reload:true}});assert.equal(host.rel,Defs.WP[0].rl);host.rel=Defs.MOVE.tick/2;Sim.step(world);assert.equal(host.reserves[0],1);assert.equal(host.ammo[0],Defs.WP[0].mag);
 });
 test('boss minions pursue and damage pad occupants in proportion to the actual victim maximum health',()=>{
- const {world,host,guest}=fixture();enter(world);Sim.step(world);guest.pose.x=60;guest.pose.z=70;
+ const {world,host,guest}=fixture();enter(world);spawnWave(world);guest.pose.x=60;guest.pose.z=70;
  host.L.suit=20;host.hp=Defs.ST(host.L).hp;
  const melee={...world.E[0],t:0,x:host.pose.x+1,z:host.pose.z,cd:0,fc:1};world.E=[melee];const before=host.hp;
  Sim.step(world);assert.equal(melee.target,host.id);assert.ok(melee.x<world.SH.x+1);assert.equal(host.hp,before-Defs.ET[0].dm*3);
@@ -134,7 +135,7 @@ test('boss minions pursue and damage pad occupants in proportion to the actual v
  world.EP=[{...projectile,x:host.pose.x,z:host.pose.z}];const hp=host.hp;Sim.step(world);assert.equal(host.hp,hp-27);
 });
 test('freeze pauses both minions and their projectiles while loot still collects during and after the fight',()=>{
- const {world,host}=fixture();enter(world);Sim.step(world);world.EP=[{id:'frozen',x:60,y:1,z:58,vx:1,vy:0,vz:0,l:3,dm:9,bossMinion:true}];
+ const {world,host}=fixture();enter(world);spawnWave(world);world.EP=[{id:'frozen',x:60,y:1,z:58,vx:1,vy:0,vz:0,l:3,dm:9,bossMinion:true}];
  world.dev=true;world.assists={freezeEnemies:true};const enemies=structuredClone(world.E),projectiles=structuredClone(world.EP),boss=structuredClone(world.boss);
  world.Dr=[{id:'loot',x:host.pose.x,z:host.pose.z,y:.4,vx:0,vz:0,k:'scrap',a:2}];Sim.step(world);
  assert.deepEqual(world.E,enemies);assert.deepEqual(world.EP,projectiles);assert.deepEqual(world.boss,boss);assert.equal(world.team.scrap,2);assert.equal(world.Dr.length,0);
@@ -156,11 +157,11 @@ test('any current character death or rescue resets the entire encounter as a new
  }
 });
 test('restart preserves damaged players, boss progress, live waves and projectiles rather than granting a retry',()=>{
- const {world,host}=fixture();enter(world);expose(world);Boss.damage(world,1e9);Sim.step(world);host.hp=24;host.ammo[0]=1;host.reserves[0]=0;host.pose.x=60;host.pose.z=60;
+ const {world,host}=fixture();enter(world);expose(world);Boss.damage(world,1e9);spawnWave(world);host.hp=24;host.ammo[0]=1;host.reserves[0]=0;host.pose.x=60;host.pose.z=60;
  world.EP=[{id:'saved-shot',x:60,y:1,z:58,vx:1,vy:0,vz:0,l:3,dm:2,bossMinion:true}];const saved=Sim.snapshot(world);
  const restored=Sim.restart(Sim.restore(saved));assert.equal(restored.generation,saved.generation);assert.deepEqual(restored.boss,saved.boss);assert.deepEqual(restored.E,saved.E);assert.deepEqual(restored.EP,saved.EP);
  assert.equal(restored.players.host.hp,24);assert.equal(restored.players.host.ammo[0],1);assert.equal(restored.players.host.reserves[0],0);assert.equal(restored.players.host.pose.x,60);assert.equal(restored.players.host.pose.z,60);assert.equal(restored.players.host.connected,false);
- restored.players.host.connected=true;Sim.step(restored);assert.ok(restored.players.host.hp<=24);assert.equal(restored.boss.phase,2);assert.equal(restored.E.length,saved.E.length);
+ restored.players.host.connected=true;spawnWave(restored);assert.ok(restored.players.host.hp<=24);assert.equal(restored.boss.phase,2);assert.equal(restored.E.length,saved.E.length);
 });
 test('lethal boss attacks start a fresh attempt instead of preserving phase progress',()=>{
  const {world,host}=fixture();enter(world);expose(world);Boss.damage(world,1e9);Sim.step(world);
@@ -182,6 +183,31 @@ test('legacy active boss saves upgrade balance without healing players or losing
  const {world,host}=fixture();enter(world);host.hp=32;host.ammo[0]=2;host.reserves[0]=0;
  const saved=Sim.snapshot(world);for(const key of ['summonedPhase','balanceVersion','power','pressure','targetCursor'])delete saved.boss[key];
  const restored=Sim.restart(Sim.restore(saved));assert.equal(restored.players.host.hp,32);assert.equal(restored.players.host.ammo[0],2);assert.equal(restored.players.host.reserves[0],0);
- restored.players.host.connected=true;Sim.step(restored);assert.equal(restored.boss.phase,1);assert.equal(restored.players.host.hp,32);assert.ok(restored.E.length>0);assert.equal(restored.boss.summonedPhase,1);
+ restored.players.host.connected=true;spawnWave(restored);assert.equal(restored.boss.phase,1);assert.equal(restored.players.host.hp,32);assert.ok(restored.E.length>0);assert.equal(restored.boss.summonedPhase,1);
  const ids=restored.E.map(enemy=>enemy.id);Sim.step(restored);assert.deepEqual(restored.E.map(enemy=>enemy.id),ids);assert.doesNotThrow(()=>Sim.restore(Sim.snapshot(restored)));
+});
+test('pending reinforcement telegraphs persist across co-op rehost and spawn once at marked coordinates',()=>{
+ const {world}=fixture();enter(world);Sim.step(world);
+ const marked=structuredClone(world.boss.spawnWarning.units);
+ assert.equal(world.E.length,0);assert.ok(world.boss.spawnWarning.left>1.4);
+ for(let tick=0;tick<31;tick++)Sim.step(world);
+ const saved=Sim.snapshot(world),restored=Sim.restart(Sim.restore(saved));
+ restored.players.host.connected=true;assert.deepEqual(restored.boss.spawnWarning,saved.boss.spawnWarning);
+ restored.dev=true;restored.assists={freezeEnemies:true};Sim.step(restored);assert.deepEqual(restored.boss.spawnWarning,saved.boss.spawnWarning);
+ restored.assists.freezeEnemies=false;
+ for(let tick=0;tick<63;tick++){Sim.step(restored);assert.equal(restored.E.length,0);}
+ Sim.step(restored);assert.equal(restored.boss.spawnWarning,null);assert.equal(restored.E.length,marked.length);
+ for(let index=0;index<marked.length;index++){assert.ok(Math.hypot(restored.E[index].x-marked[index].x,restored.E[index].z-marked[index].z)<.2);assert.equal(restored.E[index].t,marked[index].t);}
+ const ids=restored.E.map(enemy=>enemy.id);Sim.step(restored);assert.deepEqual(restored.E.map(enemy=>enemy.id),ids);
+});
+test('host and guest receive the same pending spawn positions and subsequent enemy wave',async()=>{
+ const env=environment(),host=env.NSR.Session.create({storage:env.storage()}),guest=env.NSR.Session.create({storage:env.storage()});
+ const result=await host.host();await guest.join(result.invitation);env.advance([host,guest],{},40);
+ const world=host.view().world;world.D.fill(0);world.rem=0;env.advance([host,guest],{},20);
+ const warning=world.boss.spawnWarning,remote=guest.view().world.boss.spawnWarning;
+ assert.ok(warning&&remote);assert.deepEqual(remote.units,warning.units);assert.equal(world.E.length,0);
+ env.advance([host,guest],{},140);
+ assert.equal(world.boss.spawnWarning,null);assert.equal(guest.view().world.boss.spawnWarning,null);
+ assert.ok(world.E.length>0);assert.deepEqual(guest.view().world.E.map(enemy=>enemy.id),world.E.map(enemy=>enemy.id));
+ await guest.close();await host.close();
 });

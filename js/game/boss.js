@@ -25,7 +25,7 @@ function create(sector,players=[]){
  const active=players.filter(player=>player&&player.connected!==false),baseline=sustained({},0);
  const power=clamp(active.reduce((sum,player)=>sum+Math.max(...WP.map((weapon,index)=>index===0||player.L?.['w'+index]>0?sustained(player,index)/baseline:0)),0)||1,1,256);
  const mh=(360+20*clamp(Number.isFinite(sector)?Math.floor(sector):1,1,100))*Math.pow(power,.9);
- return {x:72,z:58,hp:mh,mh,phase:1,state:'shielded',timer:0,attack:1,wave:0,warning:null,power,pressure:clamp(1+.1*Math.log2(power),1,1.5),summonedPhase:0,balanceVersion:1,targetCursor:0};
+ return {x:72,z:58,hp:mh,mh,phase:1,state:'shielded',timer:0,attack:1,wave:0,warning:null,spawnWarning:null,power,pressure:clamp(1+.1*Math.log2(power),1,1.5),summonedPhase:0,balanceVersion:1,targetCursor:0};
 }
 const liveEnemies=world=>(world.E||[]).some(enemy=>enemy&&enemy.hp>0&&!enemy.gone);
 function summons(world,players){
@@ -62,7 +62,7 @@ function shield(world){
 }
 function damage(world,amount){
  const boss=world.boss;
- if(!boss||boss.state!=='exposed'||boss.summonedPhase!==boss.phase||liveEnemies(world)||!Number.isFinite(amount)||amount<=0)return 0;
+ if(!boss||boss.state!=='exposed'||boss.spawnWarning||boss.summonedPhase!==boss.phase||liveEnemies(world)||!Number.isFinite(amount)||amount<=0)return 0;
  const floor=boss.phase<3?boss.mh*(3-boss.phase)/3:0,actual=Math.min(amount,Math.max(0,boss.hp-floor));boss.hp-=actual;
  if(boss.hp<=floor){
   if(boss.phase<3){boss.phase++;shield(world);}
@@ -82,12 +82,13 @@ function step(world,players,dt){
  }
  const targets=players.filter(player=>player&&player.pose&&Number.isFinite(player.pose.x)&&Number.isFinite(player.pose.z)&&player.connected!==false&&!(player.hp<=0));
  const pending=boss.summonedPhase!==boss.phase;
- if(pending){boss.state='shielded';boss.timer=0;boss.summonedPhase=boss.phase;effects.push(summons(world,targets));}
+ if(pending){boss.state='shielded';boss.timer=0;boss.summonedPhase=boss.phase;boss.spawnWarning={left:1.5,units:summons(world,targets).units};}
  const hitDamage=player=>[22,26,30][boss.phase-1]*(ST({suit:0,...player.L}).hp/100);
- let remaining=dt;
+ let remaining=dt,spawned=false;
  do{
   const elapsed=Math.min(remaining,.05);remaining=Math.max(0,remaining-elapsed);
-  if(boss.state==='shielded'&&isClean(world)&&!pending&&!liveEnemies(world)){boss.state='exposed';boss.timer=11-boss.phase;}
+  if(boss.spawnWarning){boss.spawnWarning.left=Math.max(0,boss.spawnWarning.left-elapsed);if(boss.spawnWarning.left<=1e-9){effects.push({type:'summon',units:boss.spawnWarning.units});boss.spawnWarning=null;spawned=true;}}
+  if(boss.state==='shielded'&&isClean(world)&&!pending&&!boss.spawnWarning&&!spawned&&!liveEnemies(world)){boss.state='exposed';boss.timer=11-boss.phase;}
   if(boss.state==='exposed'){
    boss.timer=Math.max(0,boss.timer-elapsed);
    if(boss.timer<=1e-9)shield(world);
@@ -130,6 +131,12 @@ function restore(raw,sector){
  }
  if(raw.balanceVersion===undefined)boss.balanceVersion=0;
  if(boss.summonedPhase>boss.phase)return null;
+ if(raw.spawnWarning!==undefined&&raw.spawnWarning!==null){
+  const warning=raw.spawnWarning;
+  if(raw.state!=='shielded'||boss.summonedPhase!==boss.phase||!plain(warning)||!Number.isFinite(warning.left)||warning.left<0||warning.left>1.5||!Array.isArray(warning.units)||warning.units.length<1||warning.units.length>10)return null;
+  if(!warning.units.every(unit=>plain(unit)&&Number.isInteger(unit.t)&&unit.t>=0&&unit.t<=3&&Number.isFinite(unit.x)&&unit.x>=35&&unit.x<=83&&Number.isFinite(unit.z)&&unit.z>=43&&unit.z<=75&&Number.isFinite(unit.hpScale)&&unit.hpScale>=1&&unit.hpScale<=12))return null;
+  boss.spawnWarning={left:warning.left,units:warning.units.map(unit=>({t:unit.t,x:unit.x,z:unit.z,hpScale:unit.hpScale}))};
+ }
  boss.hp=clamp(raw.hp,0,boss.mh*(4-boss.phase)/3);boss.timer=clamp(raw.timer,0,11-boss.phase);boss.attack=clamp(raw.attack,0,10);boss.wave=clamp(Math.floor(raw.wave),0,1000000);
  if(raw.state==='dead'){if(raw.hp!==0||raw.phase!==3)return null;boss.hp=0;}
  else if(boss.hp<=boss.mh*(3-boss.phase)/3)return null;
