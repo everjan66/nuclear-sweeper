@@ -145,6 +145,14 @@ if(input.grapplePressed&&!input.menu)tryGrapple();if(input.dash&&!input.menu)try
 player.move={gCd,dCd,gsp,zpCd,crouch:!!input.crouch};
 }
 
-NSR.Movement={createPose,tile,solid,collide,ray,fly,step};
+function renderPose(previous,current,alpha){
+ const pose={...current};
+ if(!previous||Math.hypot(current.x-previous.x,current.z-previous.z,current.h-previous.h)>4)return pose;
+ const scale=cl(alpha,0,1);
+ pose.eyeHeight=lerp(previous.low?.85:1.5,current.low?.85:1.5,scale);
+ for(const key of ['x','z','h','rl'])pose[key]=lerp(previous[key],current[key],scale);
+ return pose;
+}
+NSR.Movement={createPose,tile,solid,collide,ray,fly,step,renderPose};
 if(typeof module!=='undefined')module.exports=NSR.Movement;
 })(globalThis);

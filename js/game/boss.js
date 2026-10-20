@@ -96,7 +96,7 @@ function step(world,players,dt){
   if(boss.ring){
    const ring=boss.ring,previous=ring.radius;ring.radius+=14*boss.pressure*elapsed;
    for(const player of targets){const range=distance(player.pose,boss);
-    if(!(player.pose.h>.8)&&!ring.hit.includes(player.id)&&range>=previous-.6&&range<=ring.radius+.6){ring.hit.push(player.id);effects.push({type:'hurt',playerId:player.id,damage:hitDamage(player)});}
+    if(!(player.pose.h>.8)&&!ring.hit.includes(player.id)&&range>=previous-.6&&range<=ring.radius+.6){ring.hit.push(player.id);effects.push({type:'hurt',playerId:player.id,damage:hitDamage(player),source:{x:boss.x,z:boss.z}});}
    }
    if(ring.radius>=60)boss.ring=null;
   }
@@ -104,7 +104,7 @@ function step(world,players,dt){
   if(boss.warning){
    boss.warning.left-=elapsed;
    if(boss.warning.left<=1e-9){
-    for(const player of targets)if(distance(player.pose,boss.warning)<=boss.warning.radius)effects.push({type:'hurt',playerId:player.id,damage:hitDamage(player)});
+    for(const player of targets)if(distance(player.pose,boss.warning)<=boss.warning.radius)effects.push({type:'hurt',playerId:player.id,damage:hitDamage(player),source:{x:boss.x,z:boss.z}});
     boss.warning=null;
    }
   }else{
