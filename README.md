@@ -39,10 +39,13 @@ Keep the `js/` directory beside the HTML when copying or hosting the game.
 ## Dust Sovereign boss
 
 Sweep a site completely to teleport into an arena roughly six rooms in size.
-The Dust Sovereign shields and regenerates while dust remains: sweep every
-glowing patch, then shoot the exposed core. Three phases add double blasts and
-jumpable shockwaves, with a boss health bar and clear attack warnings. The green
-pad deposits dust, heals and resupplies; victory grants credits and rare parts.
+The Dust Sovereign shields while enemies or dust remain: clear each mandatory
+enemy wave and glowing patch, then shoot the exposed core. Three phases add faster
+double blasts and jumpable shockwaves, even during damage windows. Boss health
+and reinforcements scale with unlocked weapon upgrades and party strength.
+There is no player healing or safe pad during combat. Reserve reloads are unlimited
+until victory, but still take time. The green pad deposits dust only; defeat resets
+the entire encounter for a fresh attempt. Victory grants credits and rare parts.
 Solo and private co-op both support the encounter and save its progress.
 The existing 97% early-deployment option remains available before entering.
 
