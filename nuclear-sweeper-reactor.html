@@ -191,6 +191,7 @@ button.u:not(:disabled):hover .buybar{background:#b6e65a}
 <script src="js/core/map.js"></script>
 <script src="js/core/movement.js"></script>
 <script src="js/game/boss.js"></script>
+<script src="js/game/sweeper-visuals.js"></script>
 <script src="js/game/simulation.js"></script>
 <script src="js/net/protocol.js"></script>
 <script src="js/net/transport.js"></script>
@@ -316,8 +317,9 @@ function genMap(sec){let generated=NSR.Map.generate(sec,{roomDesign:S.roomDesign
  rebuildPB();E=[];Dr=[];P=[];F=[];EP=[];TR=[];if(!S.boss){const rooms=R.filter(room=>!room.sh);for(let index=0;index<Math.min(6+3*sec,28);index++)spawnIn(rooms[Math.random()*rooms.length|0]);spawnIsland();if(S.vOpen)spawnVault()}build3D();fullRef=true}
 function bossWorld(){return {M,D,SH,sector:S.sector,total:S.total,rem:S.rem,dirty,boss:S.boss}}
 function syncBossWorld(world){S.rem=world.rem;S.total=world.total}
-function enterBoss(){S.boss=NSR.Boss.create(S.sector);S.bossDead=0;S.clr=0;S.vOpen=0;S.vTaken=0;S.iTaken=0;genMap(S.sector);const world=bossWorld();NSR.Boss.seedDust(world);syncBossWorld(world);placeP();camCalc();dockShelter();say('Hanne Voss','Site spotless. Teleport complete. The Dust Sovereign feeds on contamination. Sweep every dust patch to expose its core. Orange circles: dodge. Shock rings: jump. The green pad is safe and resupplies you.');save()}
-function tickBoss(dt){if(!S.boss||S.bossDead)return;const world=bossWorld();for(const effect of NSR.Boss.step(world,[{id:'solo',pose:p}],dt)){if(effect.type==='hurt')hurt(effect.damage);if(effect.type==='victory'){S.bossDead=1;S.clr=1;S.cred+=1000+S.sector*250;S.parts+=3;celebrate({kind:'mastery',kicker:'SITE BOSS DEFEATED',title:'DUST SOVEREIGN FALLEN',sub:'+3 parts and '+(1000+S.sector*250)+' credits. Deploy from the green pad.',col:'#ffca79',mark:'V'});save()}}syncBossWorld(world)}
+function bossBriefing(){return S.boss?.kind==='sweeper'?'The Meltdown Sweeper is leaking nuclear dust. Sweep every patch, then sidestep its launched nose to expose the core briefly. One teammate getting hit blocks the opening. Orange lane: sidestep. Dust bombs: dodge and clean. Shock rings: jump. The green pad is safe and resupplies you.':'The Dust Sovereign feeds on contamination. Sweep every dust patch to expose its core. Orange circles: dodge. Shock rings: jump. The green pad is safe and resupplies you.'}
+function enterBoss(){S.boss=NSR.Boss.choose(S.sector,Math.random());S.bossDead=0;S.clr=0;S.vOpen=0;S.vTaken=0;S.iTaken=0;genMap(S.sector);const world=bossWorld();NSR.Boss.seedDust(world);syncBossWorld(world);placeP();camCalc();dockShelter();say('Hanne Voss','Site spotless. Teleport complete. '+bossBriefing());save()}
+function tickBoss(dt){if(!S.boss||S.bossDead)return;const world=bossWorld();for(const effect of NSR.Boss.step(world,[{id:'solo',pose:p}],dt)){if(effect.type==='hurt')hurt(effect.damage);if(effect.type==='victory'){S.bossDead=1;S.clr=1;S.cred+=1000+S.sector*250;S.parts+=3;celebrate({kind:'mastery',kicker:'SITE BOSS DEFEATED',title:NSR.Boss.name(S.boss)+' FALLEN',sub:'+3 parts and '+(1000+S.sector*250)+' credits. Deploy from the green pad.',col:'#ffca79',mark:'V'});save()}}syncBossWorld(world)}
 const minimap={panel:$('#minimap'),ctx:$('#map-canvas').getContext('2d'),base:document.createElement('canvas'),map:null,vault:null,next:0,pad:8,scale:240/Math.max(GW,GH)};
 minimap.base.width=minimap.base.height=256;
 function rebuildMinimap(){const ctx=minimap.base.getContext('2d'),scale=minimap.scale,pad=minimap.pad,colors=['#46533b','#11170e','#777458','#b05a46','#914b3d','#777458','#647254','#254f58','#777458','#e6a248','#b05a46'];
@@ -574,7 +576,7 @@ function barUpd(){const s=ST(S.L);for(let i=0;i<WP.length;i++){const e=SL[i];if(
  $('#tkt').textContent=(Math.max(0,S.tank)|0)+'/'+s.cap;$('#tkb').style.width=cl(S.tank/s.cap*100,0,100)+'%';
  $('#dust-meter').setAttribute('aria-valuemax',s.cap);$('#dust-meter').setAttribute('aria-valuenow',cl(S.tank,0,s.cap));$('#cur').innerHTML='<span>'+cur('c',20)+' <b>'+(S.cred|0)+'</b></span> <span>'+cur('s',20)+' <b>'+S.scrap+'</b></span> <span>'+cur('p',20)+' <b>'+S.parts+'</b></span>'+(S.raw>0?'<div class=inc>Refinery '+(S.raw|0)+' u · +'+(s.rate*s.yld).toFixed(1)+' credits/s</div>':'')}
 function barReload(){for(let i=0;i<SL.length;i++){const w=i==wi&&rel>0?((1-rel/relMax)*100|0)+'%':'0%';if(SL[i].rw!=w){SL[i].rb.style.width=w;SL[i].rw=w}}}
-function deploy(){if(coopSession){coopSession.perform('deploy').then(result=>{if(result.ok)closeShop();else toast(result.reason)});return}if(S.boss&&!S.bossDead){toast('Defeat the Dust Sovereign before deploying.');return}finishScore('Cleared');S.sector++;S.roomDesign=2;S.story=0;S.clr=0;S.vOpen=0;S.vTaken=0;S.iTaken=0;S.boss=null;S.bossDead=0;S.bty=null;genMap(S.sector);placeP();S.hp=ST(S.L).hp;closeShop();save()}
+function deploy(){if(coopSession){coopSession.perform('deploy').then(result=>{if(result.ok)closeShop();else toast(result.reason)});return}if(S.boss&&!S.bossDead){toast('Defeat '+NSR.Boss.name(S.boss)+' before deploying.');return}finishScore('Cleared');S.sector++;S.roomDesign=2;S.story=0;S.clr=0;S.vOpen=0;S.vTaken=0;S.iTaken=0;S.boss=null;S.bossDead=0;S.bty=null;genMap(S.sector);placeP();S.hp=ST(S.L).hp;closeShop();save()}
 function buy(id,weapon){if(coopSession){coopSession.perform('buy',{upgrade:id,weapon:weapon==null?wi:+weapon}).then(()=>{applyCoopView();renderShop()});return}const u=U.find(x=>x[0]==id);if(!u||u[0].startsWith('w'))return;const per=WUP[id]&&weapon!=null,levels=per?S.wl[+weapon]:S.L;if(!levels||(per&&!(+weapon==0||S.L['w'+weapon]>0)))return;const l=levels[id],c=cost(u,l),k=u[2]=='s'?'scrap':'cred';if(l>=u[5]||S[k]<c)return;S[k]-=c;levels[id]++;celebrate({kind:'buy',kicker:'UPGRADE',title:u[1],sub:(per?WP[+weapon].n+' · ':'')+'Level '+levels[id],col:k=='scrap'?CUR.s.col:CUR.c.col,mark:ico(id)});if(id=='suit')S.hp=ST(S.L).hp;if(shopOpen&&(id=='pouch'||id=='multi'))resupplyAmmo();renderShop();snd(520,.1,'triangle',.05);save()}
 const menuState={};
 function shelterContext(groups,state){
@@ -735,7 +737,7 @@ function shoot(s){const w=WP[wi],at=S.att[wi],o=fpv?CP:CP.H,sp=(adsE?w.sa*(at.b?
   for(let pass=0;pass<(w.pen||1);pass++){const h=cast(o,d,70,false,hit),power=Math.pow(w.fall||1,pass);
    if(TR.length<48)TR.push({a:start,b:h,l:.06});start=h;
    for(let j=0;j<3;j++)F.push({x:h.x,y:h.y,z:h.z,vx:rnd(-3,3),vy:rnd(0,4),vz:rnd(-3,3),l:.3,m:.3,c:h.e?'#8dff4a':'#ffb84a',r:.14});
-   if(h.boss){const world=bossWorld(),damage=NSR.Boss.damage(world,w.d*WS(wi).dm*dmul*(w.big||1)*power);syncBossWorld(world);if(damage>0){hmT=.18;hmH=0}else toast('SHIELDED: sweep every glowing dust patch first.');break}
+   if(h.boss){const world=bossWorld(),damage=NSR.Boss.damage(world,w.d*WS(wi).dm*dmul*(w.big||1)*power);syncBossWorld(world);if(damage>0){hmT=.18;hmH=0}else toast(S.boss.kind==='sweeper'?'SHIELDED: clean every patch, then dodge the launched nozzle.':'SHIELDED: sweep every glowing dust patch first.');break}
    if(!h.e)break;const e=h.e;let dm=w.d*WS(wi).dm*dmul*(ET[e.t].sc>1.2?(w.big||1):1);if(h.hd)dm=e.t==2?dm*4:Math.max(dm*4,e.mh*1.01);e.hp-=dm*power;if(e.hp<=0)recordKill(e,wi,h.hd);hit.add(e);hmT=.18;hmH=h.hd;if(!e.al)wake(e)}}
  noise(p.x,p.z,at.s?9:34);if(!(DEV_MODE&&DEV_TOOLS.infiniteAmmo))ammo[wi]--;wcd+=1/(w.r*WS(wi).fr);hf=1;kick=.06+w.rc*3;p.rp=Math.min(.3,p.rp+w.rc*(adsE?.5:1)*(at.b?1.15:1));mzT=at.s?0:.06;snd(at.s?140:180+wi*60,.06,'sawtooth',at.s?.008:.025)}
 function setW(i){if(i==0||S.L['w'+i]>0){if(coopSession){coopWeapon=i;return}wi=i;vmSet(WP[wi]);rel=0;relPh=0;wcd=.25;swT=.28}}
@@ -795,13 +797,18 @@ function buildBossVisuals(){const boss=S.boss,group=new THREE.Group(),armor=new 
  const body=new THREE.Mesh(new THREE.IcosahedronGeometry(2.5,1),armor);body.position.y=2.8;body.scale.set(1,1.1,1);group.add(body);
  const core=new THREE.Mesh(new THREE.IcosahedronGeometry(.85,1),glow);core.position.set(0,2.9,-2.3);group.add(core);
  for(let index=0;index<8;index++){const angle=index*Math.PI/4,arm=new THREE.Mesh(new THREE.BoxGeometry(.65,1.4,.65),armor);arm.position.set(Math.cos(angle)*2.6,1,Math.sin(angle)*2.6);arm.rotation.z=Math.cos(angle)*.35;group.add(arm);const spike=new THREE.Mesh(new THREE.ConeGeometry(.35,1,5),glow);spike.position.set(Math.cos(angle)*1.7,5.15,Math.sin(angle)*1.7);group.add(spike)}
+ let sweeper=null;if(boss.kind==='sweeper'){for(const child of group.children)child.visible=false;sweeper=NSR.SweeperVisuals.create(THREE);group.add(sweeper)}
  const shield=new THREE.Mesh(new THREE.SphereGeometry(3.05,24,16),new THREE.MeshBasicMaterial({color:0xc5e65b,transparent:true,opacity:.16,wireframe:true}));shield.position.y=2.8;group.add(shield);
  const warning=ring(0xff6a32,1,.09),shock=ring(0xffd369,1,.14);W3.add(group,warning,shock);
- const markers=new THREE.InstancedMesh(new THREE.CylinderGeometry(.08,.2,1,5),new THREE.MeshBasicMaterial({color:0xc5ee65}),64);markers.frustumCulled=false;W3.add(markers);W3.userData.boss={group,core,shield,warning,shock,markers}}
+ const lane=new THREE.Mesh(new THREE.BoxGeometry(7.2,.03,1),new THREE.MeshBasicMaterial({color:0xff8e38,transparent:true,opacity:.38}));lane.visible=false;W3.add(lane);
+ const markers=new THREE.InstancedMesh(new THREE.CylinderGeometry(.08,.2,1,5),new THREE.MeshBasicMaterial({color:0xc5ee65}),64);markers.frustumCulled=false;W3.add(markers);W3.userData.boss={group,core,shield,warning,shock,markers,lane,sweeper}}
 function drawBossVisuals(){const boss=S.boss,visual=W3?.userData.boss,panel=$('#boss-hud');panel.hidden=!boss||paused;if(!boss)return;$('#hint').style.display='none';
  const health=Math.max(0,boss.hp/boss.mh*100);$('#boss-health').style.width=health+'%';panel.querySelector('[role=progressbar]').setAttribute('aria-valuenow',Math.round(health));
- const patches=D.reduce((total,value)=>total+(value>0?1:0),0);$('#boss-status').textContent=boss.state==='dead'?'VICTORY - return to the green pad to deploy':`PHASE ${boss.phase}/3 - ${boss.state==='exposed'?'CORE EXPOSED - FIRE! '+Math.ceil(boss.timer)+'s':patches+' DUST PATCHES - SHIELDED + REGENERATING'} | ${boss.warning?'DODGE THE ORANGE BLAST':boss.ring?'JUMP THE SHOCK RING':'Sweep, dodge, expose the core'}`;
+ panel.querySelector('strong').textContent=NSR.Boss.name(boss);
+ const patches=D.reduce((total,value)=>total+(value>0?1:0),0),sweeper=boss.kind==='sweeper',cue=boss.nozzle||boss.warning?.kind==='nozzle'?'SIDESTEP THE LAUNCHED NOZZLE':boss.warning?.kind==='ring'||boss.ring?'JUMP THE SHOCK RING':boss.warning?'DODGE THE DUST BOMB':sweeper?(patches?'CLEAN LEAKS, THEN DODGE THE NOZZLE':'ARENA CLEAN - BAIT AND DODGE THE NOZZLE'):'Sweep, dodge, expose the core';$('#boss-status').textContent=boss.state==='dead'?'VICTORY - return to the green pad to deploy':`PHASE ${boss.phase}/3 - ${boss.state==='exposed'?'CORE EXPOSED - FIRE! '+boss.timer.toFixed(1)+'s':patches+' DUST PATCHES - SHIELDED + REGENERATING'} | ${cue}`;
  if(!visual)return;visual.group.visible=boss.state!=='dead';visual.group.rotation.y=Math.atan2(p.x-boss.x,p.z-boss.z)+Math.PI;visual.core.rotation.y=tt;visual.core.material.color.setHex(boss.state==='exposed'?0x77eeff:0xffaf58);visual.shield.visible=boss.state==='shielded';visual.shield.rotation.y=tt*.3;visual.shield.material.opacity=.13+Math.sin(tt*4)*.04;
+ if(visual.sweeper)NSR.SweeperVisuals.draw(visual.sweeper,boss,tt);
+ visual.lane.visible=boss.warning?.kind==='nozzle';if(visual.lane.visible){const warning=boss.warning,length=Math.hypot(warning.x-boss.x,warning.z-boss.z),direction=Math.atan2(warning.x-boss.x,warning.z-boss.z);visual.lane.position.set(boss.x+Math.sin(direction)*(length+4)/2,.08,boss.z+Math.cos(direction)*(length+4)/2);visual.lane.rotation.y=direction;visual.lane.scale.z=length+4;visual.lane.material.opacity=.25+(Math.sin(tt*15)+1)*.12}
  visual.warning.visible=!!boss.warning;if(boss.warning){visual.warning.position.set(boss.warning.x,.09,boss.warning.z);visual.warning.scale.setScalar(boss.warning.radius||3);visual.warning.material.color.setHex(Math.sin(tt*14)>0?0xff6330:0xffc268)}
  visual.shock.visible=!!boss.ring;if(boss.ring){visual.shock.position.set(boss.x,.14,boss.z);visual.shock.scale.setScalar(Math.max(.1,boss.ring.radius||.1))}
  let count=0;for(let index=0;index<D.length&&count<64;index++)if(D[index]>0){dummy.position.set((index%GW+.5)*TS,.7,((index/GW|0)+.5)*TS);dummy.rotation.set(0,tt,0);dummy.scale.set(1,1+Math.sin(tt*3+index)*.2,1);dummy.updateMatrix();visual.markers.setMatrixAt(count++,dummy.matrix)}visual.markers.count=count;visual.markers.instanceMatrix.needsUpdate=true}
@@ -890,8 +897,8 @@ function coopWorldChanged(){const view=coopSession?.view();if(!view)return;
 const remotePlayers=NSR.RemotePlayers.create({THREE,scene:sc,template:pm});
 function drawCoopPlayers(){remotePlayers.update(coopRemote);}
 function coopGameEvent(event){const own=event.playerId===coopSession?.view()?.localId;
- if(event.type==='boss')say('Hanne Voss','Site spotless. Team teleport complete. Sweep every dust patch to expose the Dust Sovereign. Dodge orange blasts and jump shock rings. The green pad resupplies everyone.');
- if(event.type==='boss-victory')say('Hanne Voss','The Dust Sovereign has fallen. Team rewarded: '+(1000+S.sector*250)+' credits and 3 parts. Return to the green pad and ready up to deploy.');
+ if(event.type==='boss')say('Hanne Voss','Site spotless. Team teleport complete. '+bossBriefing());
+ if(event.type==='boss-victory')say('Hanne Voss',NSR.Boss.name(S.boss)+' has fallen. Team rewarded: '+(1000+S.sector*250)+' credits and 3 parts. Return to the green pad and ready up to deploy.');
  if(event.type==='story'){const message=getSec(event.sector).b[event.index];if(message)say(message[1],message[2]);}
  if(event.type==='shot'){if(!own)remotePlayers.shot(event.playerId);for(const hit of event.traces||[])if(TR.length<48)TR.push({a:event.origin,b:hit,l:.08});if(!own)snd(200,.04,'sawtooth',.008)}
  if(event.type==='hit'&&own){hmT=.18;hmH=event.headshot}

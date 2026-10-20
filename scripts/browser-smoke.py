@@ -45,6 +45,34 @@ class ManagedServer:
         return await self.start()
 
 
+async def sweeper_check(page):
+    result = await page.evaluate("""() => {
+      S.boss=NSR.Boss.create(S.sector,'sweeper');S.bossDead=0;S.clr=0;genMap(S.sector);
+      const world=bossWorld();NSR.Boss.seedDust(world);syncBossWorld(world);
+      shopOpen=false;setOpen=false;devOpen=false;resumePending=false;paused=false;
+      document.querySelector('#shop').style.display='none';
+      const devPanel=document.querySelector('#dev-panel');if(devPanel)devPanel.style.display='none';
+      Object.assign(p,{x:60,z:70,h:0,yaw:-Math.PI/4,pit:.08});camCalc();draw();
+      const visual=W3.userData.boss,model=visual.sweeper,details=model.userData.sweeperVisuals;
+      if(!model.visible||!details.nozzle.visible||!document.querySelector('#boss-hud strong').textContent.includes('MELTDOWN'))throw Error('Sweeper model/HUD missing');
+      world.D.fill(0);world.rem=0;NSR.Boss.step(world,[],0);
+      if(S.boss.state!=='shielded')throw Error('Cleanup bypassed the dodge gate');
+      const target={id:'solo',pose:{x:56,z:58,h:0}};S.boss.attack=0;
+      NSR.Boss.step(world,[target],0);syncBossWorld(world);draw();
+      if(!visual.lane.visible)throw Error('Nozzle lane warning missing');
+      NSR.Boss.step(world,[target],S.boss.warning.left+.2);draw();
+      const position=details.nozzle.getWorldPosition(new THREE.Vector3());
+      if(details.hoseRig.visible||Math.abs(position.x-S.boss.nozzle.x)>.01||Math.abs(position.z-S.boss.nozzle.z)>.01)throw Error('Detached nozzle diverged from simulation');
+      target.pose.z=63;NSR.Boss.step(world,[target],1);syncBossWorld(world);draw();
+      if(S.boss.state!=='exposed'||!document.querySelector('#boss-status').textContent.includes('CORE EXPOSED'))throw Error('Dodge did not expose the core');
+      if(Math.abs(details.shutters[0].mesh.position.x)<.9)throw Error('Core shutters did not open');
+      NSR.Boss.damage(world,1e9);syncBossWorld(world);save();const loaded=load();
+      if(loaded.boss.kind!=='sweeper'||loaded.boss.phase!==2)throw Error('Sweeper save round trip failed');
+      return {kind:S.boss.kind,phase:S.boss.phase,remaining:world.rem};
+    }""")
+    assert result["kind"] == "sweeper" and result["phase"] == 2 and result["remaining"] > 0, result
+
+
 async def smoke(args, server=None):
     errors = []
     async with async_playwright() as playwright:
@@ -70,11 +98,13 @@ async def smoke(args, server=None):
         await solo.reload()
         await solo.locator("#coop-solo").click()
         assert await solo.evaluate("S.cred") == 123
+        await sweeper_check(solo)
         await solo.goto(args.url + "/nuclear-sweeper-dev.html")
         dev = solo.frame_locator("iframe")
         await dev.locator("#coop-solo").click()
         await dev.locator('[data-dev="max-all"]').click()
         assert await dev.locator("#dev-panel").evaluate("() => S.L.boots===30&&S.mod.gr===1&&JSON.parse(localStorage.getItem('nsr1')).cred===123")
+        await sweeper_check(solo.frames[1])
         await solo_context.close()
         # Drive simulation separately from rendering to keep this network/UI test
         # usable on software WebGL. The real render path is checked explicitly below.
@@ -193,7 +223,7 @@ async def smoke(args, server=None):
         disposal = await pages[1].evaluate("""() => {remotePlayers.update(coopSession.view().remote);const models=coopSession.view().remote.map(p=>sc.getObjectByName('sweeper:'+p.id));let disposed=0;for(const model of models)model.getObjectByName('equipped-weapon').children[0].geometry.addEventListener('dispose',()=>disposed++);remotePlayers.clear();return {disposed,remaining:remotePlayers.stats().players};} """)
         assert disposal == {"disposed": 3, "remaining": 0}, disposal
         assert not errors, errors
-        print(json.dumps({"browser": args.browser, "version": browser.version, "clients": 4, "transport": "real WebRTC / localhost", "checks": ["narrow mode menu", "normal solo save round trip", "developer iframe/max loadout isolation", "join", "host-confirmed hotbar selection", "movement", "equipped weapon, attachments and mastery", "grapple rope", "pause", "deployment", "guest reload/reconnect", "signaling request outage with RTC continuity", "signaling recovery and identity-preserving rejoin", "avatar disposal"] + (["signaling process restart with RTC continuity", "checkpoint rehost preserves world and all four identities"] if server else []), "errors": errors}, indent=2))
+        print(json.dumps({"browser": args.browser, "version": browser.version, "clients": 4, "transport": "real WebRTC / localhost", "checks": ["narrow mode menu", "normal solo save round trip", "developer iframe/max loadout isolation", "Sweeper model, warning lane and detached nozzle in both entries", "Sweeper dodge exposure, shutters and phase save round trip", "join", "host-confirmed hotbar selection", "movement", "equipped weapon, attachments and mastery", "grapple rope", "pause", "deployment", "guest reload/reconnect", "signaling request outage with RTC continuity", "signaling recovery and identity-preserving rejoin", "avatar disposal"] + (["signaling process restart with RTC continuity", "checkpoint rehost preserves world and all four identities"] if server else []), "errors": errors}, indent=2))
         for page in pages:
             await page.evaluate("coopSession?.close()")
         await browser.close()

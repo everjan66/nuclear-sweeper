@@ -240,7 +240,7 @@ function updateLoot(world,players,dt){
 }
 function enterBoss(world){
  const Boss=bossApi();
- Object.assign(world,Boss.arena(Maps.generate(world.sector)),{E:[],Dr:[],EP:[],dirty:[],clr:0,vOpen:0,vTaken:0,iTaken:0,bossDead:0,bty:null,boss:Boss.create(world.sector)});
+ Object.assign(world,Boss.arena(Maps.generate(world.sector)),{E:[],Dr:[],EP:[],dirty:[],clr:0,vOpen:0,vTaken:0,iTaken:0,bossDead:0,bty:null,boss:Boss.choose(world.sector,random(world))});
  for(const player of Object.values(world.players)){dock(world,player);player.pose=Movement.createPose(world.SH);player.pose.z=world.SH.z;player.move={};player.ready=false;player.fireHeld=false;}
  Boss.seedDust(world);world.generation++;caches.delete(world);event(world,'boss');
 }
