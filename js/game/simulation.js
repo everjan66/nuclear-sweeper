@@ -14,9 +14,9 @@ const finite=(value,min,max)=>Number.isFinite(value)&&value>=min&&value<=max;
 function random(world){world.rngState=(Math.imul(world.rngState,1664525)+1013904223)>>>0;return world.rngState/4294967296;}
 function event(world,type,data={}){if(world.events.length<256)world.events.push({type,...data});}
 function nextId(world,prefix){return prefix+(++world.entitySeq);}
-function createWorld({sector=1,dev=false}={}){
+function createWorld({sector=1,dev=false,roomDesign=2}={}){
  if(!Number.isInteger(sector)||sector<1||sector>100)throw new Error('Invalid site.');
- const world={...Maps.generate(sector),version:1,dev:!!dev,generation:1,time:0,tick:0,rngState:sector*977+11,entitySeq:0,hostId:null,
+ const world={...Maps.generate(sector,{roomDesign}),version:1,dev:!!dev,generation:1,time:0,tick:0,rngState:sector*977+11,entitySeq:0,hostId:null,
   team:{cred:0,scrap:0,parts:0,raw:0,ref:0,yld:0},players:{},E:[],Dr:[],EP:[],events:[],dirty:[],story:0,clr:0,vOpen:0,vTaken:0,iTaken:0,boss:null,bossDead:0,bty:null,spawnT:3.5};
  for(let index=0;index<Math.min(6+3*sector,28);index++)spawn(world,false);
  if(world.ISL)for(let index=0;index<2;index++)world.Dr.push({id:nextId(world,'l'),x:world.ISL.x+(index?.8:-.8),z:world.ISL.z,y:.4,vx:0,vz:0,k:'part',a:1,m:'i',bit:1<<index});
@@ -172,8 +172,8 @@ function updatePlayer(world,player,input,dt){
  }
  const tile=(pose.z/TS|0)*GW+(pose.x/TS|0),height=world.M[tile]===6?3.2:0,radiation=(pose.h>=height-.3?world.D[tile]||0:0)*(1+.25*(world.sector-1));
  const damage=(sheltered||pose.h-height>.5?0:Math.max(0,radiation*5-stats.suit*.8))+(world.M[tile]===7&&pose.h<.45?Math.max(5,24-stats.suit*2.5):0);
- player.exposure=damage;if(!world.dev||!world.assists?.invincible)player.hp-=damage*dt;
- if(damage<=0)player.hp=Math.min(stats.hp,player.hp+(sheltered?25:1.5)*dt);
+ const laserDamage=Maps.laserDamage(world,pose,world.time);player.exposure=damage+laserDamage;if(!world.dev||!world.assists?.invincible)player.hp-=(damage+laserDamage)*dt;
+ if(damage+laserDamage<=0)player.hp=Math.min(stats.hp,player.hp+(sheltered?25:1.5)*dt);
  player.bladeCd-=dt;if(world.M[tile]===10&&pose.h<.9&&player.bladeCd<=0&&pose.st===0){hurt(world,player,28);pose.vx*=-.5;pose.vz*=-.5;player.bladeCd=.8;}
  if(world.TERM&&!world.vOpen&&distance(pose,world.TERM)<2.6&&player.tank>=20){player.tank-=20;openVault(world);}
  for(const depot of world.DEP)if(distance(pose,depot)<2.4&&pose.h<1.2&&player.tank>.5){world.team.raw+=player.tank;player.tank=0;event(world,'deposit',{playerId:player.id});}
@@ -307,7 +307,8 @@ function validPlayer(saved){
 function restore(raw){
  if(!raw||raw.version!==1||!Number.isInteger(raw.sector)||raw.sector<1||raw.sector>100||!raw.team||!raw.players)throw new Error('Unsupported co-op checkpoint.');
  if(!Array.isArray(raw.M)||raw.M.length!==GW*GH||!raw.M.every(value=>Number.isInteger(value)&&value>=0&&value<=10)||!Array.isArray(raw.D)||raw.D.length!==GW*GH||!raw.D.every(value=>finite(value,0,1)))throw new Error('Invalid co-op map.');
- const world=createWorld({sector:raw.sector,dev:raw.dev});let generated=Maps.generate(raw.sector,{vOpen:raw.vOpen}),boss=null;
+ const roomDesign=raw.roomDesign??1;if(![0,1,2].includes(roomDesign))throw new Error('Unsupported room layout.');
+ const world=createWorld({sector:raw.sector,dev:raw.dev,roomDesign});let generated=Maps.generate(raw.sector,{roomDesign,vOpen:raw.vOpen}),boss=null;
  if(raw.boss!=null){boss=bossApi().restore(raw.boss,raw.sector);if(!boss)throw new Error('Invalid checkpoint boss.');generated=bossApi().arena(generated);}
  if(raw.M.some((value,index)=>value!==generated.M[index]))throw new Error('Checkpoint geometry does not match this version.');
  for(const key of Object.keys(world.team))if(!finite(raw.team[key],0,1e12))throw new Error('Invalid team resources.');

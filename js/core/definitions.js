@@ -37,7 +37,10 @@ const ROOM_DESIGNS=[
  {n:'SAMPLE LAB',color:0x9dd5a2,tint:[-10,12,0]},
  {n:'SERVICE ARCHIVE',color:0xafa0dc,tint:[6,-6,14]},
  {n:'COLLAPSED WORKS',color:0xd58b6c,tint:[12,-8,-12]},
- {n:'TRANSFER ATRIUM',color:0xd4d6be,tint:[6,8,2]}
+ {n:'TRANSFER ATRIUM',color:0xd4d6be,tint:[6,8,2]},
+ {n:'GANTRY EXCHANGE',color:0x65d4df,tint:[-8,10,16]},
+ {n:'LASER FOUNDRY',color:0xffa268,tint:[16,2,-8]},
+ {n:'RELAY CHAMBER',color:0xbba1ef,tint:[8,-4,18]}
 ];
 const ATT={s:['Suppressor',3,'quiet: only wakes enemies within 9 m; -6% damage'],b:['Extended barrel',4,'+12% damage, tighter aim down sights, +15% recoil'],l:['Laser sight',2,'-40% hip-fire spread, visible laser beam']};
 const MOD={gr:['Grapple hook',6,'G: aim at any surface. Hold to reel in, release to keep your momentum. Grabs ledges automatically.'],dash:['Air-dash',5,'F: burst of speed in your move direction. Once per jump, or every second on the ground.']};
