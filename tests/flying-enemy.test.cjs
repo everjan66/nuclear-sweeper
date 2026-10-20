@@ -9,6 +9,12 @@ function pursue(world,enemy,target,ticks=640){let hits=0;for(let tick=0;tick<tic
  assert.equal(Movement.collide(world,enemy.x,enemy.z,.4,enemy.h,1.44),0);
  assert.ok(enemy.h>=0&&enemy.h+1.44<=Defs.WH);
  }return hits;}
+test('boss Shriekers can fly into the arena deposit pad while normal flyers respect shelter safety',()=>{
+ const world=fixture();world.SH={x:41,z:41};const target={...world.SH,h:0};
+ const minion={...shrieker(51,41),bossMinion:true};
+ assert.ok(pursue(world,minion,target)>0);assert.ok(Math.hypot(minion.x-target.x,minion.z-target.z)<1.65);
+ const normal=shrieker(51,41);assert.equal(pursue(world,normal,target),0);assert.ok(Math.hypot(normal.x-target.x,normal.z-target.z)>=7);
+});
 test('Shriekers fly to both raised walkways and floating platforms and deal melee damage',()=>{
  for(const kind of [3,6]){const world=fixture(),enemy=shrieker(),target={x:41,z:41,h:Defs.TT[kind]};
   for(let row=19;row<=21;row++)for(let column=19;column<=21;column++)world.M[row*60+column]=kind;

@@ -3,8 +3,9 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const Boss=require('../js/game/boss.js');
 const Maps=require('../js/core/map.js');
 const {WP,mkL}=require('../js/core/definitions.js');
-function fixture(phase=1){const world=Boss.arena({sector:1,dirty:[]});world.boss=Boss.create(1);world.boss.phase=phase;world.boss.hp=world.boss.mh*(4-phase)/3;Boss.seedDust(world);Boss.step(world,[],0);return world;}
-function clean(world){world.D.fill(0);world.rem=0;Boss.step(world,[],0);Boss.step(world,[],0);}
+function spawnWave(world,players=[]){Boss.step(world,players,0);if(world.boss.spawnWarning)world.boss.spawnWarning.left=0;return Boss.step(world,players,0);}
+function fixture(phase=1){const world=Boss.arena({sector:1,dirty:[]});world.boss=Boss.create(1);world.boss.phase=phase;world.boss.hp=world.boss.mh*(4-phase)/3;Boss.seedDust(world);spawnWave(world);return world;}
+function clean(world){world.D.fill(0);world.rem=0;spawnWave(world);Boss.step(world,[],0);}
 function player(id,x=56,z=58,h=0){return {id,pose:{x,z,h}};}
 function geared(id='gear'){return {...player(id),L:mkL(),wl:WP.map(()=>({dmg:0,fr:0,multi:0})),att:WP.map(()=>({s:0,b:0,l:0}))};}
 test('arena mutates the map into a bounded 27 by 19 floor with renderer rooms',()=>{
@@ -43,7 +44,7 @@ test('Float32 sweeping drift cannot block full-site completion or boss exposure'
  const site=Maps.generate(1);site.D=Float32Array.from(site.D);sweep(site);
  assert.ok(Math.abs(site.rem)>1e-6);assert.ok(site.D.every(value=>value===0));assert.equal(Boss.isClean(site),true);assert.equal(site.rem,0);
  const world=Boss.arena(Maps.generate(2));world.boss=Boss.create(2);world.D=Float32Array.from(world.D);Boss.seedDust(world);sweep(world);
- assert.ok(world.rem>1e-6);Boss.step(world,[],0);assert.equal(world.rem,0);assert.equal(world.boss.state,'shielded');Boss.step(world,[],0);assert.equal(world.boss.state,'exposed');
+ assert.ok(world.rem>1e-6);Boss.step(world,[],0);assert.equal(world.rem,0);assert.equal(world.boss.state,'shielded');spawnWave(world);Boss.step(world,[],0);assert.equal(world.boss.state,'exposed');
 });
 test('huge damage stops at each boundary and cannot skip shields or phases',()=>{
  const world=fixture();
@@ -108,8 +109,9 @@ test('strongest owned sustained weapon scales health regardless of equipped sele
 test('waves gate damage and exposure once per phase, not once per cleanup',()=>{
  const world=Boss.arena({sector:1});world.boss=Boss.create(1);
  for(let phase=1;phase<=3;phase++){
-  const effects=Boss.step(world,[player('target')],0);assert.equal(effects.length,1);assert.equal(effects[0].type,'summon');assert.equal(effects[0].units.length,phase+2);assert.equal(world.boss.summonedPhase,phase);assert.equal(world.boss.state,'shielded');
+  const effects=spawnWave(world,[player('target')]);assert.equal(effects.length,1);assert.equal(effects[0].type,'summon');assert.equal(effects[0].units.length,phase+2);assert.equal(world.boss.summonedPhase,phase);assert.equal(world.boss.state,'shielded');
   if(phase>=2){assert.ok(effects[0].units.some(unit=>unit.t===2));assert.ok(effects[0].units.some(unit=>unit.t===3));}
+  assert.equal(effects[0].units.filter(unit=>unit.t===4).length,phase===3?2:1);
   world.E=[{hp:1,gone:false}];world.D.fill(0);Boss.step(world,[],0);assert.equal(world.boss.state,'shielded');
   world.boss.state='exposed';assert.equal(Boss.damage(world,100000),0);world.boss.state='shielded';world.E[0].gone=true;clean(world);assert.equal(world.boss.state,'exposed');
   Boss.step(world,[],11-phase);assert.equal(world.boss.state,'shielded');assert.equal(Boss.step(world,[],0).filter(effect=>effect.type==='summon').length,0);
@@ -124,10 +126,10 @@ test('deferred summons never expose during the emitting step even with large dt'
  world.E=[{hp:0},{hp:100,gone:true}];assert.equal(Boss.damage(world,10),10);
 });
 test('spawn spots are deterministic interior floor, spaced away from players and boss',()=>{
- const target=player('target',35,43),make=()=>{const world=Boss.arena({sector:1});world.boss=Boss.create(1,[target]);return {world,effect:Boss.step(world,[target],0)[0]};};
+ const target=player('target',35,43),make=()=>{const world=Boss.arena({sector:1});world.boss=Boss.create(1,[target]);return {world,effect:spawnWave(world,[target])[0]};};
  const {world,effect}=make();assert.deepEqual(effect,make().effect);
  for(const unit of effect.units){assert.equal(world.M[Math.floor(unit.z/2)*60+Math.floor(unit.x/2)],0);assert.ok(unit.x>32&&unit.x<86&&unit.z>40&&unit.z<78);assert.ok(Math.hypot(unit.x-target.pose.x,unit.z-target.pose.z)>=8);assert.ok(Math.hypot(unit.x-world.boss.x,unit.z-world.boss.z)>=6);assert.equal(unit.hpScale,1);}
- const strong=geared();strong.L.w4=1;strong.wl[4]={dmg:40,fr:30,multi:8};world.boss=Boss.create(1,Array(8).fill(strong));const scaled=Boss.step(world,[strong],0)[0];assert.ok(scaled.units.length<=10&&scaled.units.length>3);assert.ok(scaled.units.every(unit=>unit.hpScale===Math.min(12,Math.sqrt(world.boss.power))));
+ const strong=geared();strong.L.w4=1;strong.wl[4]={dmg:40,fr:30,multi:8};world.boss=Boss.create(1,Array(8).fill(strong));const scaled=spawnWave(world,[strong])[0];assert.ok(scaled.units.length<=10&&scaled.units.length>3);assert.ok(scaled.units.every(unit=>unit.hpScale===Math.min(12,Math.sqrt(world.boss.power))));
 });
 test('wave, balance, targeting and exposed attacks restore and reject invalid new fields',()=>{
  const world=fixture();clean(world);world.boss.attack=0;Boss.step(world,[player('target',40)],0);
@@ -136,6 +138,28 @@ test('wave, balance, targeting and exposed attacks restore and reject invalid ne
  for(const change of [{power:0},{power:Infinity},{pressure:2},{summonedPhase:4},{summonedPhase:.5},{summonedPhase:2},{balanceVersion:2},{balanceVersion:NaN},{targetCursor:-1},{targetCursor:.5}])assert.equal(Boss.restore({...raw,...change},1),null);
  const legacy={...raw,mh:500,hp:450};for(const key of ['power','pressure','summonedPhase','balanceVersion','targetCursor'])delete legacy[key];
  world.boss=Boss.restore(legacy,1);assert.ok(world.boss);assert.equal(world.boss.balanceVersion,0);
- const strong=geared();strong.wl[0].dmg=20;assert.equal(Boss.step(world,[strong],0)[0].type,'summon');assert.equal(world.boss.balanceVersion,1);assert.ok(world.boss.mh>500);assert.equal(world.boss.hp/world.boss.mh,.9);
+ const strong=geared();strong.wl[0].dmg=20;assert.equal(spawnWave(world,[strong])[0].type,'summon');assert.equal(world.boss.balanceVersion,1);assert.ok(world.boss.mh>500);assert.equal(world.boss.hp/world.boss.mh,.9);
  const mh=world.boss.mh;Boss.step(world,[geared()],0);assert.equal(world.boss.mh,mh);assert.ok(!Boss.step(world,[],0).some(effect=>effect.type==='summon'));
+});
+test('spawn telegraphs last 1.5 seconds and announce the exact wave before it appears',()=>{
+ const world=Boss.arena({sector:1});world.boss=Boss.create(1);
+ assert.deepEqual(Boss.step(world,[],0),[]);const warning=structuredClone(world.boss.spawnWarning);
+ assert.equal(warning.left,1.5);assert.equal(warning.units.length,3);
+ assert.deepEqual(Boss.step(world,[],1.49),[]);assert.ok(world.boss.spawnWarning.left>0);
+ world.boss.state='exposed';assert.equal(Boss.damage(world,100),0);world.boss.state='shielded';
+ assert.deepEqual(Boss.step(world,[],.01),[{type:'summon',units:warning.units}]);
+ assert.equal(world.boss.spawnWarning,null);assert.equal(world.boss.state,'shielded');
+ assert.equal(Boss.step(world,[],0).filter(effect=>effect.type==='summon').length,0);
+});
+test('pending spawn telegraphs survive restore without aliases, restart or duplicate summons',()=>{
+ const world=Boss.arena({sector:1});world.boss=Boss.create(1);Boss.step(world,[],.5);
+ const raw=structuredClone(world.boss),copy={...world,boss:Boss.restore(raw,1)};
+ assert.deepEqual(copy.boss,world.boss);assert.notEqual(copy.boss.spawnWarning.units,raw.spawnWarning.units);
+ assert.notEqual(copy.boss.spawnWarning.units[0],raw.spawnWarning.units[0]);
+ assert.deepEqual(Boss.step(copy,[],1),Boss.step(world,[],1));assert.deepEqual(copy.boss,world.boss);
+ assert.equal(copy.boss.spawnWarning,null);assert.deepEqual(Boss.step(copy,[],0),[]);
+ const invalid=[{left:NaN},{left:-1},{left:2},{units:[]},{units:Array(11).fill(raw.spawnWarning.units[0])},{units:[{t:99,x:35,z:43,hpScale:1}]},{units:[{t:0,x:Infinity,z:43,hpScale:1}]},{units:[{t:0,x:35,z:43,hpScale:0}]}];
+ for(const change of invalid)assert.equal(Boss.restore({...raw,spawnWarning:{...raw.spawnWarning,...change}},1),null);
+ assert.equal(Boss.restore({...raw,state:'exposed'},1),null);
+ const legacy=structuredClone(raw);delete legacy.spawnWarning;assert.ok(Boss.restore(legacy,1));
 });

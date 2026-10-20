@@ -17,7 +17,7 @@ function ray(world,o,d,max){let t=0;while(t<max){t=Math.min(max,t+.1);if(solid(w
 const flightPaths=new WeakMap();
 function fly(world,enemy,target,dt,speed){
  const radius=.5*ET[enemy.t].sc,body=1.8*ET[enemy.t].sc,cruise=Math.min(WH-body-.1,Math.max(3.35,target.h||0));
- const blocked=(x,z,height)=>height<0||height+body>WH||Math.hypot(x-world.SH.x,z-world.SH.z)<7||collide(world,x,z,radius,height,body);
+ const blocked=(x,z,height)=>height<0||height+body>WH||!enemy.bossMinion&&Math.hypot(x-world.SH.x,z-world.SH.z)<7||collide(world,x,z,radius,height,body);
  const current=(enemy.z/TS|0)*GW+(enemy.x/TS|0),goal=(target.z/TS|0)*GW+(target.x/TS|0);
  let path=flightPaths.get(enemy);
  if(!path||path.goal!==goal||path.world.M!==world.M||path.cruise!==cruise||path.left<=0){
