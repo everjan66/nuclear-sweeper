@@ -51,7 +51,7 @@ test('a clean arena plus an actual nozzle dodge opens a short, phase-scaled dama
 test('dirty arenas and nozzle impacts block exposure; continuous collision hits each teammate only once',()=>{
  const dirty=fixture(),dodger=player();dodge(dirty,dodger);assert.equal(dirty.boss.state,'shielded');
  const world=fixture(),target=player(),ally=player('ally',60),safe=player('safe',40),jump=player('jump',60,58,2);clean(world);launch(world,target);
- const effects=Boss.step(world,[target,ally,safe,jump],1);assert.deepEqual(effects.map(effect=>effect.playerId).sort(),['ally','target']);assert.ok(effects.every(effect=>effect.damage===31));assert.equal(world.boss.state,'shielded');
+ const effects=Boss.step(world,[target,ally,safe,jump],1);assert.deepEqual(effects.map(effect=>effect.playerId).sort(),['ally','target']);assert.ok(effects.every(effect=>effect.damage===34));assert.equal(world.boss.state,'shielded');
  const team=fixture(),bait=player(),blocker=player('blocker',60);clean(team);launch(team,bait);bait.pose.z+=5;
  assert.equal(Boss.step(team,[bait,blocker],1).length,1);assert.equal(team.boss.state,'shielded');
 });
@@ -63,14 +63,14 @@ test('disconnects, dead targets and shelter camping do not award a free dodge op
 });
 test('dust bombs damage their telegraphed area and add sweepable dust with correct dirty totals',()=>{
  const world=fixture(),target=player(),safe=player('safe',40);clean(world);world.boss.wave=1;world.boss.attack=0;Boss.step(world,[target,safe],0);
- assert.equal(world.boss.warning.kind,'salvo');const effects=Boss.step(world,[target,safe],1.1);assert.equal(effects.length,1);assert.equal(effects[0].damage,24);
+ assert.equal(world.boss.warning.kind,'salvo');const effects=Boss.step(world,[target,safe],1.1);assert.equal(effects.length,1);assert.equal(effects[0].damage,27);
  assert.equal(world.D.filter(Boolean).length,5);assert.equal(world.rem,world.D.reduce((sum,value)=>sum+value,0));assert.ok(world.dirty.includes(29*60+28));assert.equal(world.boss.state,'shielded');
  const dodged=fixture(),runner=player();clean(dodged);dodged.boss.wave=1;dodged.boss.attack=0;Boss.step(dodged,[runner],0);runner.pose.z+=5;assert.deepEqual(Boss.step(dodged,[runner],1.1),[]);assert.ok(dodged.rem>0);
 });
 test('the third attack telegraphs an expanding shock ring with jumping and shelter immunity',()=>{
  const world=fixture(3),ground=player('ground',62),jump=player('jump',62,58,1),safe=player('safe',40);world.boss.wave=3;world.boss.attack=0;
  Boss.step(world,[ground,jump,safe],0);assert.equal(world.boss.warning.kind,'ring');Boss.step(world,[ground,jump,safe],1.1);
- assert.ok(world.boss.ring);assert.deepEqual(Boss.step(world,[ground,jump,safe],1),[{type:'hurt',playerId:'ground',damage:26}]);assert.deepEqual(Boss.step(world,[ground,jump,safe],.1),[]);
+ assert.ok(world.boss.ring);assert.deepEqual(Boss.step(world,[ground,jump,safe],1),[{type:'hurt',playerId:'ground',damage:29}]);assert.deepEqual(Boss.step(world,[ground,jump,safe],.1),[]);
 });
 test('all three phases require new cleanup and a dodge, cap huge damage, and reward victory once',()=>{
  const world=fixture();
@@ -79,6 +79,75 @@ test('all three phases require new cleanup and a dodge, cap huge damage, and rew
   if(phase<3){assert.equal(world.boss.phase,phase+1);assert.equal(world.boss.state,'shielded');assert.ok(world.rem>0);assert.equal(Boss.damage(world,1e9),0);}
  }
  assert.deepEqual(Boss.step(world,[],0),[{type:'victory'}]);assert.deepEqual(Boss.step(world,[],10),[]);
+});
+test('Sweeper damage increases across phases without changing nozzle warnings',()=>{
+ for(let phase=1;phase<=3;phase++){
+  const world=fixture(phase),target=player();world.boss.attack=0;Boss.step(world,[target],0);
+  assert.equal(world.boss.warning.left,1.25-phase*.1);Boss.step(world,[target],world.boss.warning.left);
+  assert.equal(Boss.step(world,[target],1)[0].damage,[34,37,40][phase-1]);
+  const bombs=fixture(phase);bombs.boss.wave=1;bombs.boss.attack=0;Boss.step(bombs,[target],0);
+  assert.equal(Boss.step(bombs,[target],1.1)[0].damage,[27,29,31][phase-1]);
+  const rings=fixture(phase),nearby=player('nearby',62);rings.boss.wave=3;rings.boss.attack=0;Boss.step(rings,[nearby],0);Boss.step(rings,[nearby],1.1);
+  assert.equal(Boss.step(rings,[nearby],1)[0].damage,[25,27,29][phase-1]);
+ }
+});
+test('pressure sweeps join the later-phase pattern without replacing nozzle dodge opportunities',()=>{
+ for(let phase=1;phase<=3;phase++)for(let wave=0;wave<8;wave++){
+  const world=fixture(phase);world.boss.wave=wave;world.boss.attack=0;Boss.step(world,[player()],0);
+  const expected=phase>=2&&wave===5?'sweep':wave%2===0?'nozzle':wave%4===1?'salvo':'ring';
+  assert.equal(world.boss.warning.kind,expected);
+  if(expected==='sweep'){assert.equal(world.boss.warning.left,1.4);assert.equal(world.boss.warning.x,72);assert.equal(world.boss.warning.z,58);}
+ }
+});
+test('Sweeper recovery gaps are shorter while telegraphs retain their dodge time',()=>{
+ for(const [phase,wave,kind,gap] of [[1,1,'salvo',.65],[2,3,'ring',.8],[2,5,'sweep',.8]]){
+  const world=fixture(phase),target=player();world.boss.wave=wave;world.boss.attack=0;Boss.step(world,[target],0);
+  assert.equal(world.boss.warning.kind,kind);assert.equal(world.boss.warning.left,kind==='sweep'?1.4:1.1);
+  Boss.step(world,[target],world.boss.warning.left);assert.ok(Math.abs(world.boss.attack-gap)<1e-9);
+  Boss.step(world,[target],gap-.05);assert.equal(world.boss.warning,null);Boss.step(world,[target],.05);
+  assert.equal(world.boss.warning.kind,'nozzle');assert.equal(world.boss.warning.left,1.25-phase*.1);
+ }
+ const world=fixture(),target=player();launch(world,target);
+ for(let tick=0;world.boss.nozzle&&tick<100;tick++)Boss.step(world,[target],.025);
+ assert.equal(world.boss.nozzle,null);assert.equal(world.boss.attack,1.15);
+ Boss.step(world,[target],1.1);assert.equal(world.boss.warning,null);Boss.step(world,[target],.05);assert.equal(world.boss.warning.kind,'salvo');assert.equal(world.boss.warning.left,1.1);
+ const exposed=fixture();exposed.boss.state='exposed';exposed.boss.timer=.2;Boss.step(exposed,[target],.2);assert.equal(exposed.boss.attack,.9);
+ Boss.step(exposed,[target],.85);assert.equal(exposed.boss.warning,null);Boss.step(exposed,[target],.05);assert.equal(exposed.boss.warning.kind,'nozzle');
+});
+test('pressure sweeps require a grounded slide, not crouching or jumping, and hit each player once',()=>{
+ for(const phase of [2,3]){
+  const world=fixture(phase),standing=player('standing',62),sliding=player('sliding',62),crouching=player('crouching',62),jumping=player('jumping',62,58,1),airborne=player('airborne',62,58,1),safe=player('safe',40);
+  Object.assign(sliding.pose,{sl:1,g:1});Object.assign(crouching.pose,{low:1,g:1});Object.assign(airborne.pose,{sl:1,g:0});
+  const targets=[standing,sliding,crouching,jumping,airborne,safe];world.boss.wave=5;world.boss.attack=0;Boss.step(world,targets,0);
+  assert.deepEqual(Boss.step(world,targets,1.4),[]);assert.ok(world.boss.sweep);world.boss.attack=100;
+  const effects=Boss.step(world,targets,1);assert.deepEqual(effects.map(effect=>effect.playerId).sort(),['airborne','crouching','jumping','standing']);assert.ok(effects.every(effect=>effect.damage===27+phase*2));
+  assert.deepEqual(Boss.step(world,targets,.2),[]);assert.equal(world.boss.state,'shielded');
+ }
+});
+test('authoritative movement distinguishes a real slide from stationary crouching during a sweep',()=>{
+ for(const moving of [false,true]){
+  const world=Sim.createWorld(),host=Sim.addPlayer(world,{id:'host'});world.D.fill(0);world.rem=0;world.rngState=0;Sim.step(world);
+  Object.assign(world.boss,{phase:2,hp:240,attack:100,sweep:{radius:9.4,hit:[]}});Object.assign(host.pose,{x:62,z:58,h:0,g:1,vx:0,vz:moving?-6:0});
+  Sim.step(world,{host:{fw:moving,crouch:true,yaw:0,pit:0}});
+  assert.equal(!!host.pose.sl,moving);assert.equal(host.hp,moving?100:69);
+ }
+});
+test('pressure telegraphs and active sweeps round-trip and reject malformed checkpoint state',()=>{
+ const world=fixture(2),target=player();world.boss.wave=5;world.boss.attack=0;Boss.step(world,[target],0);
+ assert.deepEqual(Boss.restore(structuredClone(world.boss),1),world.boss);Boss.step(world,[target],1.4);Boss.step(world,[target],.3);
+ const copy=structuredClone(world);copy.boss=Boss.restore(copy.boss,1);assert.deepEqual(copy.boss,world.boss);
+ for(const dt of [.5,.4]){assert.deepEqual(Boss.step(copy,[target],dt),Boss.step(world,[target],dt));assert.deepEqual(copy.boss,world.boss);}
+ for(const sweep of [{radius:-1,hit:[]},{radius:61,hit:[]},{radius:Infinity,hit:[]},{radius:1,hit:[null]},{radius:1,hit:Array(33).fill('id')}])assert.equal(Boss.restore({...world.boss,sweep},1),null);
+ assert.equal(Boss.restore({...world.boss,kind:'sovereign'},1),null);assert.equal(Boss.restore({...world.boss,phase:1,hp:world.boss.mh},1),null);
+ const legacy=fixture().boss;assert.deepEqual(Boss.restore(legacy,1),legacy);
+});
+test('pressure sweeps are substep-stable and disappear on exposure, phase gates, death and expiry',()=>{
+ const world=fixture(2);world.boss.sweep={radius:0,hit:[]};world.boss.attack=100;const copy=structuredClone(world),target=player('target',62);
+ const combined=Boss.step(world,[target],1),split=[];for(let index=0;index<40;index++)split.push(...Boss.step(copy,[target],.025));assert.deepEqual(combined,split);assert.ok(Math.abs(world.boss.sweep.radius-copy.boss.sweep.radius)<1e-9);
+ world.boss.sweep.radius=59.9;Boss.step(world,[],.025);assert.equal(world.boss.sweep,null);
+ world.boss.sweep={radius:40,hit:[]};clean(world);dodge(world,player());assert.equal(world.boss.state,'exposed');assert.equal(world.boss.sweep,null);
+ world.boss.sweep={radius:1,hit:[]};Boss.damage(world,1e9);assert.equal(world.boss.sweep,null);
+ const final=fixture(3);final.boss.state='exposed';final.boss.sweep={radius:1,hit:[]};Boss.damage(final,1e9);assert.equal(final.boss.state,'dead');assert.equal(final.boss.sweep,null);
 });
 test('pending telegraphs and flying nozzles survive saves deterministically and reject malformed state',()=>{
  const world=fixture(),target=player();launch(world,target);Boss.step(world,[target],.2);
@@ -111,5 +180,17 @@ test('co-op guests converge on alternate boss selection, nozzle state and exposu
  const world=host.view().world;world.D.fill(0);world.rem=0;world.rngState=0;env.advance([host,guest],{},30);assert.equal(world.boss.kind,'sweeper');assert.equal(guest.view().world.boss.kind,'sweeper');
  const target=Object.values(world.players)[0];target.pose.x=56;target.pose.z=58;clean(world);launch(world,target);env.advance([host,guest],{},8);assert.ok(guest.view().world.boss.nozzle);
  target.pose.z=63;env.advance([host,guest],{},50);assert.equal(world.boss.state,'exposed');assert.equal(guest.view().world.boss.state,'exposed');
+ await guest.close();await host.close();
+});
+test('co-op guests receive pressure warnings, active sweeps and authoritative damage under loss',async()=>{
+ const env=environment({latency:100,loss:.02}),host=env.NSR.Session.create({storage:env.storage()}),guest=env.NSR.Session.create({storage:env.storage()});
+ const result=await host.host();await guest.join(result.invitation);env.advance([host,guest],{},30);
+ const world=host.view().world;world.D.fill(0);world.rem=0;world.rngState=0;env.advance([host,guest],{},30);
+ const target=world.players[host.view().localId];Object.assign(target.pose,{x:62,z:58,h:0,g:1});Object.assign(world.boss,{phase:2,hp:240,wave:5,attack:0});
+ env.advance([host,guest],{},14);assert.equal(world.boss.warning.kind,'sweep');assert.equal(guest.view().world.boss.warning.kind,'sweep');
+ assert.deepEqual(env.NSR.Simulation.restore(env.NSR.Simulation.snapshot(world)).boss,world.boss);
+ env.advance([host,guest],{},92);assert.ok(world.boss.sweep);assert.ok(guest.view().world.boss.sweep);world.boss.attack=10;
+ assert.deepEqual(env.NSR.Simulation.restore(env.NSR.Simulation.snapshot(world)).boss,world.boss);
+ env.advance([host,guest],{},60);assert.equal(target.hp,69);assert.equal(guest.view().world.players[target.id].hp,69);assert.deepEqual([...world.boss.sweep.hit],[target.id]);
  await guest.close();await host.close();
 });

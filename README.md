@@ -91,9 +91,18 @@ the visual reference. Its three phases require both cleanup and careful dodging:
   A successful dodge opens the core for **4.5 / 4 / 3.5 seconds** across the phases.
   In co-op, nobody can be hit by that nozzle for the team to earn the opening.
 - Watch the orange lane: the broad nozzle locks its direction before launching.
-  A hit deals **31 / 34 / 37 damage**, blocks exposure, and forces another attempt.
-- Dodge dust bombs, then clean their new contamination. Jump the expanding
-  shock rings; neither attack can hurt players on the green resupply pad.
+  A hit deals **34 / 37 / 40 damage**, blocks exposure, and forces another attempt.
+- Dodge dust bombs (**27 / 29 / 31 damage**), then clean their new contamination.
+  Jump the expanding shock rings (**25 / 27 / 29 damage**); neither attack can
+  hurt players on the green resupply pad.
+- From phase two, a cyan pressure sweep joins the pattern with a **1.4-second
+  warning**. Build speed, then hold your crouch control to **slide under it**.
+  Crouching in place or jumping will not dodge it. It deals **31 / 33 damage**
+  in phases two/three; the green pad remains safe. Only a missed nozzle opens
+  the core, not a successful slide.
+- Recovery gaps are short: **1.15s after a nozzle**, **0.65s after a bomb**,
+  **0.8s after either sweep/ring**, and **0.9s after the core reseals**.
+  Warning durations are unchanged, so each dodge still has a readable cue.
 - Each health third reseals the core and leaks **16 / 22 / 28 patches**. Higher
   phases shorten the launch warning and increase attack speed and damage.
   Shielded regeneration stays within the current phase, so earlier phases stay won.

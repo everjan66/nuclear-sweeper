@@ -99,7 +99,16 @@ function create(THREE){
   box(nozzle,.1,.21,.07,edge,(index-6)*.48,-.08,-.74);
   box(nozzle,.25,.025,.48,dark,(index-6)*.43,.282,.07).rotation.y=-.28;
  }
- group.userData.sweeperVisuals={body,core,coreCage,shutters,hoseRig,nozzle,wheels,particles,
+ const sweep=new THREE.Group();sweep.name='sweeper-pressure-sweep';sweep.visible=false;group.add(sweep);
+ const sweepMaterial=new THREE.MeshBasicMaterial({color:0x38edff,transparent:true,opacity:.28,side:THREE.DoubleSide,depthWrite:false});
+ const curtain=mesh(sweep,new THREE.CylinderGeometry(1,1,4.7,128,1,true),sweepMaterial,0,3.65,0);
+ curtain.castShadow=false;curtain.receiveShadow=false;
+ const sweepEdgeMaterial=new THREE.MeshBasicMaterial({color:0x8cffff,transparent:true,opacity:.95,depthWrite:false});
+ for(const height of [1.3,6]){
+  const bar=mesh(sweep,new THREE.TorusGeometry(1,.006,6,128),sweepEdgeMaterial,0,height,0);
+  bar.rotation.x=Math.PI/2;bar.castShadow=false;bar.receiveShadow=false;
+ }
+ group.userData.sweeperVisuals={body,core,coreCage,shutters,hoseRig,nozzle,wheels,particles,sweep,sweepMaterial,sweepEdgeMaterial,
   leak,coreMaterial,eyeMaterial,worldPoint:new THREE.Vector3(),worldDirection:new THREE.Vector3()};
  return group;
 }
@@ -108,8 +117,16 @@ function draw(group,boss,time){
  if(!visual||!boss)return;
  const clock=Number.isFinite(time)?time:0,exposed=boss.state==='exposed',dead=boss.state==='dead';
  group.visible=!dead;
- if(dead)return;
+ if(dead){visual.sweep.visible=false;return;}
  const warning=boss.warning,pulse=.5+.5*Math.sin(clock*5);
+ const sweepWarning=warning&&warning.kind==='sweep',sweepPulse=.5+.5*Math.sin(clock*15);
+ visual.sweep.visible=!exposed&&!!(boss.sweep||sweepWarning);
+ if(visual.sweep.visible){
+  const radius=Math.max(.001,boss.sweep?boss.sweep.radius:warning.radius||3);
+  visual.sweep.scale.set(radius,1,radius);
+  visual.sweepMaterial.opacity=boss.sweep?.28:.12+sweepPulse*.3;
+  visual.sweepEdgeMaterial.opacity=boss.sweep?.95:.4+sweepPulse*.6;
+ }
  visual.body.position.y=Math.sin(clock*3)*.025;visual.core.rotation.z=clock*.8;
  visual.coreMaterial.emissiveIntensity=exposed?2.1+pulse*1.5:.5;
  visual.leak.emissiveIntensity=exposed?1.7+pulse*.6:.8+pulse*.4;

@@ -62,7 +62,7 @@ function seedDust(world){
  world.dirty.push(...changed);
 }
 function shield(world){
- const boss=world.boss;boss.state='shielded';boss.timer=0;boss.attack=boss.kind==='sweeper'?3:1/(boss.pressure||1);boss.warning=null;boss.ring=null;boss.nozzle=null;boss.burst=0;seedDust(world);
+ const boss=world.boss;boss.state='shielded';boss.timer=0;boss.attack=boss.kind==='sweeper'?3:1/(boss.pressure||1);boss.warning=null;boss.ring=null;boss.nozzle=null;boss.sweep=null;boss.burst=0;seedDust(world);
 }
 function damage(world,amount){
  const boss=world.boss;
@@ -70,7 +70,7 @@ function damage(world,amount){
  const floor=boss.phase<3?boss.mh*(3-boss.phase)/3:0,actual=Math.min(amount,Math.max(0,boss.hp-floor));boss.hp-=actual;
  if(boss.hp<=floor){
   if(boss.phase<3){boss.phase++;shield(world);}
-  else{boss.hp=0;boss.state='dead';boss.warning=null;boss.ring=null;boss.nozzle=null;}
+  else{boss.hp=0;boss.state='dead';boss.warning=null;boss.ring=null;boss.nozzle=null;boss.sweep=null;}
  }
  return actual;
 }
@@ -93,14 +93,21 @@ function stepSweeper(world,players,dt){
   const elapsed=Math.min(remaining,.025);remaining=Math.max(0,remaining-elapsed);
   if(boss.state==='exposed'){
    boss.timer=Math.max(0,boss.timer-elapsed);
-   if(boss.timer<=1e-9){boss.state='shielded';boss.attack=1.2;boss.timer=0;}
+   if(boss.timer<=1e-9){boss.state='shielded';boss.attack=.9;boss.timer=0;}
    continue;
   }
   boss.hp=Math.min(boss.mh*(4-boss.phase)/3,boss.hp+boss.mh*.005*elapsed);
+  if(boss.sweep){
+   const sweep=boss.sweep,previous=sweep.radius;sweep.radius+=(12+boss.phase)*elapsed;
+   for(const player of targets){const range=distance(player.pose,boss),sliding=player.pose.sl&&player.pose.g&&player.pose.h<=.2;
+    if(!safe(player)&&!sliding&&!sweep.hit.includes(player.id)&&range>=previous-.6&&range<=sweep.radius+.6){sweep.hit.push(player.id);effects.push({type:'hurt',playerId:player.id,damage:27+boss.phase*2});}
+   }
+   if(sweep.radius>=60)boss.sweep=null;
+  }
   if(boss.ring){
    const ring=boss.ring,previous=ring.radius;ring.radius+=(11+boss.phase)*elapsed;
    for(const player of targets){const range=distance(player.pose,boss);
-    if(!safe(player)&&!(player.pose.h>.8)&&!ring.hit.includes(player.id)&&range>=previous-.6&&range<=ring.radius+.6){ring.hit.push(player.id);effects.push({type:'hurt',playerId:player.id,damage:20+boss.phase*2});}
+    if(!safe(player)&&!(player.pose.h>.8)&&!ring.hit.includes(player.id)&&range>=previous-.6&&range<=ring.radius+.6){ring.hit.push(player.id);effects.push({type:'hurt',playerId:player.id,damage:23+boss.phase*2});}
    }
    if(ring.radius>=60)boss.ring=null;
   }
@@ -109,11 +116,11 @@ function stepSweeper(world,players,dt){
    nozzle.x=boss.x+nozzle.dx*nozzle.travel;nozzle.z=boss.z+nozzle.dz*nozzle.travel;
    for(const player of targets){
     const offset={x:player.pose.x-boss.x,z:player.pose.z-boss.z},along=offset.x*nozzle.dx+offset.z*nozzle.dz,across=Math.abs(offset.x*nozzle.dz-offset.z*nozzle.dx);
-    if(!safe(player)&&!(player.pose.h>1.4)&&!nozzle.hit.includes(player.id)&&along>=previous-1&&along<=nozzle.travel+1&&across<=3.6){nozzle.hit.push(player.id);effects.push({type:'hurt',playerId:player.id,damage:28+boss.phase*3});}
+    if(!safe(player)&&!(player.pose.h>1.4)&&!nozzle.hit.includes(player.id)&&along>=previous-1&&along<=nozzle.travel+1&&across<=3.6){nozzle.hit.push(player.id);effects.push({type:'hurt',playerId:player.id,damage:31+boss.phase*3});}
    }
    if(nozzle.travel>=nozzle.length){
-    if(nozzle.hit.length===0&&targets.some(player=>!safe(player))&&isClean(world)){boss.state='exposed';boss.timer=5-boss.phase*.5;boss.ring=null;}
-    boss.nozzle=null;boss.attack=1.6;
+    if(nozzle.hit.length===0&&targets.some(player=>!safe(player))&&isClean(world)){boss.state='exposed';boss.timer=5-boss.phase*.5;boss.ring=null;boss.sweep=null;}
+    boss.nozzle=null;boss.attack=1.15;
    }
    continue;
   }
@@ -126,9 +133,10 @@ function stepSweeper(world,players,dt){
      const wallX=dx>0?(85-boss.x)/dx:dx<0?(33-boss.x)/dx:44,wallZ=dz>0?(77-boss.z)/dz:dz<0?(41-boss.z)/dz:44;
      boss.nozzle={x:boss.x,z:boss.z,dx,dz,travel:0,length:Math.min(44,length+4,wallX,wallZ),hit:[]};
     }else if(warning.kind==='salvo'){
-     for(const player of targets)if(!safe(player)&&distance(player.pose,warning)<=warning.radius)effects.push({type:'hurt',playerId:player.id,damage:22+boss.phase*2});
-     leak(world,warning);boss.attack=.9;
-    }else{boss.ring={radius:0,hit:[]};boss.attack=1.1;}
+     for(const player of targets)if(!safe(player)&&distance(player.pose,warning)<=warning.radius)effects.push({type:'hurt',playerId:player.id,damage:25+boss.phase*2});
+     leak(world,warning);boss.attack=.65;
+    }else if(warning.kind==='sweep'){boss.sweep={radius:0,hit:[]};boss.attack=.8;}
+    else{boss.ring={radius:0,hit:[]};boss.attack=.8;}
    }
    continue;
   }
@@ -136,8 +144,8 @@ function stepSweeper(world,players,dt){
   if(boss.attack<=1e-9){
    const active=targets.filter(player=>!safe(player)&&distance(player.pose,shelter)>=10);
    if(!active.length){boss.attack=.25;continue;}
-   const target=active[Math.floor(boss.wave/2)%active.length],kind=boss.wave%2===0?'nozzle':boss.wave%4===1?'salvo':'ring';boss.wave++;
-   boss.warning={kind,x:kind==='ring'?boss.x:target.pose.x,z:kind==='ring'?boss.z:target.pose.z,left:kind==='nozzle'?1.25-boss.phase*.1:1.1,radius:kind==='salvo'?3.4:kind==='ring'?3:3.6};
+   const target=active[Math.floor(boss.wave/2)%active.length],kind=boss.phase>=2&&boss.wave%8===5?'sweep':boss.wave%2===0?'nozzle':boss.wave%4===1?'salvo':'ring';boss.wave++;
+   boss.warning={kind,x:kind==='ring'||kind==='sweep'?boss.x:target.pose.x,z:kind==='ring'||kind==='sweep'?boss.z:target.pose.z,left:kind==='nozzle'?1.25-boss.phase*.1:kind==='sweep'?1.4:1.1,radius:kind==='salvo'?3.4:kind==='nozzle'?3.6:3};
   }
  }while(remaining>0);
  return effects;
@@ -217,7 +225,7 @@ function restore(raw,sector){
  else if(boss.hp<=boss.mh*(3-boss.phase)/3)return null;
  if(raw.warning!==null){
   if(!plain(raw.warning)||!['x','z','left','radius'].every(key=>Number.isFinite(raw.warning[key])))return null;
-  if(boss.kind==='sweeper'&&!['nozzle','salvo','ring'].includes(raw.warning.kind))return null;
+  if(boss.kind==='sweeper'&&(!['nozzle','salvo','ring','sweep'].includes(raw.warning.kind)||raw.warning.kind==='sweep'&&boss.phase<2))return null;
   boss.warning={x:clamp(raw.warning.x,16*TS,43*TS),z:clamp(raw.warning.z,20*TS,39*TS),left:clamp(raw.warning.left,0,1.4),radius:boss.kind==='sweeper'?(raw.warning.kind==='salvo'?3.4:raw.warning.kind==='nozzle'?3.6:3):3};
   if(boss.kind==='sweeper')boss.warning.kind=raw.warning.kind;
   if(boss.kind==='sweeper'&&distance(boss.warning,{x:40,z:58})<10)return null;
@@ -228,6 +236,10 @@ function restore(raw,sector){
   if(!plain(raw.ring)||!Number.isFinite(raw.ring.radius)||!Array.isArray(raw.ring.hit)||raw.ring.hit.length>32||!raw.ring.hit.every(id=>typeof id==='string'&&id.length<=80))return null;
   boss.ring={radius:clamp(raw.ring.radius,0,60),hit:[...new Set(raw.ring.hit)]};
  }else if(raw.ring===null)boss.ring=null;
+ if(raw.sweep!=null){
+  if(boss.kind!=='sweeper'||boss.phase<2||!plain(raw.sweep)||!Number.isFinite(raw.sweep.radius)||raw.sweep.radius<0||raw.sweep.radius>60||!Array.isArray(raw.sweep.hit)||raw.sweep.hit.length>32||!raw.sweep.hit.every(id=>typeof id==='string'&&id.length<=80))return null;
+  boss.sweep={radius:raw.sweep.radius,hit:[...new Set(raw.sweep.hit)]};
+ }else if(raw.sweep===null)boss.sweep=null;
  if(raw.nozzle!=null){
   const nozzle=raw.nozzle;
   if(boss.kind!=='sweeper'||!plain(nozzle)||!['x','z','dx','dz','travel','length'].every(key=>Number.isFinite(nozzle[key]))||nozzle.length<=0||nozzle.length>44||nozzle.travel<0||nozzle.travel>nozzle.length||Math.abs(Math.hypot(nozzle.dx,nozzle.dz)-1)>.001||!Array.isArray(nozzle.hit)||nozzle.hit.length>32||!nozzle.hit.every(id=>typeof id==='string'&&id.length<=80))return null;
@@ -235,7 +247,7 @@ function restore(raw,sector){
   boss.nozzle={x:nozzle.x,z:nozzle.z,dx:nozzle.dx,dz:nozzle.dz,travel:nozzle.travel,length:nozzle.length,hit:[...new Set(nozzle.hit)]};
   if(boss.warning)return null;
  }else if(raw.nozzle===null)boss.nozzle=null;
- if(boss.state==='dead'||boss.kind==='sweeper'&&boss.state!=='shielded'){boss.warning=null;boss.ring=null;boss.nozzle=null;}
+ if(boss.state==='dead'||boss.kind==='sweeper'&&boss.state!=='shielded'){boss.warning=null;boss.ring=null;boss.nozzle=null;if(boss.sweep)boss.sweep=null;}
  if(boss.state!=='dead'&&boss.victory)return null;
  return boss;
 }

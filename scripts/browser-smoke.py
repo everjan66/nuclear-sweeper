@@ -68,9 +68,35 @@ async def sweeper_check(page):
       if(Math.abs(details.shutters[0].mesh.position.x)<.9)throw Error('Core shutters did not open');
       NSR.Boss.damage(world,1e9);syncBossWorld(world);save();const loaded=load();
       if(loaded.boss.kind!=='sweeper'||loaded.boss.phase!==2)throw Error('Sweeper save round trip failed');
-      return {kind:S.boss.kind,phase:S.boss.phase,remaining:world.rem};
+      const originalCrouch=CFG.KB.crouch;
+      try{CFG.KB.crouch='KeyV';if(!bossBriefing().includes('run to build momentum, then press V'))throw Error('Sweep briefing ignores rebound crouch key');}
+      finally{CFG.KB.crouch=originalCrouch;}
+      S.boss.attack=0;S.boss.wave=5;NSR.Boss.step(world,[target],0);syncBossWorld(world);draw();
+      const sweep=details.sweep,curtain=sweep.children[0],cue=()=>document.querySelector('#boss-status').textContent.includes('SLIDE UNDER THE CYAN SWEEP');
+      if(S.boss.warning?.kind!=='sweep'||Math.abs(S.boss.warning.left-1.4)>.001||!cue()||!sweep.visible||visual.warning.visible)throw Error('Cyan sweep warning/model/HUD missing or orange blast still visible');
+      if(details.sweepMaterial.color.getHex()!==0x38edff||Math.abs(sweep.scale.x-3)>.001)throw Error('Sweep warning is not cyan and boss-centered');
+      const center=sweep.getWorldPosition(new THREE.Vector3()),bounds=new THREE.Box3().setFromObject(curtain);
+      if(Math.abs(center.x-S.boss.x)>.001||Math.abs(center.z-S.boss.z)>.001||Math.abs(bounds.min.y-1.3)>.001||Math.abs(bounds.max.y-6)>.001)throw Error('Sweep curtain center or slide clearance incorrect');
+      NSR.SweeperVisuals.draw(model,S.boss,0);const dim=details.sweepMaterial.opacity;
+      NSR.SweeperVisuals.draw(model,S.boss,Math.PI/30);
+      if(Math.abs(details.sweepMaterial.opacity-dim)<.1)throw Error('Sweep anticipation does not pulse');
+      save();const warningSave=load();
+      if(warningSave?.boss.warning?.kind!=='sweep'||Math.abs(warningSave.boss.warning.left-1.4)>.001)throw Error('Sweep warning save round trip failed');
+      S.boss=warningSave.boss;world.boss=S.boss;
+      NSR.Boss.step(world,[target],S.boss.warning.left);NSR.Boss.step(world,[target],.35);syncBossWorld(world);draw();
+      if(!S.boss.sweep||!sweep.visible||!cue()||Math.abs(S.boss.sweep.radius-4.9)>.001||Math.abs(sweep.scale.x-S.boss.sweep.radius)>.001||sweep.scale.y!==1||Math.abs(sweep.scale.z-S.boss.sweep.radius)>.001)throw Error('Live sweep rendering diverged from simulation');
+      NSR.Boss.step(world,[target],.8);syncBossWorld(world);draw();
+      if(S.boss.warning?.kind!=='nozzle'||!visual.lane.visible||!sweep.visible||!cue())throw Error('Concurrent nozzle warning hid the sweep or overrode its HUD cue');
+      save();const sweepSave=load();
+      if(!sweepSave?.boss.sweep||Math.abs(sweepSave.boss.sweep.radius-S.boss.sweep.radius)>.001||JSON.stringify(sweepSave.boss.sweep.hit)!==JSON.stringify(S.boss.sweep.hit))throw Error('Active sweep save round trip failed');
+      S.boss=sweepSave.boss;world.boss=S.boss;draw();
+      if(!sweep.visible||Math.abs(sweep.scale.x-S.boss.sweep.radius)>.001||!cue())throw Error('Restored sweep did not render');
+      for(const state of ['exposed','dead']){S.boss.state=state;draw();if(sweep.visible)throw Error('Sweep visible during '+state);}
+      S.boss.state='shielded';draw();
+      return {kind:S.boss.kind,phase:S.boss.phase,remaining:world.rem,sweepRadius:S.boss.sweep.radius};
     }""")
     assert result["kind"] == "sweeper" and result["phase"] == 2 and result["remaining"] > 0, result
+    assert result["sweepRadius"] > 4.9, result
 
 
 async def smoke(args, server=None):
