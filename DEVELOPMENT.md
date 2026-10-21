@@ -41,6 +41,24 @@ closes it. Gameplay pauses while the panel is open; the refinery keeps running.
 If the shelter or settings were already open, close that menu too to resume play.
 After closing the menus, click **CLICK TO RESUME** to capture the mouse again.
 
+## Meltdown Sweeper regression checks
+
+`tests/sweeper-boss.test.cjs` covers the 35% selection boundary, legacy saves,
+cleanup plus dodge gating, nozzle collision and per-player hit deduplication,
+safe-pad and jumping immunity, dust bombs, shock rings, phase caps, exactly-once
+victory, in-flight checkpoint restoration, and host/guest convergence under loss.
+Run `npm test`. The existing Playwright release smoke also renders the new model
+in normal solo and the developer iframe, checks the warning lane and detached
+nozzle position, opens the core shutters, and round-trips a phase-two save.
+
+For a manual check, fully clean a site; the Sweeper replaces the Sovereign in
+35% of new encounters. Confirm the black canister, red dome, hose nose, broad
+nozzle, and green cracks. Sweep all patches: the shield must remain until a
+nozzle misses. Sidestep the orange lane, shoot during the short opening, dodge
+dust bombs and remove their new patches, and jump the shock ring. Finish all
+three phases, confirm one reward, then deploy. Repeat with a co-op guest, check
+that a teammate hit blocks exposure, and reload while the nozzle is flying.
+
 ## Traversal-room regression checks
 
 `tests/rooms.test.cjs` checks all 100 seeded sites for three enlarged rooms,

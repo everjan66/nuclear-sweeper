@@ -33,6 +33,22 @@ test('solo passive regeneration and pad immunity are disabled for active bosses'
  assert.ok(source.includes('if(!bossActive()&&dm+laserDamage<=0&&S.hp<s.hp)'));
  assert.ok(source.includes('bossEnemies:bossActive()?E.filter(enemy=>enemy.hp>0&&!enemy.gone):[]'));
 });
+test('solo retries preserve the selected boss instead of rerolling the encounter',()=>{
+ for(const kind of ['sovereign','sweeper']){
+  let selected;const context=fixture(['retryBoss'],{enterBoss:value=>{selected=value;},say:()=>{}});context.S.boss.kind=kind;
+  context.retryBoss();assert.equal(selected,kind);assert.equal(context.S.hp,100);assert.equal(context.S.tank,6);
+ }
+});
+test('both boss renderers retain the nozzle lane and reinforcement indicators',()=>{
+ class Visual{constructor(){this.children=[];this.position={set(){}};this.rotation={};this.scale={set(){}};this.userData={};}add(...children){this.children.push(...children);}}
+ const THREE=Object.fromEntries(['Group','Mesh','MeshLambertMaterial','MeshBasicMaterial','IcosahedronGeometry','BoxGeometry','ConeGeometry','SphereGeometry','InstancedMesh','CylinderGeometry','OctahedronGeometry'].map(name=>[name,Visual]));
+ const build=source.slice(source.indexOf('function buildBossVisuals()'),source.indexOf('function drawBossVisuals()'));
+ for(const kind of ['sovereign','sweeper']){
+  const context=vm.createContext({THREE,S:{boss:{kind,x:72,z:58}},W3:new Visual(),NSR:{SweeperVisuals:{create:()=>new Visual()}},ring:()=>new Visual()});context.W3.userData.details=new Visual();
+  vm.runInContext(build,context);context.buildBossVisuals();const visual=context.W3.userData.boss;
+  assert.ok(visual.lane);assert.equal(visual.lane.visible,false);assert.equal(visual.spawnMarkers.length,10);assert.equal(!!visual.sweeper,kind==='sweeper');
+ }
+});
 test('saved solo boss Shriekers retain flying altitude and boss minion status',()=>{
  const context=fixture(['cleanBossEnemies'],{ET:Defs.ET,WH:Defs.WH,cl:Defs.cl});
  const flyer={t:4,x:45,z:58,h:3.2,hp:20,mh:38,fc:1,bossMinion:true};

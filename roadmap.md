@@ -44,6 +44,7 @@ parallel; dependencies are listed explicitly.
 
 | ID | Priority | Work item | Done when | Status | Owner | Issue / PR |
 | --- | --- | --- | --- | --- | --- | --- |
+| B1 | Medium | Add alternate Meltdown Sweeper boss | Chance selection, cleanup/dodge gates, diverse attacks, reference-inspired model, saves and both entry points pass solo/co-op checks. | In progress | everjan66 | #30; PR review pending |
 | M1-1 | High | Document contributor workflow | Setup, branch/PR workflow, and a manual smoke-test checklist are documented. | In progress | Current implementation | PR #19; review pending |
 | M1-2 | High | Map game systems | A source map identifies movement, combat, progression, saves, rendering, and UI boundaries. | In progress | Current implementation | PR #19; review pending |
 | M1-3 | High | Establish regression scenarios | Repeatable baseline and upgraded-loadout checks cover movement, combat, purchases, site travel, and save isolation. | In progress | Current implementation | PR #19; review pending |

@@ -245,7 +245,7 @@ function updateLoot(world,players,dt){
 }
 function enterBoss(world,retryId=null){
  const Boss=bossApi();
- Object.assign(world,Boss.arena(Maps.generate(world.sector)),{E:[],Dr:[],EP:[],dirty:[],clr:0,vOpen:0,vTaken:0,iTaken:0,bossDead:0,bty:null,boss:Boss.create(world.sector,Object.values(world.players).filter(player=>player.connected))});
+ Object.assign(world,Boss.arena(Maps.generate(world.sector)),{E:[],Dr:[],EP:[],dirty:[],clr:0,vOpen:0,vTaken:0,iTaken:0,bossDead:0,bty:null,boss:retryId===null?Boss.choose(world.sector,random(world),Object.values(world.players).filter(player=>player.connected)):Boss.create(world.sector,Object.values(world.players).filter(player=>player.connected),world.boss.kind)});
  for(const player of Object.values(world.players)){dock(world,player,{supply:true,heal:false});player.pose=Movement.createPose(world.SH);player.pose.z=world.SH.z;player.move={};player.ready=false;player.fireHeld=false;}
  Boss.seedDust(world);world.generation++;caches.delete(world);event(world,retryId===null?'boss':'boss-retry',retryId===null?{}:{playerId:retryId});
 }

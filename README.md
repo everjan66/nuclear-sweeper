@@ -63,7 +63,7 @@ Existing saves retain their current room layout and dust. Start a fresh
 expedition or deploy to the next site to get the expanded pool. Developer and
 normal builds share these rooms, with their usual separate save slots.
 
-## Dust Sovereign boss
+## Site bosses
 
 Sweep a site completely to teleport into an arena roughly six rooms in size.
 The Dust Sovereign shields while enemies or dust remain: clear each mandatory
@@ -81,6 +81,26 @@ The existing 97% early-deployment option remains available before entering.
 The HUD shows early deployment separately from full cleanup and counts remaining
 dust patches. It never displays 100.0% while any dust remains; removing the last
 patch triggers the boss teleport.
+
+Each new boss arena has a **35% chance** to feature **the Meltdown Sweeper**
+instead. This damaged industrial vacuum has a red top, black wheeled canister,
+ribbed hose nose, oversized floor nozzle, and glowing nuclear leaks inspired by
+the visual reference. Its three phases require both cleanup and careful dodging:
+
+- Sweep every nuclear dust patch, then bait and sidestep the launched nozzle.
+  A successful dodge opens the core for **4.5 / 4 / 3.5 seconds** across the phases.
+  In co-op, nobody can be hit by that nozzle for the team to earn the opening.
+- Watch the orange lane: the broad nozzle locks its direction before launching.
+  A hit deals **31 / 34 / 37 damage**, blocks exposure, and forces another attempt.
+- Dodge dust bombs, then clean their new contamination. Jump the expanding
+  shock rings; neither attack can hurt players on the green resupply pad.
+- Each health third reseals the core and leaks **16 / 22 / 28 patches**. Higher
+  phases shorten the launch warning and increase attack speed and damage.
+  Shielded regeneration stays within the current phase, so earlier phases stay won.
+
+Normal/developer solo and host-authoritative co-op share the fight logic.
+Boss selection, telegraphs, launched nozzles, and phase progress survive saves;
+older Dust Sovereign saves keep their original encounter.
 
 ## Mouse side buttons and collection audio
 

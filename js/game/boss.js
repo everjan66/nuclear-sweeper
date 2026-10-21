@@ -21,11 +21,13 @@ function sustained(player,index){
  const magazine=Math.ceil(weapon.mag*(1+.12*level('multi',8))),rate=weapon.r*(1+.06*level('fr',30));
  return weapon.d*(1+.1*level('dmg',40))*(weapon.pel||1)*(weapon.big||1)*(attachments.s?.94:1)*(attachments.b?1.12:1)*magazine/(magazine/rate+weapon.rl);
 }
-function create(sector,players=[]){
+function create(sector,players=[],kind='sovereign'){
+ if(typeof players==='string'){kind=players;players=[];}
+ if(kind==='sweeper'){const mh=360+24*(clamp(Number.isFinite(sector)?Math.floor(sector):1,1,100)-1);return {kind:'sweeper',x:72,z:58,hp:mh,mh,phase:1,state:'shielded',timer:0,attack:3,wave:0,warning:null};}
  const active=players.filter(player=>player&&player.connected!==false),baseline=sustained({},0);
  const power=clamp(active.reduce((sum,player)=>sum+Math.max(...WP.map((weapon,index)=>index===0||player.L?.['w'+index]>0?sustained(player,index)/baseline:0)),0)||1,1,256);
  const mh=(360+20*clamp(Number.isFinite(sector)?Math.floor(sector):1,1,100))*Math.pow(power,.9);
- return {x:72,z:58,hp:mh,mh,phase:1,state:'shielded',timer:0,attack:1,wave:0,warning:null,spawnWarning:null,power,pressure:clamp(1+.1*Math.log2(power),1,1.5),summonedPhase:0,balanceVersion:1,targetCursor:0};
+ return {kind:'sovereign',x:72,z:58,hp:mh,mh,phase:1,state:'shielded',timer:0,attack:1,wave:0,warning:null,spawnWarning:null,power,pressure:clamp(1+.1*Math.log2(power),1,1.5),summonedPhase:0,balanceVersion:1,targetCursor:0};
 }
 const liveEnemies=world=>(world.E||[]).some(enemy=>enemy&&enemy.hp>0&&!enemy.gone);
 function summons(world,players){
@@ -42,13 +44,15 @@ function summons(world,players){
  }
  return {type:'summon',units};
 }
+function choose(sector,roll,players=[]){return create(sector,players,roll<.35?'sweeper':'sovereign');}
+function name(boss){return boss?.kind==='sweeper'?'THE MELTDOWN SWEEPER':'THE DUST SOVEREIGN';}
 function seedDust(world){
  const boss=world.boss,shelter=world.SH||{x:40,z:58},candidates=[];
  for(let row=21;row<=37;row++)for(let column=17;column<=41;column++){
   const tile=row*GW+column,point={x:(column+.5)*TS,z:(row+.5)*TS};
   if(world.M[tile]===0&&distance(point,shelter)>=8&&distance(point,boss)>=5)candidates.push(tile);
  }
- const count=[12,18,24][boss.phase-1],offset=((world.sector||1)*17+boss.phase*31)%Math.max(1,candidates.length),changed=new Set();
+ const count=(boss.kind==='sweeper'?[16,22,28]:[12,18,24])[boss.phase-1],offset=((world.sector||1)*17+boss.phase*31)%Math.max(1,candidates.length),changed=new Set();
  for(let tile=0;tile<world.D.length;tile++)if(world.D[tile]!==0){world.D[tile]=0;changed.add(tile);}
  for(let index=0;index<Math.min(count,candidates.length);index++){
   const tile=candidates[(offset+Math.floor(index*candidates.length/count))%candidates.length];world.D[tile]=.3;changed.add(tile);
@@ -58,24 +62,92 @@ function seedDust(world){
  world.dirty.push(...changed);
 }
 function shield(world){
- const boss=world.boss;boss.state='shielded';boss.timer=0;boss.attack=1/(boss.pressure||1);boss.warning=null;boss.ring=null;boss.burst=0;seedDust(world);
+ const boss=world.boss;boss.state='shielded';boss.timer=0;boss.attack=boss.kind==='sweeper'?3:1/(boss.pressure||1);boss.warning=null;boss.ring=null;boss.nozzle=null;boss.burst=0;seedDust(world);
 }
 function damage(world,amount){
  const boss=world.boss;
- if(!boss||boss.state!=='exposed'||boss.spawnWarning||boss.summonedPhase!==boss.phase||liveEnemies(world)||!Number.isFinite(amount)||amount<=0)return 0;
+ if(!boss||boss.state!=='exposed'||boss.kind!=='sweeper'&&(boss.spawnWarning||boss.summonedPhase!==boss.phase||liveEnemies(world))||!Number.isFinite(amount)||amount<=0)return 0;
  const floor=boss.phase<3?boss.mh*(3-boss.phase)/3:0,actual=Math.min(amount,Math.max(0,boss.hp-floor));boss.hp-=actual;
  if(boss.hp<=floor){
   if(boss.phase<3){boss.phase++;shield(world);}
-  else{boss.hp=0;boss.state='dead';boss.warning=null;boss.ring=null;}
+  else{boss.hp=0;boss.state='dead';boss.warning=null;boss.ring=null;boss.nozzle=null;}
  }
  return actual;
 }
 function isClean(world){world.rem=world.D.reduce((total,value)=>total+value,0);return world.rem===0;}
+function leak(world,point){
+ const column=Math.floor(point.x/TS),row=Math.floor(point.z/TS),shelter=world.SH||{x:40,z:58};
+ for(const [across,along] of [[0,0],[1,0],[-1,0],[0,1],[0,-1]]){
+  const tile=(row+along)*GW+column+across,position={x:(column+across+.5)*TS,z:(row+along+.5)*TS};
+  if(world.M[tile]!==0||distance(position,shelter)<8||distance(position,world.boss)<5)continue;
+  world.D[tile]=Math.max(world.D[tile],.2);if(!Array.isArray(world.dirty))world.dirty=[];world.dirty.push(tile);
+ }
+ world.rem=world.D.reduce((sum,value)=>sum+value,0);world.total=Math.max(world.total||1,world.rem);
+}
+function stepSweeper(world,players,dt){
+ const boss=world.boss,effects=[],shelter=world.SH||{x:40,z:58};
+ const targets=players.filter(player=>player&&player.pose&&Number.isFinite(player.pose.x)&&Number.isFinite(player.pose.z)&&player.connected!==false&&!(player.hp<=0));
+ const safe=player=>distance(player.pose,shelter)<=7;
+ let remaining=dt;
+ do{
+  const elapsed=Math.min(remaining,.025);remaining=Math.max(0,remaining-elapsed);
+  if(boss.state==='exposed'){
+   boss.timer=Math.max(0,boss.timer-elapsed);
+   if(boss.timer<=1e-9){boss.state='shielded';boss.attack=1.2;boss.timer=0;}
+   continue;
+  }
+  boss.hp=Math.min(boss.mh*(4-boss.phase)/3,boss.hp+boss.mh*.005*elapsed);
+  if(boss.ring){
+   const ring=boss.ring,previous=ring.radius;ring.radius+=(11+boss.phase)*elapsed;
+   for(const player of targets){const range=distance(player.pose,boss);
+    if(!safe(player)&&!(player.pose.h>.8)&&!ring.hit.includes(player.id)&&range>=previous-.6&&range<=ring.radius+.6){ring.hit.push(player.id);effects.push({type:'hurt',playerId:player.id,damage:20+boss.phase*2});}
+   }
+   if(ring.radius>=60)boss.ring=null;
+  }
+  if(boss.nozzle){
+   const nozzle=boss.nozzle,previous=nozzle.travel;nozzle.travel=Math.min(nozzle.length,nozzle.travel+(22+boss.phase*3)*elapsed);
+   nozzle.x=boss.x+nozzle.dx*nozzle.travel;nozzle.z=boss.z+nozzle.dz*nozzle.travel;
+   for(const player of targets){
+    const offset={x:player.pose.x-boss.x,z:player.pose.z-boss.z},along=offset.x*nozzle.dx+offset.z*nozzle.dz,across=Math.abs(offset.x*nozzle.dz-offset.z*nozzle.dx);
+    if(!safe(player)&&!(player.pose.h>1.4)&&!nozzle.hit.includes(player.id)&&along>=previous-1&&along<=nozzle.travel+1&&across<=3.6){nozzle.hit.push(player.id);effects.push({type:'hurt',playerId:player.id,damage:28+boss.phase*3});}
+   }
+   if(nozzle.travel>=nozzle.length){
+    if(nozzle.hit.length===0&&targets.some(player=>!safe(player))&&isClean(world)){boss.state='exposed';boss.timer=5-boss.phase*.5;boss.ring=null;}
+    boss.nozzle=null;boss.attack=1.6;
+   }
+   continue;
+  }
+  if(boss.warning){
+   boss.warning.left-=elapsed;
+   if(boss.warning.left<=1e-9){
+    const warning=boss.warning;boss.warning=null;
+    if(warning.kind==='nozzle'){
+     const length=Math.hypot(warning.x-boss.x,warning.z-boss.z),dx=length>.01?(warning.x-boss.x)/length:-1,dz=length>.01?(warning.z-boss.z)/length:0;
+     const wallX=dx>0?(85-boss.x)/dx:dx<0?(33-boss.x)/dx:44,wallZ=dz>0?(77-boss.z)/dz:dz<0?(41-boss.z)/dz:44;
+     boss.nozzle={x:boss.x,z:boss.z,dx,dz,travel:0,length:Math.min(44,length+4,wallX,wallZ),hit:[]};
+    }else if(warning.kind==='salvo'){
+     for(const player of targets)if(!safe(player)&&distance(player.pose,warning)<=warning.radius)effects.push({type:'hurt',playerId:player.id,damage:22+boss.phase*2});
+     leak(world,warning);boss.attack=.9;
+    }else{boss.ring={radius:0,hit:[]};boss.attack=1.1;}
+   }
+   continue;
+  }
+  boss.attack=Math.max(0,boss.attack-elapsed);
+  if(boss.attack<=1e-9){
+   const active=targets.filter(player=>!safe(player)&&distance(player.pose,shelter)>=10);
+   if(!active.length){boss.attack=.25;continue;}
+   const target=active[Math.floor(boss.wave/2)%active.length],kind=boss.wave%2===0?'nozzle':boss.wave%4===1?'salvo':'ring';boss.wave++;
+   boss.warning={kind,x:kind==='ring'?boss.x:target.pose.x,z:kind==='ring'?boss.z:target.pose.z,left:kind==='nozzle'?1.25-boss.phase*.1:1.1,radius:kind==='salvo'?3.4:kind==='ring'?3:3.6};
+  }
+ }while(remaining>0);
+ return effects;
+}
 function step(world,players,dt){
  const boss=world.boss,effects=[];
  if(!boss)return effects;
  if(boss.state==='dead'){if(!boss.victory){boss.victory=true;effects.push({type:'victory'});}return effects;}
  if(!Number.isFinite(dt)||dt<0)return effects;
+ if(boss.kind==='sweeper')return stepSweeper(world,players,dt);
  if(boss.balanceVersion!==1){
   const tuned=create(world.sector,players),ratio=boss.hp/boss.mh;
   boss.mh=tuned.mh;boss.hp=tuned.mh*ratio;boss.power=tuned.power;boss.pressure=tuned.pressure;boss.balanceVersion=1;boss.summonedPhase=0;boss.targetCursor=0;boss.attack=Math.min(boss.attack,tuned.attack);
@@ -125,7 +197,9 @@ function restore(raw,sector){
  if(!plain(raw)||!['shielded','exposed','dead'].includes(raw.state))return null;
  for(const key of ['x','z','hp','mh','phase','timer','attack','wave'])if(!Number.isFinite(raw[key]))return null;
  if(raw.mh<=0||!Number.isInteger(raw.phase)||raw.phase<1||raw.phase>3)return null;
- const boss=create(sector);boss.mh=clamp(raw.mh,1,1000000);boss.phase=raw.phase;boss.state=raw.state;
+ if(raw.kind!==undefined&&!['sovereign','sweeper'].includes(raw.kind))return null;
+ const boss=create(sector,[],raw.kind);boss.mh=clamp(raw.mh,1,1000000);boss.phase=raw.phase;boss.state=raw.state;
+ if(boss.kind!=='sweeper'){
  for(const [key,min,max,integer] of [['power',1,256,false],['pressure',1,1.5,false],['summonedPhase',0,3,true],['balanceVersion',0,1,true],['targetCursor',0,999999,true]]){
   if(raw[key]!==undefined){if(!Number.isFinite(raw[key])||raw[key]<min||raw[key]>max||(integer&&!Number.isInteger(raw[key])))return null;boss[key]=raw[key];}
  }
@@ -137,12 +211,16 @@ function restore(raw,sector){
   if(!warning.units.every(unit=>plain(unit)&&Number.isInteger(unit.t)&&!!ET[unit.t]&&Number.isFinite(unit.x)&&unit.x>=35&&unit.x<=83&&Number.isFinite(unit.z)&&unit.z>=43&&unit.z<=75&&Number.isFinite(unit.hpScale)&&unit.hpScale>=1&&unit.hpScale<=12))return null;
   boss.spawnWarning={left:warning.left,units:warning.units.map(unit=>({t:unit.t,x:unit.x,z:unit.z,hpScale:unit.hpScale}))};
  }
+ }
  boss.hp=clamp(raw.hp,0,boss.mh*(4-boss.phase)/3);boss.timer=clamp(raw.timer,0,11-boss.phase);boss.attack=clamp(raw.attack,0,10);boss.wave=clamp(Math.floor(raw.wave),0,1000000);
  if(raw.state==='dead'){if(raw.hp!==0||raw.phase!==3)return null;boss.hp=0;}
  else if(boss.hp<=boss.mh*(3-boss.phase)/3)return null;
  if(raw.warning!==null){
   if(!plain(raw.warning)||!['x','z','left','radius'].every(key=>Number.isFinite(raw.warning[key])))return null;
-  boss.warning={x:clamp(raw.warning.x,16*TS,43*TS),z:clamp(raw.warning.z,20*TS,39*TS),left:clamp(raw.warning.left,0,1.4),radius:3};
+  if(boss.kind==='sweeper'&&!['nozzle','salvo','ring'].includes(raw.warning.kind))return null;
+  boss.warning={x:clamp(raw.warning.x,16*TS,43*TS),z:clamp(raw.warning.z,20*TS,39*TS),left:clamp(raw.warning.left,0,1.4),radius:boss.kind==='sweeper'?(raw.warning.kind==='salvo'?3.4:raw.warning.kind==='nozzle'?3.6:3):3};
+  if(boss.kind==='sweeper')boss.warning.kind=raw.warning.kind;
+  if(boss.kind==='sweeper'&&distance(boss.warning,{x:40,z:58})<10)return null;
  }
  if(raw.burst!==undefined){if(!Number.isInteger(raw.burst)||raw.burst<0||raw.burst>1)return null;boss.burst=raw.burst;}
  if(raw.victory!==undefined){if(typeof raw.victory!=='boolean')return null;boss.victory=raw.victory;}
@@ -150,10 +228,17 @@ function restore(raw,sector){
   if(!plain(raw.ring)||!Number.isFinite(raw.ring.radius)||!Array.isArray(raw.ring.hit)||raw.ring.hit.length>32||!raw.ring.hit.every(id=>typeof id==='string'&&id.length<=80))return null;
   boss.ring={radius:clamp(raw.ring.radius,0,60),hit:[...new Set(raw.ring.hit)]};
  }else if(raw.ring===null)boss.ring=null;
- if(boss.state==='dead'){boss.warning=null;boss.ring=null;}
+ if(raw.nozzle!=null){
+  const nozzle=raw.nozzle;
+  if(boss.kind!=='sweeper'||!plain(nozzle)||!['x','z','dx','dz','travel','length'].every(key=>Number.isFinite(nozzle[key]))||nozzle.length<=0||nozzle.length>44||nozzle.travel<0||nozzle.travel>nozzle.length||Math.abs(Math.hypot(nozzle.dx,nozzle.dz)-1)>.001||!Array.isArray(nozzle.hit)||nozzle.hit.length>32||!nozzle.hit.every(id=>typeof id==='string'&&id.length<=80))return null;
+  if(distance(nozzle,{x:boss.x+nozzle.dx*nozzle.travel,z:boss.z+nozzle.dz*nozzle.travel})>.01)return null;
+  boss.nozzle={x:nozzle.x,z:nozzle.z,dx:nozzle.dx,dz:nozzle.dz,travel:nozzle.travel,length:nozzle.length,hit:[...new Set(nozzle.hit)]};
+  if(boss.warning)return null;
+ }else if(raw.nozzle===null)boss.nozzle=null;
+ if(boss.state==='dead'||boss.kind==='sweeper'&&boss.state!=='shielded'){boss.warning=null;boss.ring=null;boss.nozzle=null;}
  if(boss.state!=='dead'&&boss.victory)return null;
  return boss;
 }
-NSR.Boss={arena,create,seedDust,isClean,step,damage,restore};
+NSR.Boss={arena,create,choose,name,seedDust,isClean,step,damage,restore};
 if(typeof module!=='undefined')module.exports=NSR.Boss;
 })(typeof globalThis!=='undefined'?globalThis:window);
