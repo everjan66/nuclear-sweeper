@@ -9,7 +9,7 @@ function create({dev=false,name='Sweeper',url,relay=false,onEvent=()=>{},storage
  let sequence=0,actionSequence=0,inputHistory=[],inputAccumulator=0,sendAccumulator=0,snapshotAccumulator=0,dustAccumulator=0,saveAccumulator=0;
  let lastHostAt=0,lastFrame=-1,predicted=null,pausedByHost=false,pauseSequence=0,waiting=true,corrections=0,syncing=false,saveError=null;
  const bindings=new Map(),queues=new Map(),lastInputs=new Map(),receivedAt=new Map(),reservations=new Map(),pendingActions=new Map();
- let latestInput={},remoteFrames=[],lastStats=null;
+ let latestInput={},remoteFrames=[],lastStats=null,previousLocalPose=null;
  const emit=(type,data={})=>onEvent({type,...data});
  function status(message){emit('status',{message});}
  function save(){if(role!=='host'||!world)return false;try{storage.save({world,worldId,identities});saveError=null;return true;}catch(error){saveError='Co-op checkpoint could not be saved: '+error.message;emit('error',{message:saveError});return false;}}
@@ -21,7 +21,7 @@ function create({dev=false,name='Sweeper',url,relay=false,onEvent=()=>{},storage
   }
   const precision=value=>Math.round(value*1000)/1000;
   return {type:'frame',session:sessionId,generation:world.generation,tick:world.tick,time:world.time,players,team:world.team,rem:world.rem,total:world.total,clr:world.clr,story:world.story,vOpen:world.vOpen,boss:world.boss,bossDead:world.bossDead,paused:pausedByHost,pauseSequence,
-   E:world.E.map(enemy=>[enemy.id,enemy.t,precision(enemy.x),precision(enemy.z),precision(enemy.hp),enemy.mh,enemy.al,enemy.ph]),
+   E:world.E.map(enemy=>[enemy.id,enemy.t,precision(enemy.x),precision(enemy.z),precision(enemy.hp),enemy.mh,enemy.al,enemy.ph,precision(enemy.h||0)]),
    EP:world.EP.map(projectile=>[projectile.id,precision(projectile.x),precision(projectile.y),precision(projectile.z),projectile.sz]),
    Dr:world.Dr.map(loot=>[loot.id,precision(loot.x),precision(loot.z),loot.k,loot.a])};
  }
@@ -33,7 +33,7 @@ function create({dev=false,name='Sweeper',url,relay=false,onEvent=()=>{},storage
  function applyPause(value,sequence){
   if(!Number.isSafeInteger(sequence)||sequence<pauseSequence)return;
   const changed=sequence>pauseSequence||pausedByHost!==!!value;pauseSequence=sequence;pausedByHost=!!value;
-  if(changed){inputAccumulator=0;inputHistory=[];emit('pause',{paused:pausedByHost});}
+  if(changed){previousLocalPose=null;inputAccumulator=0;inputHistory=[];emit('pause',{paused:pausedByHost});}
  }
  function identify(peerId,data){
   if(bindings.has(peerId))return;
@@ -98,7 +98,7 @@ function create({dev=false,name='Sweeper',url,relay=false,onEvent=()=>{},storage
   if(data.type==='snapshot'&&data.session===sessionId){
    try{
     syncing=true;world=Sim.restore(data.world);localId=data.playerId;if(!world.players[localId])throw new Error('Missing local character.');
-    sequence=world.players[localId].lastSeq;actionSequence=world.players[localId].lastActionId;inputHistory=[];remoteFrames=[];predicted=copy(world.players[localId]);lastFrame=world.tick;lastHostAt=performance.now();pausedByHost=data.paused;pauseSequence=data.pauseSequence||0;waiting=false;syncing=false;
+    sequence=world.players[localId].lastSeq;actionSequence=world.players[localId].lastActionId;inputHistory=[];remoteFrames=[];predicted=copy(world.players[localId]);previousLocalPose=null;lastFrame=world.tick;lastHostAt=performance.now();pausedByHost=data.paused;pauseSequence=data.pauseSequence||0;waiting=false;syncing=false;
     transport.send('host',{type:'synced',session:sessionId,generation:world.generation},true);emit('world',{world});status('Connected. The world continues while menus are open.');
    }catch(error){emit('error',{message:'World synchronization failed: '+error.message});}return;
   }
@@ -112,7 +112,7 @@ function create({dev=false,name='Sweeper',url,relay=false,onEvent=()=>{},storage
    world.boss=data.boss||null;world.bossDead=data.bossDead||0;if(Number.isFinite(data.total))world.total=data.total;
    if(data.vOpen&&!world.vOpen){world.vOpen=1;for(const tile of world.DOORT)world.M[tile]=0;emit('geometry');}
    world.players=data.players;reconcile(data.players[localId]);
-   world.E=data.E.map(([id,type,x,z,hp,mh,al,ph])=>({id,t:type,x,z,hp,mh,al,ph}));
+   world.E=data.E.map(([id,type,x,z,hp,mh,al,ph,h=0])=>({id,t:type,x,z,hp,mh,al,ph,h}));
    world.EP=data.EP.map(([id,x,y,z,size])=>({id,x,y,z,sz:size}));
    world.Dr=data.Dr.map(([id,x,z,kind,amount])=>({id,x,z,k:kind,a:amount}));
    remoteFrames.push({at:performance.now(),players:copy(data.players),E:copy(world.E)});if(remoteFrames.length>8)remoteFrames.shift();return;
@@ -126,7 +126,7 @@ function create({dev=false,name='Sweeper',url,relay=false,onEvent=()=>{},storage
   }
   if(data.type==='ended'){waiting=true;status('The host ended this session.');emit('ended');}
  }
- function transition(){inputHistory=[];sequence=0;for(const player of Object.values(world.players))player.lastSeq=0;queues.clear();for(const id of bindings.values())queues.set(id,[]);lastInputs.clear();for(const peerId of bindings.keys())sendSnapshot(peerId);emit('world',{world});save();}
+ function transition(){previousLocalPose=null;inputHistory=[];sequence=0;for(const player of Object.values(world.players))player.lastSeq=0;queues.clear();for(const id of bindings.values())queues.set(id,[]);lastInputs.clear();for(const peerId of bindings.keys())sendSnapshot(peerId);emit('world',{world});save();}
  function ownInput(raw){const clean=Protocol.input({...raw,seq:++sequence});return clean||Protocol.neutral({seq:sequence});}
  function authoritativeTick(raw){
   const inputs={[localId]:ownInput(raw)};
@@ -147,6 +147,7 @@ function create({dev=false,name='Sweeper',url,relay=false,onEvent=()=>{},storage
   let first=true;
   while(inputAccumulator+1e-9>=Defs.MOVE.tick){
    const input={...raw};if(!first)for(const key of Protocol.edges)input[key]=false;first=false;
+   previousLocalPose={...(role==='guest'?predicted:world.players[localId]).pose};
    if(role==='host')authoritativeTick(input);
    else{
     const next=ownInput(input);inputHistory.push(next);if(inputHistory.length>128){waiting=true;status('Waiting for host input confirmation.');return;}Movement.step(world,predicted,next,Defs.MOVE.tick);
@@ -175,8 +176,9 @@ function create({dev=false,name='Sweeper',url,relay=false,onEvent=()=>{},storage
   const target=performance.now()-100,older=remoteFrames.filter(frame=>frame.at<=target).at(-1),newer=remoteFrames.find(frame=>frame.at>target);
   if(older&&newer){const scale=clamp((target-older.at)/(newer.at-older.at));for(const member of remote){const before=older.players[member.id],after=newer.players[member.id];if(before&&after){for(const key of ['x','z','h','pit'])member.pose[key]=before.pose[key]+(after.pose[key]-before.pose[key])*scale;member.pose.yaw=Defs.lerpAngle(before.pose.yaw,after.pose.yaw,scale);}}}
   let enemies=world.E;
-  if(older&&newer){const scale=clamp((target-older.at)/(newer.at-older.at)),before=new Map(older.E.map(enemy=>[enemy.id,enemy])),after=new Map(newer.E.map(enemy=>[enemy.id,enemy]));enemies=world.E.map(enemy=>{const first=before.get(enemy.id),last=after.get(enemy.id);return first&&last?{...enemy,x:first.x+(last.x-first.x)*scale,z:first.z+(last.z-first.z)*scale}:enemy;});}
-  return {world,player,remote,enemies,role,waiting,paused:pausedByHost,localId,saveError};
+  if(older&&newer){const scale=clamp((target-older.at)/(newer.at-older.at)),before=new Map(older.E.map(enemy=>[enemy.id,enemy])),after=new Map(newer.E.map(enemy=>[enemy.id,enemy]));enemies=world.E.map(enemy=>{const first=before.get(enemy.id),last=after.get(enemy.id);return first&&last?{...enemy,x:first.x+(last.x-first.x)*scale,z:first.z+(last.z-first.z)*scale,h:(first.h||0)+((last.h||0)-(first.h||0))*scale}:enemy;});}
+  const renderPose=Movement.renderPose(waiting||pausedByHost?null:previousLocalPose,player.pose,inputAccumulator/Defs.MOVE.tick);
+  return {world,player,renderPose,remote,enemies,role,waiting,paused:pausedByHost,localId,saveError};
  }
  const clamp=value=>Math.max(0,Math.min(1,value));
  return {
@@ -190,7 +192,7 @@ function create({dev=false,name='Sweeper',url,relay=false,onEvent=()=>{},storage
   },
   async join(invitation){role='guest';transport=NSR.Transport.create({url:invitation.url,dev,iceTransportPolicy:relay?'relay':'all',onEvent:onTransport});status('Connecting to the host…');return transport.join(invitation);},
   advance,perform,view,save,
-  setPaused(value){if(role!=='host'||!world||closed)return;pausedByHost=!!value;pauseSequence++;inputAccumulator=0;lastInputs.clear();for(const queue of queues.values())queue.length=0;if(pausedByHost)save();transport.broadcast({type:'pause',session:sessionId,generation:world.generation,paused:pausedByHost,pauseSequence},true);sendFrame();emit('pause',{paused:pausedByHost});},
+  setPaused(value){if(role!=='host'||!world||closed)return;pausedByHost=!!value;pauseSequence++;previousLocalPose=null;inputAccumulator=0;lastInputs.clear();for(const queue of queues.values())queue.length=0;if(pausedByHost)save();transport.broadcast({type:'pause',session:sessionId,generation:world.generation,paused:pausedByHost,pauseSequence},true);sendFrame();emit('pause',{paused:pausedByHost});},
   stats(){lastStats={...transport?.stats(),role,corrections,tick:world?.tick,waiting,paused:pausedByHost};return lastStats;},
   exportCheckpoint(){if(role!=='host')throw new Error('Only the host can export this world.');return {format:'nsr-coop',version:1,worldId,identities,world:Sim.snapshot(world)};},
   devCommand(command,fields={}){

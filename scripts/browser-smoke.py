@@ -132,7 +132,7 @@ async def smoke(args, server=None):
         await host.wait_for_function("Object.values(coopSession.view().world.players).filter(p=>p.connected).length===4", polling=100)
         await host.evaluate("coopSession.setPaused(false)")
         ids = [await page.evaluate("coopSession.view().localId") for page in pages]
-        await host.evaluate("""() => {coopSession.devCommand('max');applyCoopView();const p=coopSession.view().player;p.prog.weapons[3]={kills:60,types:[30,10,0,0]};setW(3);} """)
+        await host.evaluate("""() => {coopSession.devCommand('max');applyCoopView();const p=coopSession.view().player;p.prog.weapons[3]={kills:TIERS[1].k,types:TIERS[1].types.slice()};setW(3);} """)
         await pages[1].wait_for_function("coopSession.view().remote.some(p=>p.wi===3&&p.appearance.tier===1)", polling=100)
         await host.evaluate("""() => {const w=coopSession.view().world;for(const p of Object.values(w.players))p.L.w3=1;}""")
         await pages[1].wait_for_function("S.L.w3===1", polling=100)
@@ -220,6 +220,7 @@ async def smoke(args, server=None):
             after_restart = await host.evaluate("({worldId:coopSession.exportCheckpoint().worldId,sector:coopSession.view().world.sector,gear:Object.fromEntries(Object.values(coopSession.view().world.players).map(p=>[p.id,p.L]))})")
             assert after_restart == before_restart, (before_restart, after_restart)
             assert [await page.evaluate("coopSession.view().localId") for page in pages] == ids
+        await pages[1].wait_for_function('coopSession.view().remote.length===3', polling=100)
         disposal = await pages[1].evaluate("""() => {remotePlayers.update(coopSession.view().remote);const models=coopSession.view().remote.map(p=>sc.getObjectByName('sweeper:'+p.id));let disposed=0;for(const model of models)model.getObjectByName('equipped-weapon').children[0].geometry.addEventListener('dispose',()=>disposed++);remotePlayers.clear();return {disposed,remaining:remotePlayers.stats().players};} """)
         assert disposal == {"disposed": 3, "remaining": 0}, disposal
         assert not errors, errors
