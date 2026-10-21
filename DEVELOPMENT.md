@@ -46,7 +46,9 @@ After closing the menus, click **CLICK TO RESUME** to capture the mouse again.
 `tests/sweeper-boss.test.cjs` covers the 35% selection boundary, legacy saves,
 cleanup plus dodge gating, nozzle collision and per-player hit deduplication,
 safe-pad and jumping immunity, dust bombs, shock rings, phase caps, exactly-once
-victory, in-flight checkpoint restoration, and host/guest convergence under loss.
+victory, increased damage across all phases, grounded-slide pressure-sweep
+immunity (not stationary crouching or jumping), in-flight checkpoint restoration,
+phase reinforcement warnings, six-guard cap, and host/guest convergence under loss.
 Run `npm test`. The existing Playwright release smoke also renders the new model
 in normal solo and the developer iframe, checks the warning lane and detached
 nozzle position, opens the core shutters, and round-trips a phase-two save.
@@ -58,6 +60,13 @@ nozzle misses. Sidestep the orange lane, shoot during the short opening, dodge
 dust bombs and remove their new patches, and jump the shock ring. Finish all
 three phases, confirm one reward, then deploy. Repeat with a co-op guest, check
 that a teammate hit blocks exposure, and reload while the nozzle is flying.
+In phase two/three, watch for the cyan sweep warning: build speed and slide as
+it reaches you. Verify standing, crouching in place and jumping take damage,
+the green pad blocks boss attacks, and saving/reloading preserves an expanding sweep.
+Watch the magenta beacons at each phase start, confirm 3/4/5 incoming guards
+without exceeding six alive, and verify pending warnings and live guards
+survive saves/reconnects. Guards must not block a clean nozzle-dodge opening;
+victory removes surviving guards and enemy projectiles.
 
 ## Traversal-room regression checks
 

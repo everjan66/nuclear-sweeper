@@ -55,6 +55,14 @@ async def sweeper_check(page):
       Object.assign(p,{x:60,z:70,h:0,yaw:-Math.PI/4,pit:.08});camCalc();draw();
       const visual=W3.userData.boss,model=visual.sweeper,details=model.userData.sweeperVisuals;
       if(!model.visible||!details.nozzle.visible||!document.querySelector('#boss-hud strong').textContent.includes('MELTDOWN'))throw Error('Sweeper model/HUD missing');
+      tickBoss(0);draw();
+      if(S.boss.spawnWarning?.units.length!==3||visual.spawnMarkers.filter(marker=>marker.visible).length!==3||!document.querySelector('#boss-status').textContent.includes('MAGENTA BEACONS'))throw Error('Sweeper reinforcement warning/beacons missing');
+      save();const reinforcementWarning=load();
+      if(reinforcementWarning?.boss.spawnWarning?.units.length!==3||reinforcementWarning.boss.summonedPhase!==1)throw Error('Reinforcement warning save round trip failed');
+      tickBoss(1.5);draw();
+      if(E.length!==3||E.some(enemy=>!enemy.bossMinion)||!E.some(enemy=>ET[enemy.t].fly)||visual.spawnMarkers.some(marker=>marker.visible)||!document.querySelector('#boss-status').textContent.includes('3 ENEMIES'))throw Error('Sweeper guards, flyer, enemy HUD count or beacon expiry failed');
+      save();const reinforcementSave=load();
+      if(reinforcementSave?.bossEnemies?.length!==3||reinforcementSave.bossEnemies.some(enemy=>!enemy.bossMinion))throw Error('Live reinforcement save round trip failed');
       world.D.fill(0);world.rem=0;NSR.Boss.step(world,[],0);
       if(S.boss.state!=='shielded')throw Error('Cleanup bypassed the dodge gate');
       const target={id:'solo',pose:{x:56,z:58,h:0}};S.boss.attack=0;
@@ -68,9 +76,44 @@ async def sweeper_check(page):
       if(Math.abs(details.shutters[0].mesh.position.x)<.9)throw Error('Core shutters did not open');
       NSR.Boss.damage(world,1e9);syncBossWorld(world);save();const loaded=load();
       if(loaded.boss.kind!=='sweeper'||loaded.boss.phase!==2)throw Error('Sweeper save round trip failed');
-      return {kind:S.boss.kind,phase:S.boss.phase,remaining:world.rem};
+      const originalCrouch=CFG.KB.crouch;
+      try{CFG.KB.crouch='KeyV';if(!bossBriefing().includes('run to build momentum, then press V'))throw Error('Sweep briefing ignores rebound crouch key');}
+      finally{CFG.KB.crouch=originalCrouch;}
+      S.boss.attack=0;S.boss.wave=5;NSR.Boss.step(world,[target],0);syncBossWorld(world);draw();
+      const sweep=details.sweep,curtain=sweep.children[0],cue=()=>document.querySelector('#boss-status').textContent.includes('SLIDE UNDER THE CYAN SWEEP');
+      if(S.boss.warning?.kind!=='sweep'||Math.abs(S.boss.warning.left-1.4)>.001||!cue()||!sweep.visible||visual.warning.visible)throw Error('Cyan sweep warning/model/HUD missing or orange blast still visible');
+      if(details.sweepMaterial.color.getHex()!==0x38edff||Math.abs(sweep.scale.x-3)>.001)throw Error('Sweep warning is not cyan and boss-centered');
+      const center=sweep.getWorldPosition(new THREE.Vector3()),bounds=new THREE.Box3().setFromObject(curtain);
+      if(Math.abs(center.x-S.boss.x)>.001||Math.abs(center.z-S.boss.z)>.001||Math.abs(bounds.min.y-1.3)>.001||Math.abs(bounds.max.y-6)>.001)throw Error('Sweep curtain center or slide clearance incorrect');
+      NSR.SweeperVisuals.draw(model,S.boss,0);const dim=details.sweepMaterial.opacity;
+      NSR.SweeperVisuals.draw(model,S.boss,Math.PI/30);
+      if(Math.abs(details.sweepMaterial.opacity-dim)<.1)throw Error('Sweep anticipation does not pulse');
+      save();const warningSave=load();
+      if(warningSave?.boss.warning?.kind!=='sweep'||Math.abs(warningSave.boss.warning.left-1.4)>.001)throw Error('Sweep warning save round trip failed');
+      S.boss=warningSave.boss;world.boss=S.boss;
+      NSR.Boss.step(world,[target],S.boss.warning.left);NSR.Boss.step(world,[target],.35);syncBossWorld(world);draw();
+      if(!S.boss.sweep||!sweep.visible||!cue()||Math.abs(S.boss.sweep.radius-4.9)>.001||Math.abs(sweep.scale.x-S.boss.sweep.radius)>.001||sweep.scale.y!==1||Math.abs(sweep.scale.z-S.boss.sweep.radius)>.001)throw Error('Live sweep rendering diverged from simulation');
+      NSR.Boss.step(world,[target],.8);syncBossWorld(world);draw();
+      if(S.boss.warning?.kind!=='nozzle'||!visual.lane.visible||!sweep.visible||!cue())throw Error('Concurrent nozzle warning hid the sweep or overrode its HUD cue');
+      save();const sweepSave=load();
+      if(!sweepSave?.boss.sweep||Math.abs(sweepSave.boss.sweep.radius-S.boss.sweep.radius)>.001||JSON.stringify(sweepSave.boss.sweep.hit)!==JSON.stringify(S.boss.sweep.hit))throw Error('Active sweep save round trip failed');
+      S.boss=sweepSave.boss;world.boss=S.boss;draw();
+      if(!sweep.visible||Math.abs(sweep.scale.x-S.boss.sweep.radius)>.001||!cue())throw Error('Restored sweep did not render');
+      for(const state of ['exposed','dead']){S.boss.state=state;draw();if(sweep.visible)throw Error('Sweep visible during '+state);}
+      S.boss.state='shielded';draw();
+      const result={kind:S.boss.kind,phase:S.boss.phase,remaining:world.rem,sweepRadius:S.boss.sweep.radius};
+      Object.assign(S.boss,{phase:3,hp:1,state:'exposed',timer:3,summonedPhase:3,spawnWarning:null});S.bossDead=0;S.hp=1;
+      D.fill(0);S.rem=0;Object.assign(p,{x:60,z:58,h:0,vx:0,vz:0,vh:0,yaw:-Math.PI/2,pit:0,rp:0,g:1,sl:0,st:0});camCalc();
+      E=[{...E[0],t:0,x:p.x-1.2,z:p.z,h:0,hp:30,mh:30,cd:0,al:1,bossMinion:true}];
+      EP=[{x:p.x,y:1,z:p.z,vx:0,vy:0,vz:0,l:1,dm:999}];
+      const credits=S.cred,parts=S.parts;ml=true;hf=0;rel=0;wcd=0;ammo[wi]=mag();
+      upd(MOVE.tick);ml=false;
+      if(S.bossDead!==1||S.boss.state!=='dead'||S.hp<=0||E.some(enemy=>enemy.bossMinion)||EP.length||S.parts!==parts+3||S.cred!==credits+1000+S.sector*250)throw Error('Final shot lost to same-frame guard/projectile damage or victory rewards missing');
+      S.cred=credits;save();
+      return result;
     }""")
     assert result["kind"] == "sweeper" and result["phase"] == 2 and result["remaining"] > 0, result
+    assert result["sweepRadius"] > 4.9, result
 
 
 async def smoke(args, server=None):
@@ -224,7 +267,7 @@ async def smoke(args, server=None):
         disposal = await pages[1].evaluate("""() => {remotePlayers.update(coopSession.view().remote);const models=coopSession.view().remote.map(p=>sc.getObjectByName('sweeper:'+p.id));let disposed=0;for(const model of models)model.getObjectByName('equipped-weapon').children[0].geometry.addEventListener('dispose',()=>disposed++);remotePlayers.clear();return {disposed,remaining:remotePlayers.stats().players};} """)
         assert disposal == {"disposed": 3, "remaining": 0}, disposal
         assert not errors, errors
-        print(json.dumps({"browser": args.browser, "version": browser.version, "clients": 4, "transport": "real WebRTC / localhost", "checks": ["narrow mode menu", "normal solo save round trip", "developer iframe/max loadout isolation", "Sweeper model, warning lane and detached nozzle in both entries", "Sweeper dodge exposure, shutters and phase save round trip", "join", "host-confirmed hotbar selection", "movement", "equipped weapon, attachments and mastery", "grapple rope", "pause", "deployment", "guest reload/reconnect", "signaling request outage with RTC continuity", "signaling recovery and identity-preserving rejoin", "avatar disposal"] + (["signaling process restart with RTC continuity", "checkpoint rehost preserves world and all four identities"] if server else []), "errors": errors}, indent=2))
+        print(json.dumps({"browser": args.browser, "version": browser.version, "clients": 4, "transport": "real WebRTC / localhost", "checks": ["narrow mode menu", "normal solo save round trip", "developer iframe/max loadout isolation", "Sweeper model, warning lane and detached nozzle in both entries", "Sweeper dodge exposure, shutters and phase save round trip", "Sweeper cyan slide sweep warning, rendering and save round trip", "Sweeper reinforcement beacons, guards and save round trip", "Sweeper final-shot victory before same-frame lethal guard/projectile damage", "join", "host-confirmed hotbar selection", "movement", "equipped weapon, attachments and mastery", "grapple rope", "pause", "deployment", "guest reload/reconnect", "signaling request outage with RTC continuity", "signaling recovery and identity-preserving rejoin", "avatar disposal"] + (["signaling process restart with RTC continuity", "checkpoint rehost preserves world and all four identities"] if server else []), "errors": errors}, indent=2))
         for page in pages:
             await page.evaluate("coopSession?.close()")
         await browser.close()
