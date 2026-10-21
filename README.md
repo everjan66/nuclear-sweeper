@@ -3,6 +3,20 @@
 
 # Nuclear Sweeper
 
+## Hazard-suit display
+
+The top-left visor HUD groups site survey, movement, weapon, navigation and score
+telemetry in a compact phosphor-green display. Subtle green grain and signal
+streaks sit over the world, behind the HUD and crosshair. Taking a hit briefly
+intensifies interference and horizontal distortion; larger hits produce stronger
+bursts that fade over 1.5 seconds. Radiation and laser exposure also increase it.
+Solo, developer and private co-op use the same effect; co-op hits affect only the
+injured player's display.
+
+Disable **Suit interference** in Settings under Performance for a clean view.
+The effect also turns off automatically with the system's reduced-motion
+preference and while menus pause local input. Existing saves remain compatible.
+
 ## Private co-op
 
 Private co-op is experimental. Local browser correctness checks are automated;

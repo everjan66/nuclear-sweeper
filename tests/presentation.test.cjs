@@ -42,7 +42,7 @@ test('projectile hurt events carry incoming direction and respect invincibility'
   world.EP=[{x:39.7,y:1,z:40,vx:10,vy:0,vz:0,l:3,dm:5}];
   Sim.step(world,{local:{yaw:0,pit:0}});
   const hit=world.events.find(event=>event.type==='hurt');
-  if(invincible)assert.equal(hit,undefined);else{assert.equal(hit.playerId,'local');assert.ok(hit.source.x<player.pose.x);assert.equal(hit.source.z,40);}
+  if(invincible)assert.equal(hit,undefined);else{assert.equal(hit.playerId,'local');assert.equal(hit.damage,5);assert.ok(hit.source.x<player.pose.x);assert.equal(hit.source.z,40);}
  }
 });
 test('host presentation interpolates between ticks without changing its authoritative player',async()=>{

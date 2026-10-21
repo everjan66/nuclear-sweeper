@@ -3,7 +3,8 @@
 html,body{height:100%;margin:0;background:#0b0e08;color:#d7e3c2;font:13px "Courier New",ui-monospace,monospace;overflow:hidden}
 #sp>h2{display:flex;align-items:center;gap:12px}#sp>h2::before{content:"";flex:none;width:40px;height:40px;background:url(assets/logo-mark.svg) center/contain no-repeat}
 canvas{position:fixed;inset:0;width:100%;height:100%}
-#hud{position:fixed;left:10px;top:calc(10px + env(safe-area-inset-top,0px));pointer-events:none;line-height:1.45;text-shadow:0 1px 2px #000;width:230px}
+#suit-interference{pointer-events:none}#suit-interference[hidden]{display:none}
+#hud{position:fixed;left:calc(14px + env(safe-area-inset-left,0px));top:calc(14px + env(safe-area-inset-top,0px));pointer-events:none;line-height:1.45;text-shadow:0 1px 2px #000,0 0 8px #9be56424;width:252px}
 .bar{height:7px;background:#27311f;border-radius:4px;overflow:hidden;margin:1px 0 5px}.bar i{display:block;height:100%}
 #hint{position:fixed;right:10px;top:calc(10px + env(safe-area-inset-top,0px));color:#8da079;text-align:right;pointer-events:none;max-width:360px;background:#0b0e08b8;padding:8px 10px;border-radius:5px}
 #hint dl{display:grid;grid-template-columns:auto auto;gap:2px 10px;margin:0 0 4px}#hint dt{color:#d7e3c2}#hint dd{margin:0;text-align:left}
@@ -131,9 +132,20 @@ button.u:not(:disabled):hover .buybar{background:#b6e65a}
 .menu-body{flex:1;min-height:0;overflow:hidden;border-top:1px solid #3c4a32;padding-top:8px}
 .menu-body h3{margin:0 0 8px}.menu-body [hidden]{display:none!important}
 .menu-footer .go{margin:0;padding:9px 12px}.menu-pager{justify-content:center;min-height:32px}
-#hud{background:#0b0e08b8;padding:8px 10px;border-left:2px solid var(--ac);box-sizing:border-box}
-.hud-category{margin-bottom:10px}.hud-category:last-child{margin-bottom:0}
-.hud-category strong{display:block;color:#8da079;font-size:10px;letter-spacing:1.5px}
+#hud{--visor:#9be564;--visor-dim:#91ad80;box-sizing:border-box;color:#e0efd5;padding:12px 14px 10px;border:1px solid #9be56438;background:linear-gradient(115deg,#0a180ee8,#0a180e94 75%,#0a180e38);clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px));font-size:12px;font-variant-numeric:tabular-nums;counter-reset:telemetry}
+#hud::before,#hud::after{content:"";position:absolute;pointer-events:none}
+#hud::before{inset:0;background:repeating-linear-gradient(0deg,transparent 0 3px,#9be56405 3px 4px)}
+#hud::after{inset:0;background:linear-gradient(var(--visor),var(--visor)) left top/28px 2px no-repeat,linear-gradient(var(--visor),var(--visor)) left top/2px 28px no-repeat,linear-gradient(var(--visor),var(--visor)) right bottom/28px 2px no-repeat,linear-gradient(var(--visor),var(--visor)) right bottom/2px 28px no-repeat;opacity:.8}
+.hud-system{display:flex;align-items:center;gap:7px;padding-bottom:8px;margin-bottom:10px;border-bottom:1px solid #9be56455;color:var(--visor);font-size:10px;font-weight:bold;letter-spacing:1.3px}
+.hud-system svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.5}
+.hud-system span{margin-left:auto;font-size:9px;letter-spacing:.8px;color:var(--visor-dim)}
+.hud-category{position:relative;margin-bottom:9px;padding-bottom:8px;border-bottom:1px solid #9be56420;overflow-wrap:anywhere}.hud-category:last-child{margin-bottom:0;padding-bottom:0;border-bottom:0}
+.hud-category strong{display:flex;align-items:center;gap:7px;margin-bottom:3px;color:var(--visor-dim);font-size:9px;letter-spacing:1.5px;font-weight:normal}
+.hud-category strong::before{counter-increment:telemetry;content:counter(telemetry,decimal-leading-zero);color:var(--visor);font-size:8px;letter-spacing:0}
+.hud-row{display:flex;align-items:baseline;justify-content:space-between;gap:8px}.hud-row>span:first-child{min-width:0}.hud-reading{color:var(--visor);font-size:16px;font-weight:bold;white-space:nowrap}.hud-reading small{font-size:10px;font-weight:normal;color:var(--visor-dim)}
+.hud-site{display:block;color:var(--visor);font-size:19px;line-height:1.2;letter-spacing:2px;margin-bottom:2px}.hud-location{display:block;margin-bottom:7px;line-height:1.35}.hud-detail{display:block;color:#bdcfb1;font-size:10px;margin-top:3px}.hud-alert{display:block;margin:4px 0;color:#e6ca75;font-size:10px;font-weight:bold}.hud-alert.danger{color:#ff9b83}
+#hud .bar{height:5px;margin:5px 0 0;border-radius:0;background:#9be5641c}#hud .bar i{background:var(--visor);box-shadow:0 0 8px #9be56455}#hud .hud-score .hud-reading{font-size:14px}
+@media(min-width:601px) and (min-height:501px){#hud{transform:scale(.9);transform-origin:top left}}
 #sp{max-width:none;width:100%;gap:10px}
 #sp .menu-nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
 #sp .menu-nav button{padding:8px;font-weight:bold;font-size:15px}
@@ -159,11 +171,13 @@ button.u:not(:disabled):hover .buybar{background:#b6e65a}
 @media(max-height:600px){.overview-detail{display:none}}
 @media(max-width:600px){#sp .menu-body>.g{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#sp .menu-nav button{font-size:12px;padding:9px 4px}.shelter-context{grid-template-columns:1fr;gap:6px}.shelter-context p{font-size:10px}#sp .menu-body .u{padding:10px}}
 @media(max-height:500px){#sp{gap:4px}#sp .menu-nav button{padding:5px;font-size:12px}#sp .menu-body .u{padding:8px}.shelter-context{padding-top:4px;gap:10px;grid-template-columns:1fr 2fr}.shelter-context p{font-size:10px;margin:2px 0}.shelter-context strong{font-size:10px}}
-@media(max-width:600px){#hud{width:175px;font-size:11px}.g{grid-template-columns:1fr}.menu-nav button{padding:5px 7px;font-size:11px}.menu-body .r{flex-wrap:wrap;gap:4px}.menu-body .kbtn{min-width:90px}.menu-footer .go{padding:7px;font-size:11px}#hint{max-width:160px;font-size:10px}}
+@media(max-width:600px){#hud{width:175px;font-size:11px;padding:10px;left:calc(10px + env(safe-area-inset-left,0px))}.hud-system{font-size:8px;letter-spacing:.6px;gap:5px}.hud-system span{display:none}.hud-site{font-size:16px}.hud-reading{font-size:13px}.hud-category{margin-bottom:7px;padding-bottom:6px}.g{grid-template-columns:1fr}.menu-nav button{padding:5px 7px;font-size:11px}.menu-body .r{flex-wrap:wrap;gap:4px}.menu-body .kbtn{min-width:90px}.menu-footer .go{padding:7px;font-size:11px}#hint{max-width:160px;font-size:10px}}
 @media(max-width:860px){#bar{grid-template-columns:repeat(2,minmax(0,1fr));width:min(534px,calc(100% - 20px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px)));gap:6px 12px}#vitals,#wb{grid-column:1 / -1}#bl,#br{grid-row:3;align-self:center}#bl{grid-column:1}#br{grid-column:2}#gg{display:flex;align-items:center;justify-content:center;gap:6px}#gg svg{width:56px;margin:0}#gv{margin:0;font-size:12px}#gg>div:last-child{font-size:9px}.slot{flex:1;min-width:0}.slot svg{width:calc(100% - 12px)}}
 @media(max-width:540px){#vitals{gap:8px}.vital-label{font-size:11px}#wb{gap:2px}.slot .nm{display:none}.slot .am{font-size:9px;right:2px}.slot .at{right:2px;font-size:8px}}
 @media(max-height:500px) and (min-width:540px) and (max-width:860px){#hud{width:120px;font-size:10px}#bar{width:min(534px,calc(100% - 280px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px)))}#vitals{gap:8px}.vital-label{font-size:11px}.slot .nm{display:none}.slot .am{font-size:9px;right:2px}}
 @media(max-height:500px){#sp,#sw{gap:4px}.menu-nav button{padding:4px 7px}.menu-footer .go{padding:5px 8px}.menu-pager{min-height:26px}.hud-category{margin-bottom:3px;padding:3px 6px}.menu-body{font-size:11px}.menu-body .j{line-height:1.3}}
+@media(max-height:500px){#hud{top:calc(8px + env(safe-area-inset-top,0px));padding:7px 8px;line-height:1.25}.hud-system{padding-bottom:4px;margin-bottom:4px;font-size:8px;letter-spacing:.3px;gap:4px}.hud-system svg{width:13px;height:13px}.hud-system span{display:none}.hud-category{padding:2px 0;margin-bottom:3px}.hud-category strong{font-size:8px;letter-spacing:.7px;margin-bottom:1px}.hud-site{font-size:14px}.hud-location{margin-bottom:3px}.hud-reading,#hud .hud-score .hud-reading{font-size:12px}.hud-detail,.hud-alert{font-size:9px;margin-top:2px}.hud-row{gap:3px;flex-wrap:wrap}}
+@media(max-height:400px){#hud{font-size:9px;line-height:1.15}.hud-category{margin-bottom:2px;padding:1px 0}.hud-category strong{font-size:7px}.hud-reading,#hud .hud-score .hud-reading{font-size:11px}.hud-detail,.hud-alert{font-size:8px}.hud-system{margin-bottom:3px;padding-bottom:3px}.hud-location{margin-bottom:2px}}
 @media(max-height:380px){#sp{gap:3px}#sp h2{font-size:14px;margin:0}#sp #st{font-size:10px}#sp .menu-pager{min-height:20px}#sp .menu-pager button{padding:2px 6px;font-size:10px}#sp .shelter-context{grid-template-columns:1fr 2fr;gap:8px}#sp .radio-heading{gap:5px}#sp .radio-heading button{padding:1px 4px;font-size:10px}#sp .menu-body .r{padding:6px}#sp .menu-body .kbtn{padding:3px;font-size:10px}#sp .menu-body .u{padding:6px}#sp .menu-body .j{margin:0;font-size:10px;line-height:1.2}}
 @media(max-width:600px) and (min-height:381px){#sp .menu-nav{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px) and (min-height:381px) and (max-height:600px){#sp .menu-body .j{font-size:11px;line-height:1.3;margin:0}}
@@ -202,6 +216,7 @@ button.u:not(:disabled):hover .buybar{background:#b6e65a}
 <script src="js/storage/coop.js"></script>
 <script src="js/net/session.js"></script>
 <script src="js/ui/presentation.js"></script>
+<script src="js/ui/suit-interference.js"></script>
 <script src="js/ui/remote-players.js"></script>
 <script src="js/ui/coop.js"></script>
 <script>
@@ -266,11 +281,13 @@ function canReload(){return ammo[wi]<mag()&&(bossActive()||reserves[wi]>0)}
 function finishReload(){if(!canReload())return;if(!bossActive())reserves[wi]--;ammo[wi]=mag()}
 const KBD={fw:'KeyW',bk:'KeyS',lf:'KeyA',rt:'KeyD',jump:'Space',crouch:'ShiftLeft',crouch2:'KeyC',reload:'KeyR',use:'KeyE',music:'KeyM',grapple:'KeyG',dash:'KeyF',w1:'Digit1',w2:'Digit2',w3:'Digit3',w4:'Digit4',w5:'Digit5',w6:'Digit6',w7:'Digit7'};
 const KL={fw:'Move forward',bk:'Move back',lf:'Strafe left',rt:'Strafe right',jump:'Jump / vault / wallrun / pull up',crouch:'Crouch / slide / roll',crouch2:'Crouch / slide (alternate)',reload:'Reload',use:'Shelter / leave shelter',music:'Toggle music',grapple:'Grapple hook (module)',dash:'Air-dash (module)',w1:'Weapon 1: Desert Eagle',w2:'Weapon 2: MP7',w3:'Weapon 3: SMG-11',w4:'Weapon 4: 416-C',w5:'Weapon 5: R4-C',w6:'Weapon 6: Breaker',w7:'Weapon 7: Vector DMR'};
-let CFG={showFps:true,fpsLimit:0,fov:105,sens:1,adsm:.55,inv:false,adsT:false,mv:.8,sv:.8,mu:.5,music:true,geiger:true,KB:{...KBD}};
+let CFG={showFps:true,fpsLimit:0,suitInterference:true,fov:105,sens:1,adsm:.55,inv:false,adsT:false,mv:.8,sv:.8,mu:.5,music:true,geiger:true,KB:{...KBD}};
 function loadCfg(){try{const j=JSON.parse(localStorage.getItem(CFG_KEY));if(j)CFG={...CFG,...j,KB:{...KBD,...(j.KB||{})}}}catch(e){}}
 function saveCfg(){try{localStorage.setItem(CFG_KEY,JSON.stringify(CFG))}catch(e){}}
 loadCfg();
 const frameClock=NSR.Presentation.createFrameClock(),damageDirections=[];
+const interferenceCanvas=document.createElement('canvas');interferenceCanvas.id='suit-interference';interferenceCanvas.setAttribute('aria-hidden','true');cv.after(interferenceCanvas);
+const suitInterference=NSR.SuitInterference.create(interferenceCanvas,cv),motionPreference=matchMedia('(prefers-reduced-motion: reduce)');
 let previousPose=null,coopRenderPose=null,lastDraw=null;
 function showDamageDirection(source){
  if(!source||!Number.isFinite(source.x)||!Number.isFinite(source.z))return;
@@ -405,7 +422,7 @@ function eAI(e,dt,safe){if(DEV_MODE&&DEV_TOOLS.freezeEnemies)return;const c=ET[e
  e.sT-=dt;if(e.sT<=0){e.sT=.5;const mvd=Math.hypot(e.x-e.px,e.z-e.pz);e.px=e.x;e.pz=e.z;
   if(!safe&&d>1.8+r&&mvd<spd*.5*.22)e.sk++;else e.sk=0;
   if(e.sk==2)e.pf=2.5;else if(e.sk>=5){e.sk=0;relocE(e)}}}
-function hurt(n,source){if(DEV_MODE&&DEV_TOOLS.invincible)return;S.hp-=n;hpFlash=.25;hitT=tt;showDamageDirection(source)}
+function hurt(n,source){if(DEV_MODE&&DEV_TOOLS.invincible)return;S.hp-=n;hpFlash=.25;hitT=tt;suitInterference.hit(n,ST(S.L).hp,performance.now());showDamageDirection(source)}
 // ---------- 3D scene ----------
 const sc=new THREE.Scene(),cam3=new THREE.PerspectiveCamera(75,1,.1,200),dummy=new THREE.Object3D(),col=new THREE.Color(),rend=new THREE.WebGLRenderer({canvas:cv,antialias:true});
 rend.setPixelRatio(Math.min(devicePixelRatio||1,1.5));const cam4=new THREE.PerspectiveCamera(30,1,.1,200);cam4.rotation.order='YXZ';cam3.rotation.order='YXZ';
@@ -535,7 +552,7 @@ function closeSet(){setOpen=false;listen=null;$('#set').style.display='none';sav
 const fmtV=c=>c=='fpsLimit'?(CFG.fpsLimit?CFG.fpsLimit+' FPS':'Unlimited'):c=='fov'?CFG.fov+'°':(+CFG[c]).toFixed(2);
 function renderSet(){const sl=(c,l,mn,mx,st)=>`<label class=r><span>${l}</span><span><span id="v_${c}">${fmtV(c)}</span> <input type=range data-c="${c}" min="${mn}" max="${mx}" step="${st}" value="${CFG[c]}"></span></label>`,ck=(c,l)=>`<label class=r><span>${l}</span><input type=checkbox data-c="${c}" ${CFG[c]?'checked':''}></label>`;
  $('#sw').innerHTML=`<h2>SETTINGS</h2><h3>Sound</h3>${ck('music','Background music')}${ck('geiger','Geiger counter sounds')}${sl('mv','Master volume',0,1,.01)}${sl('mu','Music volume',0,1,.01)}${sl('sv','Effects volume',0,1,.01)}
- <h3>Performance</h3>${ck('showFps','Show FPS counter')}${sl('fpsLimit','FPS limit (0 = unlimited)',0,240,1)}
+ <h3>Performance</h3>${ck('showFps','Show FPS counter')}${sl('fpsLimit','FPS limit (0 = unlimited)',0,240,1)}${ck('suitInterference','Suit interference (damage-reactive; off with reduced motion)')}
  <h3>View and aiming</h3>${sl('fov','Field of view (horizontal, 16:9 equivalent)',70,120,1)}${sl('sens','Mouse sensitivity',.2,3,.05)}${sl('adsm','Aim-down-sights sensitivity',.2,1.2,.05)}${ck('inv','Invert Y axis')}${ck('adsT','Aim down sights: toggle instead of hold')}
  <h3>Key bindings (click one, then press a key or mouse side button)</h3>${Object.keys(KL).map(a=>`<div class=r><span>${KL[a]}</span><button class=kbtn data-k="${a}">${listen==a?'press a key / side button...':kn(CFG.KB[a])}</button></div>`).join('')}
  <p class=j>Fixed: LMB fire · RMB aim · Esc opens and closes this menu · click to resume after closing.</p>
@@ -566,7 +583,7 @@ function cleanSave(raw,keepTime=false){if(!raw||typeof raw!='object'||Array.isAr
 const KEYCODE=/^(Key[A-Z]|Digit[0-9]|Numpad([0-9]|Add|Subtract|Multiply|Divide|Decimal|Enter)|F([1-9]|1[0-9]|2[0-4])|Arrow(Up|Down|Left|Right)|(Shift|Control|Alt|Meta)(Left|Right)|Space|Tab|Enter|Backspace|CapsLock|Backquote|Minus|Equal|BracketLeft|BracketRight|Backslash|Semicolon|Quote|Comma|Period|Slash|IntlBackslash|Insert|Delete|Home|End|PageUp|PageDown)$/;
 function cleanSettings(raw){if(!raw||typeof raw!='object'||Array.isArray(raw))return null;const num=(v,min,max,fallback)=>{v=Number(v);return Number.isFinite(v)?Math.min(max,Math.max(min,v)):fallback},bool=(v,fallback)=>typeof v=='boolean'?v:fallback,KB={...KBD};
  if(raw.KB&&typeof raw.KB=='object')for(const action in KBD){const code=raw.KB[action];if(typeof code=='string'&&KEYCODE.test(code))KB[action]=code}
- return {fov:Math.round(num(raw.fov,70,120,CFG.fov)),sens:num(raw.sens,.2,3,CFG.sens),adsm:num(raw.adsm,.2,1.2,CFG.adsm),inv:bool(raw.inv,CFG.inv),adsT:bool(raw.adsT,CFG.adsT),mv:num(raw.mv,0,1,CFG.mv),sv:num(raw.sv,0,1,CFG.sv),mu:num(raw.mu,0,1,CFG.mu),music:bool(raw.music,CFG.music),geiger:bool(raw.geiger,CFG.geiger),KB}}
+ return {fov:Math.round(num(raw.fov,70,120,CFG.fov)),sens:num(raw.sens,.2,3,CFG.sens),adsm:num(raw.adsm,.2,1.2,CFG.adsm),inv:bool(raw.inv,CFG.inv),adsT:bool(raw.adsT,CFG.adsT),mv:num(raw.mv,0,1,CFG.mv),sv:num(raw.sv,0,1,CFG.sv),mu:num(raw.mu,0,1,CFG.mu),music:bool(raw.music,CFG.music),geiger:bool(raw.geiger,CFG.geiger),suitInterference:bool(raw.suitInterference,CFG.suitInterference),KB}}
 let pendingImport=null;
 function readImport(file){if(coopSession){$('#smsg').textContent='Leave co-op before importing a solo save.';return}const msg=$('#smsg');pendingImport=null;if(!file)return;if(file.size>5e6){msg.textContent='That file is too large to be a save.';return}
  file.text().then(text=>{let data;try{data=JSON.parse(text)}catch(e){msg.textContent='Not a save file: the file is not valid JSON.';return}
@@ -863,7 +880,7 @@ function draw(renderDt=1/60){const visualPose=paused?p:coopSession?{...coopRende
  $('#hm').style.opacity=Math.min(1,Math.max(0,hmT*8));$('#hm').style.color=hmH?'#ff5a1f':'#fff';$('#cx').style.transform=`scale(${1+(1-adsT)*(.4+Math.hypot(p.vx,p.vz)/30)*.5})`;
  $('#vig').style.opacity=Math.min(.9,Math.max(0,hpFlash*3)+expo*.08+(S.hp<30?.25:0));camCalc()}
 function hud(){const progress=NSR.Defs.cleanupProgress(S.total,D),s=ST(S.L),c=progress.percent,w=WP[wi],T0=[SH,...DEP].reduce((a,b)=>Math.hypot(a.x-p.x,a.z-p.z)<=Math.hypot(b.x-p.x,b.z-p.z)?a:b),dx=T0.x-p.x,dz=T0.z-p.z;let rl=Math.atan2(-dx,-dz)-p.yaw;rl=Math.atan2(Math.sin(rl),Math.cos(rl));const ar='↑↖←↙↓↘→↗'[(Math.round(rl/(Math.PI/4))+8)%8];
- $('#hud').innerHTML=`<section class="hud-category"><strong>MISSION</strong><b style="color:var(--ac)">SITE ${S.sector}</b> ${getSec(S.sector).n}<br>CLEANED ${c.toFixed(1)}%${S.clr?'<br><b style="color:#4f9dde">'+(S.bossDead?'BOSS DEFEATED':'EARLY DEPLOY AVAILABLE')+'</b>':''}<br>${progress.patches} dust ${progress.patches===1?'patch':'patches'} remaining<div class=bar><i style="width:${c}%;background:var(--ac)"></i></div></section><section class="hud-category"><strong>MOVEMENT</strong>${Math.hypot(p.vx,p.vz).toFixed(1)} m/s ${p.sl?'SLIDE':p.st==4?'WALLRUN':p.st==5?'WALLCLIMB':p.st==2?'HANG':p.st==1?'VAULT':p.roll>0?'ROLL':''}</section><section class="hud-category"><strong>AMMO</strong>${w.n}: ${ammo[wi]}/${mag()}<br>${rel>0?'RELOADING &middot; ':''}Spare reloads: ${bossActive()?'UNLIMITED':reserves[wi]+'/'+s.reloads}${!bossActive()&&ammo[wi]<=0&&reserves[wi]<=0?'<br><b style="color:#ff6a4a">OUT OF AMMO - RETURN TO SHELTER</b>':''}</section><section class="hud-category"><strong>NAVIGATION</strong>${T0===SH?"Shelter":"Depot"} ${ar} ${Math.hypot(dx,dz)|0} m${Math.hypot(p.x-SH.x,p.z-SH.z)<9?`<br>[${kn(CFG.KB.use)}] ${bossActive()?'deposit dust (no healing)':'open shelter shop'}`:''}</section>`;$('#hud').insertAdjacentHTML('beforeend',`<section class="hud-category"><strong>COMBAT SCORE</strong>${S.score.run.toLocaleString('en-US')} <small> / BEST ${S.score.best.toLocaleString('en-US')}</small></section>`);barUpd()}
+ $('#hud').innerHTML=`<header class="hud-system"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 21 6v7l-9 9-9-9V6Z"/><path d="M12 6v8m0 3v1M7 9h10"/></svg>S9 / HAZARD SUIT<span>TELEMETRY</span></header><section class="hud-category"><strong>MISSION / SITE SURVEY</strong><b class="hud-site">SITE ${S.sector}</b><span class="hud-location">${getSec(S.sector).n}</span><div class="hud-row"><span>CLEANED</span><b class="hud-reading">${c.toFixed(1)}<small>%</small></b></div><div class="bar"><i style="width:${c}%"></i></div><span class="hud-detail">${progress.patches} dust ${progress.patches===1?'patch':'patches'} remaining</span>${S.clr?'<span class="hud-alert">'+(S.bossDead?'BOSS DEFEATED':'EARLY DEPLOY AVAILABLE')+'</span>':''}</section><section class="hud-category"><strong>MOVEMENT / TELEMETRY</strong><div class="hud-row"><span>${p.sl?'SLIDE':p.st==4?'WALLRUN':p.st==5?'WALLCLIMB':p.st==2?'HANG':p.st==1?'VAULT':p.roll>0?'ROLL':'SPEED'}</span><b class="hud-reading">${Math.hypot(p.vx,p.vz).toFixed(1)} <small>m/s</small></b></div></section><section class="hud-category"><strong>AMMO / WEAPON LINK</strong><div class="hud-row"><span>${w.n}</span><b class="hud-reading">${ammo[wi]}<small>/${mag()}</small></b></div><span class="hud-detail">${rel>0?'RELOADING &middot; ':''}Spare reloads: ${bossActive()?'UNLIMITED':reserves[wi]+'/'+s.reloads}</span>${!bossActive()&&ammo[wi]<=0&&reserves[wi]<=0?'<span class="hud-alert danger">OUT OF AMMO - RETURN TO SHELTER</span>':''}</section><section class="hud-category"><strong>NAVIGATION / BEACON</strong><div class="hud-row"><span>${T0===SH?'Shelter':'Depot'}</span><b class="hud-reading">${ar} ${Math.hypot(dx,dz)|0} <small>m</small></b></div>${Math.hypot(p.x-SH.x,p.z-SH.z)<9?`<span class="hud-detail">[${kn(CFG.KB.use)}] ${bossActive()?'deposit dust (no healing)':'open shelter shop'}</span>`:''}</section><section class="hud-category hud-score"><strong>COMBAT SCORE</strong><div class="hud-row"><b class="hud-reading">${S.score.run.toLocaleString('en-US')}</b><span class="hud-detail">BEST ${S.score.best.toLocaleString('en-US')}</span></div></section>`;barUpd()}
 // ---------- input ----------
 function inputDown(e){
  if(DEV_MODE&&e.code=='F2'&&coopSession){e.preventDefault();coopUI.show();return}
@@ -931,7 +948,7 @@ function coopGameEvent(event){const own=event.playerId===coopSession?.view()?.lo
  if(event.type==='story'){const message=getSec(event.sector).b[event.index];if(message)say(message[1],message[2]);}
  if(event.type==='shot'){if(!own)remotePlayers.shot(event.playerId);for(const hit of event.traces||[])if(TR.length<48)TR.push({a:event.origin,b:hit,l:.08});if(!own)snd(200,.04,'sawtooth',.008)}
  if(event.type==='hit'&&own){hmT=.18;hmH=event.headshot}
- if(event.type==='hurt'&&own){hpFlash=.25;showDamageDirection(event.source);}
+ if(event.type==='hurt'&&own){hpFlash=.25;suitInterference.hit(event.damage??5,ST(S.L).hp,performance.now());showDamageDirection(event.source);}
  if(event.type==='rescue'&&own){toast('Rescued to shelter. Half your tank was lost.');coopEdges={}}
  if(event.type==='pickup'&&own){toast('Team +'+event.amount+' '+event.kind);snd(800,.07,'triangle',.04)}
  if(event.type==='vault'){toast('TEAM: VAULT UNLOCKED');coopWorldChanged()}
@@ -948,7 +965,7 @@ function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;
   }else{refine(dt);if(!paused){moveAcc+=dt;while(moveAcc+1e-9>=MOVE.tick&&!paused){previousPose={...p};upd(MOVE.tick);moveAcc=Math.max(0,moveAcc-MOVE.tick)}}else{moveAcc=0;previousPose=null}}
   if(frameClock.due(now,CFG.fpsLimit)){
    const renderDt=lastDraw===null?1/60:Math.min(.1,(now-lastDraw)/1000);lastDraw=now;
-   draw(renderDt);drawMinimap(now);drawDamageDirections(now);
+   draw(renderDt);suitInterference.render(now,{enabled:CFG.suitInterference,paused,reducedMotion:motionPreference.matches,exposure:expo});drawMinimap(now);drawDamageDirections(now);
    const measuredFps=frameClock.rendered(now),counter=$('#fps-counter');counter.hidden=!CFG.showFps;
    counter.textContent=measuredFps+' FPS'+(CFG.fpsLimit?' / '+CFG.fpsLimit+' cap':' / unlimited');
   }

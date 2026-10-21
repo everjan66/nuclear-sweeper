@@ -180,7 +180,7 @@ function updatePlayer(world,player,input,dt){
  for(const depot of world.DEP)if(distance(pose,depot)<2.4&&pose.h<1.2&&player.tank>.5){world.team.raw+=player.tank;player.tank=0;event(world,'deposit',{playerId:player.id});}
  const separation=distance(pose,world.SH);if(separation>11)player.canDock=true;if(separation<4&&player.canDock)dock(world,player);
 }
-function hurt(world,player,damage,source){if(world.dev&&world.assists?.invincible)return;player.hp-=damage;event(world,'hurt',{playerId:player.id,source:source?{x:source.x,z:source.z}:null});}
+function hurt(world,player,damage,source){if(world.dev&&world.assists?.invincible)return;player.hp-=damage;event(world,'hurt',{playerId:player.id,damage,source:source?{x:source.x,z:source.z}:null});}
 function pathFields(world,players){
  let cache=caches.get(world);if(!cache){cache={next:0,fields:{}};caches.set(world,cache);}if(world.time<cache.next)return cache.fields;cache.next=world.time+.3;
  const neighbors=[[1,0],[-1,0],[0,1],[0,-1]];
