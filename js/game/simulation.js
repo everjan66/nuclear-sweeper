@@ -274,7 +274,7 @@ function step(world,inputs={},dt=MOVE.tick){
   if(!world.bossDead&&(!world.dev||!world.assists?.freezeEnemies))for(const effect of bossApi().step(world,players,dt)||[]){
    if(effect.type==='hurt'){const player=world.players[effect.playerId];if(player)hurt(world,player,effect.damage,effect.source);}
    else if(effect.type==='summon')summon(world,effect.units);
-   else if(effect.type==='victory'&&!world.bossDead){world.bossDead=1;world.clr=1;world.team.cred+=1000+world.sector*250;world.team.parts+=3;event(world,'boss-victory');}
+   else if(effect.type==='victory'&&!world.bossDead){if(world.boss.kind==='sweeper'){world.E=world.E.filter(enemy=>!enemy.bossMinion);world.EP=[];}world.bossDead=1;world.clr=1;world.team.cred+=1000+world.sector*250;world.team.parts+=3;event(world,'boss-victory');}
   }
  }
  updateEnemies(world,players,dt);updateProjectiles(world,players,dt);updateLoot(world,players,dt);

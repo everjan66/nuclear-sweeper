@@ -56,3 +56,13 @@ test('saved solo boss Shriekers retain flying altitude and boss minion status',(
  assert.equal(restored[0].h,3.2);assert.equal(restored[0].t,4);assert.equal(restored[0].bossMinion,true);
  const legacy={...flyer};delete legacy.h;assert.equal(context.cleanBossEnemies([legacy])[0].h,.7);
 });
+test('solo Sweeper victory removes guards and hostile projectiles before saving',()=>{
+ let saved=0;const context=fixture(['tickBoss'],{E:[{bossMinion:true},{bossMinion:false}],EP:[{dm:99}],p:{},bossWorld:()=>({}),syncBossWorld:()=>{},NSR:{Boss:{step:()=>[{type:'victory'}],name:()=> 'THE MELTDOWN SWEEPER'}},celebrate:()=>{},save:()=>saved++});
+ Object.assign(context.S,{boss:{kind:'sweeper',state:'shielded'},sector:1,cred:0,parts:0});context.tickBoss(0);
+ assert.equal(context.E.length,1);assert.equal(context.E[0].bossMinion,false);assert.equal(context.EP.length,0);assert.equal(context.S.bossDead,1);assert.equal(context.S.cred,1250);assert.equal(context.S.parts,3);assert.equal(saved,1);
+});
+test('solo Sweeper reinforcement callouts do not claim enemies gate the core opening',()=>{
+ const messages=[],context=fixture(['tickBoss'],{E:[],p:{},bossWorld:()=>({}),syncBossWorld:()=>{},NSR:{Boss:{step:()=>[{type:'summon',units:[]}]}},toast:message=>messages.push(message)});
+ context.S.boss.kind='sweeper';context.tickBoss(0);assert.match(messages[0],/Keep dodging/);assert.doesNotMatch(messages[0],/clear the enemy wave/);
+ context.S.boss.kind='sovereign';context.tickBoss(0);assert.match(messages[1],/clear the enemy wave/);
+});

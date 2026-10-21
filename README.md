@@ -103,6 +103,11 @@ the visual reference. Its three phases require both cleanup and careful dodging:
 - Recovery gaps are short: **1.15s after a nozzle**, **0.65s after a bomb**,
   **0.8s after either sweep/ring**, and **0.9s after the core reseals**.
   Warning durations are unchanged, so each dodge still has a readable cue.
+- Each phase calls **3 / 4 / 5 reinforcements**, with a **1.5-second magenta
+  spawn warning** and a cap of **six living guards** across phase changes.
+  Melee enemies, ranged attackers and flying Shriekers keep pressure on your
+  dodges. Guards do not add another core-opening requirement, and surviving
+  guards/projectiles disappear when the Sweeper dies.
 - Each health third reseals the core and leaks **16 / 22 / 28 patches**. Higher
   phases shorten the launch warning and increase attack speed and damage.
   Shielded regeneration stays within the current phase, so earlier phases stay won.

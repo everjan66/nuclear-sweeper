@@ -23,7 +23,7 @@ function sustained(player,index){
 }
 function create(sector,players=[],kind='sovereign'){
  if(typeof players==='string'){kind=players;players=[];}
- if(kind==='sweeper'){const mh=360+24*(clamp(Number.isFinite(sector)?Math.floor(sector):1,1,100)-1);return {kind:'sweeper',x:72,z:58,hp:mh,mh,phase:1,state:'shielded',timer:0,attack:3,wave:0,warning:null};}
+ if(kind==='sweeper'){const mh=360+24*(clamp(Number.isFinite(sector)?Math.floor(sector):1,1,100)-1);return {kind:'sweeper',x:72,z:58,hp:mh,mh,phase:1,state:'shielded',timer:0,attack:3,wave:0,warning:null,summonedPhase:0,spawnWarning:null};}
  const active=players.filter(player=>player&&player.connected!==false),baseline=sustained({},0);
  const power=clamp(active.reduce((sum,player)=>sum+Math.max(...WP.map((weapon,index)=>index===0||player.L?.['w'+index]>0?sustained(player,index)/baseline:0)),0)||1,1,256);
  const mh=(360+20*clamp(Number.isFinite(sector)?Math.floor(sector):1,1,100))*Math.pow(power,.9);
@@ -36,11 +36,13 @@ function summons(world,players){
   const point={x:(column+.5)*TS,z:(row+.5)*TS};
   if((row===21||row===37||column===17||column===41)&&world.M[row*GW+column]===0&&distance(point,boss)>=6)spots.push(point);
  }
- const distant=spots.filter(point=>players.every(player=>distance(point,player.pose)>=8)),available=distant.length?distant:spots;
- const count=Math.min(10,2+boss.phase+Math.floor(Math.log2(boss.power)/2)),units=[];
+ const sweeper=boss.kind==='sweeper',power=sweeper?1:boss.power,distant=spots.filter(point=>players.every(player=>distance(point,player.pose)>=8));
+ const outsideShelter=distant.filter(point=>distance(point,world.SH||{x:40,z:58})>=8),available=sweeper?(outsideShelter.length?outsideShelter:distant):(distant.length?distant:spots);
+ const living=(world.E||[]).filter(enemy=>enemy&&enemy.bossMinion&&enemy.hp>0&&!enemy.gone).length;
+ const count=sweeper?Math.min(2+boss.phase,Math.max(0,6-living)):Math.min(10,2+boss.phase+Math.floor(Math.log2(power)/2)),units=[];
  for(let index=0;index<Math.min(count,available.length);index++){
   const point=available[(boss.phase*11+Math.floor(index*available.length/count))%available.length];
-  units.push({t:index===2||boss.phase===3&&index>=4&&index%2===0?4:boss.phase>=2&&index===0?2:boss.phase>=2&&index===1?3:index%2,x:point.x,z:point.z,hpScale:Math.min(12,Math.sqrt(boss.power))});
+  units.push({t:index===2||boss.phase===3&&index>=4&&index%2===0?4:boss.phase>=2&&index===0?2:boss.phase>=2&&index===1?3:index%2,x:point.x,z:point.z,hpScale:Math.min(12,Math.sqrt(power))});
  }
  return {type:'summon',units};
 }
@@ -62,6 +64,7 @@ function seedDust(world){
  world.dirty.push(...changed);
 }
 function shield(world){
+ if(world.boss.kind==='sweeper')world.boss.spawnWarning=null;
  const boss=world.boss;boss.state='shielded';boss.timer=0;boss.attack=boss.kind==='sweeper'?3:1/(boss.pressure||1);boss.warning=null;boss.ring=null;boss.nozzle=null;boss.sweep=null;boss.burst=0;seedDust(world);
 }
 function damage(world,amount){
@@ -70,7 +73,7 @@ function damage(world,amount){
  const floor=boss.phase<3?boss.mh*(3-boss.phase)/3:0,actual=Math.min(amount,Math.max(0,boss.hp-floor));boss.hp-=actual;
  if(boss.hp<=floor){
   if(boss.phase<3){boss.phase++;shield(world);}
-  else{boss.hp=0;boss.state='dead';boss.warning=null;boss.ring=null;boss.nozzle=null;boss.sweep=null;}
+  else{boss.hp=0;boss.state='dead';boss.warning=null;boss.ring=null;boss.nozzle=null;boss.sweep=null;if(boss.kind==='sweeper')boss.spawnWarning=null;}
  }
  return actual;
 }
@@ -88,9 +91,22 @@ function stepSweeper(world,players,dt){
  const boss=world.boss,effects=[],shelter=world.SH||{x:40,z:58};
  const targets=players.filter(player=>player&&player.pose&&Number.isFinite(player.pose.x)&&Number.isFinite(player.pose.z)&&player.connected!==false&&!(player.hp<=0));
  const safe=player=>distance(player.pose,shelter)<=7;
+ if(boss.summonedPhase===undefined)boss.summonedPhase=boss.spawnWarning?boss.phase:0;
+ if(boss.spawnWarning===undefined)boss.spawnWarning=null;
+ if(boss.summonedPhase!==boss.phase){
+  boss.summonedPhase=boss.phase;const units=summons(world,targets).units;
+  boss.spawnWarning=units.length?{left:1.5,units}:null;
+ }
  let remaining=dt;
  do{
   const elapsed=Math.min(remaining,.025);remaining=Math.max(0,remaining-elapsed);
+  if(boss.spawnWarning){
+   boss.spawnWarning.left=Math.max(0,boss.spawnWarning.left-elapsed);
+   if(boss.spawnWarning.left<=1e-9){
+    const living=(world.E||[]).filter(enemy=>enemy&&enemy.bossMinion&&enemy.hp>0&&!enemy.gone).length,units=boss.spawnWarning.units.slice(0,Math.max(0,6-living));
+    if(units.length)effects.push({type:'summon',units});boss.spawnWarning=null;
+   }
+  }
   if(boss.state==='exposed'){
    boss.timer=Math.max(0,boss.timer-elapsed);
    if(boss.timer<=1e-9){boss.state='shielded';boss.attack=.9;boss.timer=0;}
@@ -208,17 +224,18 @@ function restore(raw,sector){
  if(raw.kind!==undefined&&!['sovereign','sweeper'].includes(raw.kind))return null;
  const boss=create(sector,[],raw.kind);boss.mh=clamp(raw.mh,1,1000000);boss.phase=raw.phase;boss.state=raw.state;
  if(boss.kind!=='sweeper'){
- for(const [key,min,max,integer] of [['power',1,256,false],['pressure',1,1.5,false],['summonedPhase',0,3,true],['balanceVersion',0,1,true],['targetCursor',0,999999,true]]){
+ for(const [key,min,max,integer] of [['power',1,256,false],['pressure',1,1.5,false],['balanceVersion',0,1,true],['targetCursor',0,999999,true]]){
   if(raw[key]!==undefined){if(!Number.isFinite(raw[key])||raw[key]<min||raw[key]>max||(integer&&!Number.isInteger(raw[key])))return null;boss[key]=raw[key];}
  }
  if(raw.balanceVersion===undefined)boss.balanceVersion=0;
+ }
+ if(raw.summonedPhase!==undefined){if(!Number.isInteger(raw.summonedPhase)||raw.summonedPhase<0||raw.summonedPhase>3)return null;boss.summonedPhase=raw.summonedPhase;}
  if(boss.summonedPhase>boss.phase)return null;
  if(raw.spawnWarning!==undefined&&raw.spawnWarning!==null){
   const warning=raw.spawnWarning;
-  if(raw.state!=='shielded'||boss.summonedPhase!==boss.phase||!plain(warning)||!Number.isFinite(warning.left)||warning.left<0||warning.left>1.5||!Array.isArray(warning.units)||warning.units.length<1||warning.units.length>10)return null;
+  if((boss.kind==='sweeper'?raw.state==='dead':raw.state!=='shielded')||boss.summonedPhase!==boss.phase||!plain(warning)||!Number.isFinite(warning.left)||warning.left<0||warning.left>1.5||!Array.isArray(warning.units)||warning.units.length<1||warning.units.length>(boss.kind==='sweeper'?6:10))return null;
   if(!warning.units.every(unit=>plain(unit)&&Number.isInteger(unit.t)&&!!ET[unit.t]&&Number.isFinite(unit.x)&&unit.x>=35&&unit.x<=83&&Number.isFinite(unit.z)&&unit.z>=43&&unit.z<=75&&Number.isFinite(unit.hpScale)&&unit.hpScale>=1&&unit.hpScale<=12))return null;
   boss.spawnWarning={left:warning.left,units:warning.units.map(unit=>({t:unit.t,x:unit.x,z:unit.z,hpScale:unit.hpScale}))};
- }
  }
  boss.hp=clamp(raw.hp,0,boss.mh*(4-boss.phase)/3);boss.timer=clamp(raw.timer,0,11-boss.phase);boss.attack=clamp(raw.attack,0,10);boss.wave=clamp(Math.floor(raw.wave),0,1000000);
  if(raw.state==='dead'){if(raw.hp!==0||raw.phase!==3)return null;boss.hp=0;}

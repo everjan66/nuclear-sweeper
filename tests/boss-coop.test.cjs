@@ -64,6 +64,12 @@ test('boss effects hurt players, disable regular spawns and reward victory only 
  Sim.step(world);assert.equal(world.team.cred,cred+1250);assert.equal(world.events.filter(event=>event.type==='boss-victory').length,1);
  host.ready=true;guest.ready=true;assert.equal(Sim.action(world,host.id,{id:2,type:'deploy'}).ok,true);assert.equal(world.sector,2);assert.equal(world.boss,null);assert.equal(world.bossDead,0);
 });
+test('Sweeper victory clears surviving reinforcements and projectiles before they can hurt the team',()=>{
+ const {world,host}=fixture();world.boss=Boss.create(1,'sweeper');Object.assign(world.boss,{phase:3,hp:0,state:'dead'});
+ world.E=[{id:'guard',bossMinion:true,hp:30},{id:'other',hp:30,t:0,x:60,z:58}];world.EP=[{dm:999}];const hp=host.hp;
+ Sim.step(world);assert.equal(world.E.length,1);assert.equal(world.E[0].id,'other');assert.equal(world.EP.length,0);assert.equal(host.hp,hp);assert.equal(world.bossDead,1);assert.equal(world.team.parts,3);
+ Sim.step(world);assert.equal(world.team.parts,3);assert.equal(world.events.filter(event=>event.type==='boss-victory').length,1);
+});
 test('boss checkpoints restore arena geometry, preserve dust totals repeatedly and restart in place',()=>{
  const {world,host}=fixture();enter(world);expose(world);Boss.damage(world,1e9);
  let saved=Sim.snapshot(world);const total=saved.total,rem=saved.rem;
