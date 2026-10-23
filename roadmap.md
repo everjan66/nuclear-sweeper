@@ -96,4 +96,4 @@ link a release summary so contributors can understand prior decisions.
 
 ## Signaling audit follow-up
 
-- #37 — Queue-safe room expiry/leave and atomic join admission: In progress; regression tests cover full queues and unaffected rooms. Awaiting review and merge.
+- #37 â€” Queue-safe room expiry/leave and atomic join admission: In progress; regression tests cover full queues and unaffected rooms. Awaiting review and merge.
