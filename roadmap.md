@@ -93,3 +93,7 @@ Review priorities before starting a milestone or substantial new feature.
 Propose new work in an issue instead of silently expanding an active task.
 Keep completed items until the milestone closes, then summarize them here or
 link a release summary so contributors can understand prior decisions.
+
+## Rendering lifetime audit follow-up
+
+- #44 — Dispose world-owned render resources and removed vault doors: In progress; 160 tests and Chromium four-client smoke passed, including stable geometry counts across ordinary/boss rebuilds. Shared geometry/material/texture assets are retained explicitly. Awaiting review and merge.
