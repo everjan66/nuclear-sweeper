@@ -66,3 +66,17 @@ test('old and new co-op checkpoints restore their own room version',()=>{
  }
  const world=Sim.createWorld({roomDesign:1});Sim.addPlayer(world,{id:'host'});const saved=Sim.snapshot(world);delete saved.roomDesign;assert.equal(Sim.restore(saved).roomDesign,1);
 });
+
+test('cached ceiling lookup matches reference across all designs/sites and tile edges',()=>{
+ const reference=(world,x,z)=>world.R.find(r=>r.large&&x>=r.x0*Defs.TS&&x<(r.x1+1)*Defs.TS&&z>=r.z0*Defs.TS&&z<(r.z1+1)*Defs.TS)?.ceiling??Defs.WH;
+ for(const roomDesign of [0,1,2])for(let sector=1;sector<=100;sector++){
+  const world=Maps.generate(sector,{roomDesign});
+  for(let row=0;row<Defs.GH;row++)for(let col=0;col<Defs.GW;col++){
+   const x=col*Defs.TS,z=row*Defs.TS;assert.equal(Maps.ceiling(world,x,z),reference(world,x,z));assert.equal(Maps.ceiling(world,x+.75,z+1.25),reference(world,x+.75,z+1.25));
+  }
+  for(const x of [-1,0,120,121,NaN])assert.equal(Maps.ceiling(world,x,x),reference(world,x,x));
+ }
+ const room={large:true,x0:1,x1:3,z0:1,z1:3,ceiling:9.6},world={R:[room,{...room,ceiling:12}]};
+ assert.equal(Maps.ceiling(world,3,3),9.6);room.ceiling=11;Maps.invalidateCeilings(world);assert.equal(Maps.ceiling(world,3,3),11);
+ world.R=[];assert.equal(Maps.ceiling(world,3,3),Defs.WH);
+});
