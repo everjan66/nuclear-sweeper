@@ -93,3 +93,7 @@ Review priorities before starting a milestone or substantial new feature.
 Propose new work in an issue instead of silently expanding an active task.
 Keep completed items until the milestone closes, then summarize them here or
 link a release summary so contributors can understand prior decisions.
+
+## October code audit fixes
+
+- #35 ? Solo checkpoint retention/recovery and boss accounting: In progress. Verify rejected-save preservation, quota failures, and boss save/reload before merge.
