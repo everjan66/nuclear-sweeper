@@ -96,4 +96,4 @@ link a release summary so contributors can understand prior decisions.
 
 ## Combat audit follow-up
 
-- #41 — Co-op fractional fire cadence and solo late-site mastery targets: In progress; cadence/idle/menu/reload and sites 2–100 spawn regressions covered. Awaiting review/merge and human balance feedback on the explicit enemy mix.
+- #41 â€” Co-op fractional fire cadence and solo late-site mastery targets: In progress; cadence/idle/menu/reload and sites 2â€“100 spawn regressions covered. Awaiting review/merge and human balance feedback on the explicit enemy mix.
