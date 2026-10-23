@@ -93,3 +93,7 @@ Review priorities before starting a milestone or substantial new feature.
 Propose new work in an issue instead of silently expanding an active task.
 Keep completed items until the milestone closes, then summarize them here or
 link a release summary so contributors can understand prior decisions.
+
+## Loot and visibility audit follow-up
+
+- #43 — Value-preserving loot stacks, legacy checkpoint recovery and complete projectile/drop rendering: In progress; 162 tests and Chromium four-client regression passed. Awaiting review/merge. Nearby ordinary drops merge; at capacity they merge into the nearest compatible stack, while seven rare markers remain independent.
