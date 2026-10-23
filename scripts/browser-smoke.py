@@ -141,7 +141,21 @@ async def smoke(args, server=None):
         await solo.reload()
         await solo.locator("#coop-solo").click()
         assert await solo.evaluate("S.cred") == 123
+        resources = await solo.evaluate("""() => {
+          let sharedDisposals=0;sph.addEventListener('dispose',()=>sharedDisposals++);ceilM.addEventListener('dispose',()=>sharedDisposals++);
+          const samples=[];for(let i=0;i<8;i++){build3D();draw();samples.push(rend.info.memory.geometries);}
+          const before=rend.info.memory.geometries,doors=DOORM.length;let disposedDoors=0;for(const door of DOORM)door.geometry.addEventListener('dispose',()=>disposedDoors++);openVault(false);draw();
+          const after=rend.info.memory.geometries;build3D();draw();
+          return {samples,before,after,doors,disposedDoors,sharedDisposals};
+        }""")
+        assert max(resources["samples"]) == min(resources["samples"]), resources
+        assert resources["disposedDoors"] == resources["doors"] and resources["after"] <= resources["before"], resources
+        assert resources["sharedDisposals"] == 0, resources
         await sweeper_check(solo)
+        boss_resources = await solo.evaluate("""() => {
+          const samples=[];for(let i=0;i<5;i++){build3D();draw();samples.push(rend.info.memory.geometries);}return samples;
+        }""")
+        assert max(boss_resources) == min(boss_resources), boss_resources
         await solo.goto(args.url + "/nuclear-sweeper-dev.html")
         dev = solo.frame_locator("iframe")
         await dev.locator("#coop-solo").click()
