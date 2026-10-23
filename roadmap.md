@@ -96,12 +96,12 @@ link a release summary so contributors can understand prior decisions.
 
 ## Simulation timing audit follow-up
 
-- #45 — Bounded elapsed-time catch-up independent of rendering: In progress; 162 tests passed across solo/host/guest callback rates, pause/resume, input edges and long stalls. Awaiting review/merge. At most 250 ms (16 fixed ticks) is consumed per callback; excess stall time is deliberately discarded.
+- #45 â€” Bounded elapsed-time catch-up independent of rendering: In progress; 162 tests passed across solo/host/guest callback rates, pause/resume, input edges and long stalls. Awaiting review/merge. At most 250 ms (16 fixed ticks) is consumed per callback; excess stall time is deliberately discarded.
 
 ## Gameplay design follow-ups from the audit
 
 These are scoped proposals, not completed gameplay changes. Existing newer boss mechanics remain the baseline for playtests.
 
-- #47 — Measure progression income and upgrade costs before economy tuning; complements performance/playtest issue #22.
-- #48 — Prototype explicit boss entry, one room-cleanup consequence and a traversal reward; evaluate against current automatic entry.
-- #49 — Define assist/contribution progression and prioritize solo/co-op feedback parity; complements shared simulation migration #20.
+- #47 â€” Measure progression income and upgrade costs before economy tuning; complements performance/playtest issue #22.
+- #48 â€” Prototype explicit boss entry, one room-cleanup consequence and a traversal reward; evaluate against current automatic entry.
+- #49 â€” Define assist/contribution progression and prioritize solo/co-op feedback parity; complements shared simulation migration #20.
