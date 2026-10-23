@@ -955,7 +955,7 @@ function coopGameEvent(event){const own=event.playerId===coopSession?.view()?.lo
 }
 function coopInput(){return {yaw:p.yaw,pit:p.pit,fw:kd('fw'),bk:kd('bk'),lf:kd('lf'),rt:kd('rt'),crouch:kd('crouch')||kd('crouch2'),grapple:kd('grapple'),reload:kd('reload'),fire:!!ml,ads:!!ads,weapon:coopWeapon,menu:paused||!coopUI.hidden(),...coopEdges}}
 let last=performance.now(),moveAcc=0;
-function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;
+function loop(now){const dt=Math.max(0,Math.min(MOVE.maxFrame,(now-last)/1000));last=now;
  if(gameStarted){
   if(coopSession){const input=coopInput();coopSession.advance(dt,input);applyCoopView();
    coopVisualCooldown=Math.max(0,coopVisualCooldown-dt);if(!ml)hf=0;

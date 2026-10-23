@@ -4,7 +4,7 @@
 const NSR=root.NSR||(root.NSR={});
 const TS=2,GW=60,GH=60,WH=6.4;
 const TT=[0,WH,1.1,2.6,0,2.2,3.2,0,1.1,WH,0],TB=[0,0,0,1.3,0,0,2.9,0,0,0,0];
-const MOVE={tick:1/64,groundAccel:10,airAccel:12,friction:5.2,stopSpeed:80*7.2/250,airWishCap:30*7.2/250,slideMinSpeed:3.5,slideEndSpeed:2.5,slideDrag:2.4,slideTurnRate:1.2};
+const MOVE={tick:1/64,maxFrame:.25,groundAccel:10,airAccel:12,friction:5.2,stopSpeed:80*7.2/250,airWishCap:30*7.2/250,slideMinSpeed:3.5,slideEndSpeed:2.5,slideDrag:2.4,slideTurnRate:1.2};
 const SCORE={kill:100,headshot:20,window:5,step:5,maxBonus:.5};
 const cl=(v,a,b)=>Math.max(a,Math.min(b,v)),lerp=(a,b,t)=>a+(b-a)*t;
 const ST=L=>({sw:.6+.12*L.sweep,rad:3+.4*L.rad,suit:1+.6*L.suit,hp:100+10*L.suit,gei:6+2*L.gei,spd:9+.45*L.boots,cap:100+60*L.tank,rate:2+1.5*L.ref,yld:.5+.05*L.yld,reloads:3+L.pouch,w1:L.w1,w2:L.w2,w3:L.w3,w4:L.w4,w5:L.w5,w6:L.w6});

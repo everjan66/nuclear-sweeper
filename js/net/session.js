@@ -139,11 +139,12 @@ function create({dev=false,name='Sweeper',url,relay=false,onEvent=()=>{},storage
   if(world.events.length){const values=world.events.splice(0);transport.broadcast({type:'events',session:sessionId,generation:world.generation,events:values},true);events(values);if(values.some(value=>['transaction','vault','rescue','boss-victory'].includes(value.type)))save();}
  }
  function advance(dt,raw={}){
+  dt=Number.isFinite(dt)?Math.max(0,Math.min(Defs.MOVE.maxFrame,dt)):0;
   for(const [id,pending]of pendingActions)if(performance.now()>pending.until){pendingActions.delete(id);pending.resolve({ok:false,reason:'Host did not confirm this action. Reconnect before trying again.'});status('Action confirmation timed out.');}
   if(closed||!world||waiting||syncing)return;
   if(pausedByHost){if(role==='host'){snapshotAccumulator+=dt;if(snapshotAccumulator>=.5){snapshotAccumulator=0;sendFrame();}}return;}
   if(role==='guest'&&performance.now()-lastHostAt>1500){waiting=true;status('Waiting for host. Prediction has stopped.');return;}
-  inputAccumulator+=Math.min(.05,dt);
+  inputAccumulator+=dt;
   let first=true;
   while(inputAccumulator+1e-9>=Defs.MOVE.tick){
    const input={...raw};if(!first)for(const key of Protocol.edges)input[key]=false;first=false;
@@ -161,7 +162,7 @@ function create({dev=false,name='Sweeper',url,relay=false,onEvent=()=>{},storage
    if(dustAccumulator>=.1){dustAccumulator=0;const cells=[...new Set(world.dirty.splice(0))].map(tile=>[tile,world.D[tile]]);if(cells.length)transport.broadcast({type:'dust',session:sessionId,generation:world.generation,cells},true);}
    if(saveAccumulator>=8){saveAccumulator=0;save();}
   }else{
-   sendAccumulator+=dt;if(sendAccumulator>=1/32){sendAccumulator=0;transport.send('host',{type:'inputs',session:sessionId,generation:world.generation,inputs:inputHistory.slice(-8).map(Protocol.packInput)},false);}
+   sendAccumulator+=dt;if(sendAccumulator>=1/32){sendAccumulator=0;transport.send('host',{type:'inputs',session:sessionId,generation:world.generation,inputs:inputHistory.slice(-16).map(Protocol.packInput)},false);}
   }
  }
  function perform(type,fields={}){
