@@ -66,3 +66,9 @@ test('solo Sweeper reinforcement callouts do not claim enemies gate the core ope
  context.S.boss.kind='sweeper';context.tickBoss(0);assert.match(messages[0],/Keep dodging/);assert.doesNotMatch(messages[0],/clear the enemy wave/);
  context.S.boss.kind='sovereign';context.tickBoss(0);assert.match(messages[1],/clear the enemy wave/);
 });
+
+test('solo spawn mix retains mastery targets through site 100 and caps gunners',()=>{
+ const random=Defs.rng(1729),context=fixture(['pickT'],{Math:{random,min:Math.min},E:[]});
+ for(let sector=2;sector<=100;sector++){context.S.sector=sector;const counts=[0,0,0,0,0];for(let i=0;i<5000;i++)counts[context.pickT()]++;assert.ok(counts[1]>400,`Spitters at site ${sector}`);assert.ok(counts[0]>200);assert.ok(counts[4]>600);if(sector>=3)assert.ok(counts[2]>200);}
+ context.E=[{t:3},{t:3},{t:3}];for(let i=0;i<1000;i++)assert.notEqual(context.pickT(),3);
+});

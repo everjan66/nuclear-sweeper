@@ -93,3 +93,7 @@ Review priorities before starting a milestone or substantial new feature.
 Propose new work in an issue instead of silently expanding an active task.
 Keep completed items until the milestone closes, then summarize them here or
 link a release summary so contributors can understand prior decisions.
+
+## Combat audit follow-up
+
+- #41 — Co-op fractional fire cadence and solo late-site mastery targets: In progress; cadence/idle/menu/reload and sites 2–100 spawn regressions covered. Awaiting review/merge and human balance feedback on the explicit enemy mix.
