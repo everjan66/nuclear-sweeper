@@ -30,7 +30,7 @@ function environment({latency=0,loss=0,jitter=0,seed=19}={}){
   packets.sort((first,second)=>first.at-second.at);
   while(packets.length&&packets[0].at<=time){const packet=packets.shift();if(endpoints.get(packet.destination.id)===packet.destination)packet.destination.onEvent({type:'message',peerId:packet.source,data:packet.value,reliable:packet.reliable});}
  }
- function advance(sessions,inputs={},ticks=1){for(let tick=0;tick<ticks;tick++){time+=1000/64;deliver();for(let index=0;index<sessions.length;index++)sessions[index].advance(1/64,inputs[index]||{yaw:0,pit:0,menu:true});deliver();}}
+ function advance(sessions,inputs={},ticks=1,dt=1/64){for(let tick=0;tick<ticks;tick++){time+=1000*dt;deliver();for(let index=0;index<sessions.length;index++)sessions[index].advance(dt,inputs[index]||{yaw:0,pit:0,menu:true});deliver();}}
  return {NSR:context.NSR,storage,advance,deliver,traffic,now:()=>time,pending:()=>packets.length,setBlackout:value=>{blackout=value;},setUnreliableBlackout:value=>{unreliableBlackout=value;}};
 }
 module.exports={environment};
