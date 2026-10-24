@@ -97,3 +97,9 @@ link a release summary so contributors can understand prior decisions.
 ## Ceiling lookup audit follow-up
 
 - #39 — Cached ceiling heights for collision/ray queries: In progress; all map versions and sites match reference lookups. Local four-player benchmark median improved from 0.31–0.35 ms to 0.15–0.20 ms per tick. Awaiting review/merge; run `node scripts/benchmark-ceilings.cjs` to reproduce (not a GPU/FPS benchmark).
+## Signaling audit follow-up
+
+- #37 — Queue-safe room expiry/leave and atomic join admission: In progress; regression tests cover full queues and unaffected rooms. Awaiting review and merge.
+## October code audit fixes
+
+- #35 ? Solo checkpoint retention/recovery and boss accounting: In progress. Verify rejected-save preservation, quota failures, and boss save/reload before merge.
