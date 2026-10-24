@@ -19,7 +19,7 @@ function create({dev=false,storage=root.localStorage}={}){
   load(){const text=storage.getItem(key);return text?validate(JSON.parse(text),dev):null;},
   inspect(text){if(typeof text!=='string'||text.length>5e6)throw new Error('That file is too large to be a co-op save.');return validate(JSON.parse(text),dev);},
   importCheckpoint(value){const checked=validate(value,dev);storage.setItem(key,JSON.stringify({...checked,world:NSR.Simulation.snapshot(checked.world),savedAt:Date.now()}));return checked;},
-  save(checkpoint){storage.setItem(key,JSON.stringify({format:'nsr-coop',version:1,savedAt:Date.now(),worldId:checkpoint.worldId,identities:checkpoint.identities,world:NSR.Simulation.snapshot(checkpoint.world)}));},
+  save(checkpoint){const value={format:'nsr-coop',version:1,savedAt:Date.now(),worldId:checkpoint.worldId,identities:checkpoint.identities,world:NSR.Simulation.snapshot(checkpoint.world)};validate(value,dev);storage.setItem(key,JSON.stringify(value));},
   identity(worldId){try{return JSON.parse(storage.getItem(identityKey)||'{}')[worldId]||null;}catch(error){return null;}},
   remember(worldId,identity){const identities=JSON.parse(storage.getItem(identityKey)||'{}');identities[worldId]=identity;const entries=Object.entries(identities).slice(-20);storage.setItem(identityKey,JSON.stringify(Object.fromEntries(entries)));}
  };

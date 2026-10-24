@@ -21,3 +21,9 @@ test('checkpoint import validates characters and credentials before replacing an
  const corrupt=JSON.parse(JSON.stringify(backup));corrupt.world.players.host.pose.x=null;assert.throws(()=>store.inspect(JSON.stringify(corrupt)));
  assert.equal(values.get('nsr_coop_v1'),saved);assert.equal(values.get('nsr1'),'solo');assert.throws(()=>store.inspect('x'.repeat(5000001)));
 });
+
+test('autosave validates before replacing a known checkpoint',()=>{
+ const values=new Map(),storage={getItem:key=>values.get(key)||null,setItem:(key,value)=>values.set(key,value)},store=Storage.create({storage});
+ const world=NSR.Simulation.createWorld();NSR.Simulation.addPlayer(world,{id:'host'});const checkpoint={world,worldId:'world',identities:{host:'private'}};
+ store.save(checkpoint);const previous=values.get(store.key);world.players.host.pose.x=NaN;assert.throws(()=>store.save(checkpoint));assert.equal(values.get(store.key),previous);
+});

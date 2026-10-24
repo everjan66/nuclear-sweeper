@@ -6,13 +6,15 @@ const crypto=require('node:crypto');
 const {VERSION}=require('../../js/net/protocol.js');
 const ROOT=path.resolve(__dirname,'../..');
 const token=()=>crypto.randomBytes(24).toString('base64url');
-function createServer({allowedOrigin=process.env.ALLOWED_ORIGIN,turnSecret=process.env.TURN_SECRET,turnUrls=process.env.TURN_URLS,stunUrl=process.env.STUN_URL||'stun:stun.l.google.com:19302',now=Date.now}={}){
+function createServer({allowedOrigin=process.env.ALLOWED_ORIGIN,turnSecret=process.env.TURN_SECRET,turnUrls=process.env.TURN_URLS,stunUrl=process.env.STUN_URL||'stun:stun.l.google.com:19302',now=Date.now,scheduleMaintenance=setInterval}={}){
  const rooms=new Map(),rates=new Map();
  function json(response,status,value){if(response.writableEnded)return;response.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});response.end(JSON.stringify(value));}
  function fail(message,status=400){return Object.assign(new Error(message),{status});}
  function notify(member,message){if(member.queue.length>=64)throw fail('Signaling queue is full.',429);member.queue.push(message);if(member.waiting){clearTimeout(member.waiting.timer);json(member.waiting.response,200,member.queue.splice(0));member.waiting=null;}}
- function remove(room,id){const member=room.members.get(id);if(!member)return;if(member.waiting)json(member.waiting.response,410,{error:'Room closed.'});room.members.delete(id);if(id==='host'){for(const guest of room.members.values())notify(guest,{type:'room-closed'});rooms.delete(room.id);}else if(room.members.has('host'))notify(room.members.get('host'),{type:'peer-left',peerId:id});}
- const maintenance=setInterval(()=>{for(const room of rooms.values()){if(now()-room.created>12*3600000||now()-room.members.get('host')?.seen>60000){remove(room,'host');continue;}for(const member of room.members.values())if(member.id!=='host'&&now()-member.seen>60000)remove(room,member.id);}for(const [key,rate]of rates)if(now()-rate.since>60000)rates.delete(key);},10000);
+ // Lifecycle notices must not let backpressure interrupt structural cleanup.
+ function notifyCleanup(member,message){if(member.queue.length>=64)member.queue.shift();notify(member,message);}
+ function remove(room,id){const member=room.members.get(id);if(!member)return;if(member.waiting){clearTimeout(member.waiting.timer);json(member.waiting.response,410,{error:'Room closed.'});member.waiting=null;}room.members.delete(id);if(id==='host'){rooms.delete(room.id);for(const guest of room.members.values())notifyCleanup(guest,{type:'room-closed'});}else if(room.members.has('host'))notifyCleanup(room.members.get('host'),{type:'peer-left',peerId:id});}
+ const maintenance=scheduleMaintenance(()=>{for(const room of rooms.values()){if(now()-room.created>12*3600000||now()-room.members.get('host')?.seen>60000){remove(room,'host');continue;}for(const member of room.members.values())if(member.id!=='host'&&now()-member.seen>60000)remove(room,member.id);}for(const [key,rate]of rates)if(now()-rate.since>60000)rates.delete(key);},10000);
  maintenance.unref();
  const server=http.createServer(async(request,response)=>{
   try{
@@ -44,7 +46,7 @@ function createServer({allowedOrigin=process.env.ALLOWED_ORIGIN,turnSecret=proce
     const room=rooms.get(body.room);if(!room||room.invitation!==body.token)throw fail('Invitation expired or room unavailable.',404);
     if(body.version!==VERSION||!!body.dev!==room.dev)throw fail('Game version or developer mode does not match the host.',409);
     if(room.members.size>=4)throw fail('This room is full (four players).',409);
-    const member={id:'peer-'+token(),token:token(),seen:now(),queue:[]};room.members.set(member.id,member);notify(room.members.get('host'),{type:'peer-joined',peerId:member.id});
+    const member={id:'peer-'+token(),token:token(),seen:now(),queue:[]};notify(room.members.get('host'),{type:'peer-joined',peerId:member.id});room.members.set(member.id,member);
     json(response,200,{room:room.id,memberId:member.id,memberToken:member.token});return;
    }
    const room=rooms.get(url.searchParams.get('room')||body.room),member=room?.members.get(url.searchParams.get('member')||body.member);

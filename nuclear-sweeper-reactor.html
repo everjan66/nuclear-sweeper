@@ -205,15 +205,18 @@ button.u:not(:disabled):hover .buybar{background:#b6e65a}
 <canvas id="gl"></canvas><div id="fps-counter" hidden></div><div id="damage-directions" aria-hidden="true"></div><div id="vig"></div><div id="cx"></div><div id="scope"><svg viewBox="0 0 200 200"><g fill="#ff2a2a" stroke="#ff2a2a"><path d="M100 100l-11 13h5l6-7 6 7h5z" stroke="none"/><path d="M100 113V168" stroke-width="2"/><path d="M95 126h10M96 139h8M96 152h8M95 165h10" stroke-width="1.5"/></g></svg></div><div id="hm">✕</div><div id="hud"></div><div id="hint"><dl><dt>Click</dt><dd>capture the mouse</dd><dt>LMB · RMB</dt><dd>fire · aim</dd><dt>R</dt><dd>reload</dd><dt>1-7</dt><dd>weapons</dd><dt>Space</dt><dd>jump · vault · wallrun</dd><dt>Shift · C</dt><dd>slide · roll</dd><dt>E</dt><dd>shelter (Esc / Enter / E / Space leaves it)</dd><dt>Esc</dt><dd><b>settings and key bindings</b></dd><dt>M</dt><dd>music</dd></dl>Red marks a parkour route.</div><div id="shop"><div id="sp"></div></div><div id="bar"><div id="bl"></div><div id="wb"></div><div id="br"></div></div><div id="set"><div id="sw"></div></div><div id="log"></div><div id="tst"></div><div id="lvlup" role="status" aria-live="polite"></div>
 <div id="resume"><button class="go" id="resumeButton">CLICK TO RESUME</button><p id="resumeHint" class="j">Mouse capture is required to resume. Esc opens settings.</p></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="js/ui/resources.js"></script>
 <script src="js/core/definitions.js"></script>
 <script src="js/core/map.js"></script>
 <script src="js/core/movement.js"></script>
 <script src="js/game/boss.js"></script>
 <script src="js/game/sweeper-visuals.js"></script>
+<script src="js/game/loot.js"></script>
 <script src="js/game/simulation.js"></script>
 <script src="js/net/protocol.js"></script>
 <script src="js/net/transport.js"></script>
 <script src="js/storage/coop.js"></script>
+<script src="js/storage/checkpoints.js"></script>
 <script src="js/net/session.js"></script>
 <script src="js/ui/presentation.js"></script>
 <script src="js/ui/suit-interference.js"></script>
@@ -377,7 +380,7 @@ function drawMinimap(now){const hidden=paused||!minimap.ctx;if(minimap.panel.hid
  if(S.boss?.spawnWarning){ctx.strokeStyle='#f08cff';ctx.lineWidth=2;for(const unit of S.boss.spawnWarning.units){const x=minimap.pad+unit.x/TS*minimap.scale,z=minimap.pad+unit.z/TS*minimap.scale;ctx.strokeRect(x-3,z-3,6,6);}}
  for(const member of coopRemote){const pose=member.pose;ctx.fillStyle=member.id===coopRemote[0]?.id?'#6ee7ff':'#d69aff';ctx.beginPath();ctx.arc(minimap.pad+pose.x/TS*minimap.scale,minimap.pad+pose.z/TS*minimap.scale,3,0,Math.PI*2);ctx.fill()}}
 
-function pickT(){const s=S.sector,u=Math.random();if(Math.random()<.18)return 4;if(Math.random()<.07+.01*s&&E.filter(e=>e.t==3).length<3)return 3;if(s>=3&&u<.12+.03*s)return 2;if(s>=2&&u<.4)return 1;return 0}
+function pickT(){const s=S.sector;if(Math.random()<.18)return 4;if(Math.random()<Math.min(.35,.07+.01*s)&&E.filter(e=>e.t==3).length<3)return 3;const brute=s>=3?Math.min(.55,.12+.03*s):0,spitter=s>=2?.28:0,u=Math.random();return u<brute?2:u<brute+spitter?1:0}
 const pass=i=>{const m=M[i];return m==0||m==4||m==3||m==6||m==10},solE=i=>{const m=M[i];return m==1||m==2||m==5||m==8||m==9||m==7};
 function passB(i){if(!pass(i))return false;const x=i%GW,z=i/GW|0;for(const[a,b]of N8){const X=x+a,Z=z+b;if(X<0||Z<0||X>=GW||Z>=GH||solE(Z*GW+X))return false}return true}
 function rebuildPB(){for(let i=0;i<GW*GH;i++)PB[i]=passB(i)?1:0}
@@ -433,9 +436,10 @@ const ceilM=new THREE.MeshBasicMaterial({color:0x0b0e08});
 {const g=new THREE.Mesh(new THREE.PlaneGeometry(GW*TS,GH*TS),new THREE.MeshLambertMaterial({map:tex}));g.rotation.x=-Math.PI/2;g.position.set(GW*TS/2,0,GH*TS/2);sc.add(g);
 }
 function mkI(geo,mat,max){const m=new THREE.InstancedMesh(geo,mat,max);m.frustumCulled=false;m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);sc.add(m);return m}
-const sph=new THREE.SphereGeometry(1,8,6),bars=mkI(new THREE.BoxGeometry(TS-.25,1,TS-.25).translate(0,.5,0),new THREE.MeshBasicMaterial(),GW*GH),
- iEP=mkI(sph,new THREE.MeshBasicMaterial({color:0xff8a3c}),60),iDr=mkI(new THREE.BoxGeometry(.35,.35,.35),new THREE.MeshBasicMaterial(),200),iP=mkI(sph,new THREE.MeshBasicMaterial({color:0xc6ff3a}),300),iF=mkI(sph,new THREE.MeshBasicMaterial(),400);
+const sph=new THREE.SphereGeometry(1,8,6),bars=mkI(new THREE.BoxGeometry(TS-.25,1,TS-.25).translate(0,.5,0),new THREE.MeshBasicMaterial(),GW*GH);
+let iEP=mkI(sph,new THREE.MeshBasicMaterial({color:0xff8a3c}),128),iDr=mkI(new THREE.BoxGeometry(.35,.35,.35),new THREE.MeshBasicMaterial(),NSR.Loot.LIMIT),iP=mkI(sph,new THREE.MeshBasicMaterial({color:0xc6ff3a}),300),iF=mkI(sph,new THREE.MeshBasicMaterial(),400);
 bars.setColorAt(0,col.set(0));iF.setColorAt(0,col.set(0));iDr.setColorAt(0,col.set(0));
+function growInstances(mesh,count){if(count<=mesh.instanceMatrix.count)return mesh;const grown=mkI(mesh.geometry,mesh.material,Math.max(count,mesh.instanceMatrix.count*2));sc.remove(mesh);mesh.dispose();return grown}
 function setI(im,a,fn){const n=Math.min(a.length,im.instanceMatrix.count);for(let i=0;i<n;i++){dummy.rotation.set(0,0,0);fn(a[i],dummy);dummy.updateMatrix();im.setMatrixAt(i,dummy.matrix)}im.count=n;im.instanceMatrix.needsUpdate=true}
 const trG=new THREE.BufferGeometry(),trA=new Float32Array(48*6);trG.setAttribute('position',new THREE.BufferAttribute(trA,3));
 const trL=new THREE.LineSegments(trG,new THREE.LineBasicMaterial({color:0xffe08a,fog:false}));trL.frustumCulled=false;sc.add(trL);
@@ -461,7 +465,7 @@ function buildRoomLasers(){const details=W3.userData.details,lasers=[];
    const support=new THREE.Mesh(new THREE.BoxGeometry(.12,laser.y,.12),new THREE.MeshLambertMaterial({color:0x59616b}));support.position.set(x,laser.y/2,laser.z);details.add(support)}lasers.push({laser,beam,lamps})}W3.userData.lasers=lasers;
 }
 function drawRoomLasers(){for(const {laser,beam,lamps}of W3?.userData.lasers||[]){const state=NSR.Map.laserState(laser,tt),color=state==='active'?0xff405c:state==='warning'?0xffc65c:0x245354;beam.visible=state!=='off';beam.material.color.setHex(color);beam.material.opacity=state==='active'?.95:.25+.2*Math.sin(tt*35);for(const lamp of lamps)lamp.material.emissive.setHex(color)}}
-function build3D(){applyTheme();const th=TH();if(W3){if(W3.userData.details)W3.userData.details.traverse(object=>{if(object.geometry)object.geometry.dispose();if(object.material){if(object.material.map)object.material.map.dispose();object.material.dispose()}});if(W3.userData.ceilings){W3.userData.ceilings.geometry.dispose();W3.userData.ceilings.dispose()}sc.remove(W3)}W3=new THREE.Group();sc.add(W3);const dat=tex.image.data,wl=[],cr=[],bm=[],tc=[],pf=[],rc=[],c5=R[5],inR=(o,x,z)=>x>=o.x0&&x<=o.x1&&z>=o.z0&&z<=o.z1,inC=(x,z)=>x>=c5.cx-2&&x<=c5.cx+1&&z>=c5.cz-2&&z<=c5.cz+1;
+function build3D(){applyTheme();const th=TH();if(W3)NSR.Resources.disposeTree(W3,[ceilM,sph,tex]);W3=new THREE.Group();sc.add(W3);const dat=tex.image.data,wl=[],cr=[],bm=[],tc=[],pf=[],rc=[],c5=R[5],inR=(o,x,z)=>x>=o.x0&&x<=o.x1&&z>=o.z0&&z<=o.z1,inC=(x,z)=>x>=c5.cx-2&&x<=c5.cx+1&&z>=c5.cz-2&&z<=c5.cz+1;
  for(let z=0;z<GH;z++)for(let x=0;x<GW;x++){const m=M[z*GW+x],o=((GH-1-z)*GW+x)*4;let c=th.uw;
   if(m!=1){const h=(x*7+z*13)%5;c=[th.fl[0]-h*5,th.fl[1]-h*5,th.fl[2]-h*5];const room=R.find(room=>room.design!==undefined&&inR(room,x,z));
    if(room){const style=ROOM_DESIGNS[room.design];c=c.map((value,index)=>value+style.tint[index]);if((Math.abs(x-room.cx)==1||Math.abs(z-room.cz)==1)&&(x+z)%3==0)c=c.map((value,index)=>Math.round(value*.65+((style.color>>(16-index*8))&255)*.35))}
@@ -540,9 +544,21 @@ function cast(o,d,mx,noE,ignored){let t=0;while(t<mx){t+=.25;if(rs(o.x+d.x*t,o.y
 // ---------- game flow ----------
 function cleanBossEnemies(raw){if(raw==null)return [];if(!Array.isArray(raw)||raw.length>12)return null;const guards=[];for(const enemy of raw){if(!enemy||!Number.isInteger(enemy.t)||!ET[enemy.t]||!['x','z','hp','mh'].every(key=>Number.isFinite(enemy[key]))||enemy.x<32||enemy.x>86||enemy.z<40||enemy.z>78||enemy.hp<=0||enemy.mh<enemy.hp||enemy.mh>1e6)return null;const guard={t:enemy.t,x:enemy.x,z:enemy.z,h:ET[enemy.t].fly?cl(Number.isFinite(enemy.h)?enemy.h:.7,0,WH-1.8*ET[enemy.t].sc):0,hp:enemy.hp,mh:enemy.mh,al:1,bossMinion:true};for(const [key,fallback]of Object.entries({cd:0,fc:1,sd:1,ph:0,bn:0,bt:0,px:enemy.x,pz:enemy.z,sT:.5,sk:0,pf:0}))guard[key]=Number.isFinite(enemy[key])?cl(enemy[key],-100,200):fallback;guards.push(guard)}return guards}
 function fresh(){return fixProgress({roomDesign:2,L:mkL(),wl:WP.map(()=>({dmg:0,fr:0,multi:0})),scrap:0,cred:0,raw:0,tank:0,hp:100,sector:1,story:0,clr:0,total:1,rem:1,t:Date.now(),parts:0,att:WP.map(()=>({s:0,b:0,l:0})),unl:{s:0,b:0,l:0},mod:{gr:0,dash:0},vOpen:0,vTaken:0,iTaken:0,boss:null,bossEnemies:[],bossDead:0,bty:null,kills:0})}
-function load(){try{return cleanSave(JSON.parse(localStorage.getItem(KEY)),true)}catch(e){}return null}
-let saveLocked=false;
-function save(){if(coopSession)return coopSession.save();if(!gameStarted||saveLocked)return false;try{S.t=Date.now();localStorage.setItem(KEY,JSON.stringify({...S,bossEnemies:bossActive()?E.filter(enemy=>enemy.hp>0&&!enemy.gone):[],d:Array.from(D,v=>+v.toFixed(2))}));return true}catch(e){return false}}
+const soloCheckpoints=NSR.Checkpoints.create({key:KEY,validate:value=>cleanSave(value,true)});
+function load(){return soloCheckpoints.load()}
+function showSaveRecovery(error){
+ const panel=document.createElement('dialog');panel.id='save-recovery';panel.style.cssText='max-width:560px;background:#152018;color:#edf6e8;padding:24px;border:1px solid #719654';
+ const title=document.createElement('h2');title.textContent='Your save could not be loaded';panel.append(title);
+ const message=document.createElement('p');message.textContent='Your existing save has been preserved. '+error.message;panel.append(message);
+ const button=(label,action)=>{const b=document.createElement('button');b.textContent=label;b.style.margin='6px';b.onclick=()=>{try{action()}catch(e){message.textContent=e.message+' Your original save is still preserved.'}};panel.append(b);return b};
+ button('Download original save',()=>{const text=soloCheckpoints.original();if(text===null)throw Error('No stored checkpoint found.');const url=URL.createObjectURL(new Blob([text],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='nuclear-sweeper-recovery.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000)});
+ let backup=null;try{backup=soloCheckpoints.backup()}catch(_){}if(backup)button('Restore previous checkpoint',()=>{soloCheckpoints.restoreBackup();location.reload()});
+ let confirmed=false;const reset=button('Start a new game',()=>{if(!confirmed){confirmed=true;reset.textContent='Confirm new game';return}soloCheckpoints.reset();location.reload()});
+ button('Back',()=>{panel.close();panel.remove();coopUI.show()});panel.addEventListener('cancel',e=>{e.preventDefault();panel.close();panel.remove();coopUI.show()});document.body.append(panel);panel.showModal();
+}
+let saveLocked=false,lastSaveError=null;
+function save(){if(coopSession)return coopSession.save();if(!gameStarted||saveLocked)return false;try{S.t=Date.now();soloCheckpoints.write({...S,bossEnemies:bossActive()?E.filter(enemy=>enemy.hp>0&&!enemy.gone):[],d:Array.from(D,v=>+v.toFixed(2))});lastSaveError=null;return true}catch(e){const message='Save failed: '+e.message+' Export a backup from Settings.';if(lastSaveError!==message)toast(message);lastSaveError=message;return false}}
+
 function placeP(){previousPose=null;p=NSR.Movement.createPose(SH);canDock=false}
 function dockShelter(){S.raw+=S.tank;S.tank=0;if(!bossActive()){S.hp=ST(S.L).hp;resupplyAmmo()}canDock=false;save()}
 function openShop(){if(bossActive()){toast('Boss lockdown: deposit only. No healing or shop until victory.');return}if(coopSession){coopSession.perform('dock');shopOpen=true;ml=0;ads=false;syncPause();releaseMouse();$('#shop').style.display='block';walletOpen();renderShop();return}shopOpen=true;ml=0;ads=false;syncPause();S.raw+=S.tank;S.tank=0;S.hp=ST(S.L).hp;resupplyAmmo();canDock=false;if(document.exitPointerLock)document.exitPointerLock();$('#shop').style.display='block';walletOpen();renderShop();save()}
@@ -556,7 +572,7 @@ function renderSet(){const sl=(c,l,mn,mx,st)=>`<label class=r><span>${l}</span><
  <h3>View and aiming</h3>${sl('fov','Field of view (horizontal, 16:9 equivalent)',70,120,1)}${sl('sens','Mouse sensitivity',.2,3,.05)}${sl('adsm','Aim-down-sights sensitivity',.2,1.2,.05)}${ck('inv','Invert Y axis')}${ck('adsT','Aim down sights: toggle instead of hold')}
  <h3>Key bindings (click one, then press a key or mouse side button)</h3>${Object.keys(KL).map(a=>`<div class=r><span>${KL[a]}</span><button class=kbtn data-k="${a}">${listen==a?'press a key / side button...':kn(CFG.KB[a])}</button></div>`).join('')}
  <p class=j>Fixed: LMB fire · RMB aim · Esc opens and closes this menu · click to resume after closing.</p>
- <h3>Save game</h3><div class=j>Your progress lives in this browser only. Export a backup file before updates or a browser clean-up; import puts it back.</div><div class=j>Current save: Site ${S.sector} · ${Math.floor(S.cred).toLocaleString('en-US')} credits · ${S.scrap} scrap · ${S.parts} parts · ${S.kills} kills.</div><div class=r><span>Backup file</span><span><button class=kbtn id=sx>Export save file</button> <button class=kbtn id=sim>Import save file</button><input type=file id=sif accept=".json,application/json" hidden></span></div><p class=j id=smsg role=status aria-live=polite></p>
+ <h3>Save game</h3><div class=j>Your progress lives in this browser only. Export a backup file before updates or a browser clean-up; import puts it back.</div><div class=j>Current save: Site ${S.sector} · ${Math.floor(S.cred).toLocaleString('en-US')} credits · ${S.scrap} scrap · ${S.parts} parts · ${S.kills} kills.</div><div class=r><span>Backup file</span><span><button class=kbtn id=sx>Export save file</button> <button class=kbtn id=sim>Import save file</button><input type=file id=sif accept=".json,application/json" hidden></span></div><p class=j id=smsg role=status aria-live=polite>${lastSaveError?'Autosave failed. Export a backup before closing this page.':''}</p>
  <button class=go id=sc>CLOSE (Esc)</button><button class=go id=sk style="background:#3c4a32;color:#a9bd94">Reset key bindings</button>`;categorizeMenu($('#sw'))}
 $('#sw').addEventListener('input',e=>{const el=e.target,c=el.dataset&&el.dataset.c;if(!c)return;CFG[c]=el.type=='checkbox'?el.checked:+el.value;const v=$('#v_'+c);if(v)v.textContent=fmtV(c);applyVol();saveCfg()});
 // save backup: one JSON file with the game state and the settings
@@ -569,6 +585,7 @@ function exportSave(){if(coopSession){$('#smsg').textContent='Use Expedition to 
 function cleanSave(raw,keepTime=false){if(!raw||typeof raw!='object'||Array.isArray(raw))return null;
  if(!Array.isArray(raw.d)||raw.d.length!=GW*GH||raw.d.some(v=>typeof v!='number'||!Number.isFinite(v)))return null;
  if(!raw.L||typeof raw.L!='object'||Array.isArray(raw.L))return null;
+ if(raw.roomDesign!==undefined&&![0,1,2].includes(raw.roomDesign))return null;
  const num=(v,min,max,int,fallback)=>{v=Number(v);if(!Number.isFinite(v))return fallback;v=Math.min(max,Math.max(min,v));return int?Math.floor(v):v},flag=v=>v===true||v===1?1:0,obj=v=>v&&typeof v=='object'&&!Array.isArray(v)?v:{};
  const L=mkL();for(const key in L){const u=U.find(x=>x[0]==key);L[key]=num(raw.L[key],0,u?u[5]:1,true,0)}
  const state={...fresh(),d:raw.d.map(v=>Math.min(1,Math.max(0,v))),L,roomDesign:num(raw.roomDesign,0,99,true,1),scrap:num(raw.scrap,0,1e9,true,0),cred:num(raw.cred,0,1e12,false,0),raw:num(raw.raw,0,1e9,false,0),tank:num(raw.tank,0,1e7,false,0),hp:num(raw.hp,0,1e5,false,100),
@@ -768,7 +785,7 @@ function hazUpd(dt,s,ti){bladeCd-=dt;tmsg-=dt;
  if(M[ti]==10&&p.h<.9&&bladeCd<=0&&p.st==0){hurt(28);p.vx*=-.5;p.vz*=-.5;bladeCd=.8;shake=6;snd(90,.15,'sawtooth',.06)}
  if(TERM&&!S.vOpen&&Math.hypot(p.x-TERM.x,p.z-TERM.z)<2.6){if(S.tank>=20){S.tank-=20;openVault(true)}else if(tmsg<=0){toast('SAMPLE TERMINAL: feed it 20 u of dust to unlock the vault');tmsg=4}}
  if(p.st==0&&zpCd<=0){const n=nearZip();if(n&&zipTip<=0){toast('['+kn(CFG.KB.use)+'] grab the zip line');zipTip=3}}zipTip-=dt}
-function openVault(fx){S.vOpen=1;for(const i of DOORT)M[i]=0;for(const m of DOORM)W3.remove(m);DOORM=[];rebuildPB();spawnVault();if(fx){toast('VAULT DOORS UNLOCKED');say('Hanne Voss','Sample accepted. The vault doors are open. Take what\'s inside.');snd(300,.4,'sawtooth',.05)}}
+function openVault(fx){S.vOpen=1;for(const i of DOORT)M[i]=0;for(const m of DOORM)NSR.Resources.disposeTree(m);DOORM=[];rebuildPB();spawnVault();if(fx){toast('VAULT DOORS UNLOCKED');say('Hanne Voss','Sample accepted. The vault doors are open. Take what\'s inside.');snd(300,.4,'sawtooth',.05)}}
 function spawnVault(){const o=R[12],cx=(o.cx+.5)*TS,cz=(o.cz+.5)*TS;[['part',2],['part',2],['cred',250],['cred',250],['scrap',6]].forEach((l,i)=>{if(S.vTaken&(1<<i))return;Dr.push({x:cx+rnd(-2,2),y:.4,z:cz+rnd(-2,2),vx:0,vz:0,k:l[0],a:l[1],bit:1<<i,m:'v'})})}
 function spawnIsland(){if(!ISL)return;[0,1].forEach(i=>{if(S.iTaken&(1<<i))return;Dr.push({x:ISL.x+(i?.8:-.8),y:.4,z:ISL.z,vx:0,vz:0,k:'part',a:1,bit:1<<i,m:'i'})})}
 function pickup(d){const k=d.k;let scrap=0;if(k=='part'){S.parts+=d.a||1;toast('⬢ +'+(d.a||1)+' rare part')}else if(k=='cred'){S.cred+=d.a||50;toast('◆ +'+(d.a||50)+' credits')}else{scrap=d.a||1;S.scrap+=scrap}if(d.m=='v')S.vTaken|=d.bit;if(d.m=='i')S.iTaken|=d.bit;snd(740+Math.random()*200,.07,'triangle',.05);return scrap}
@@ -817,7 +834,7 @@ function upd(dt){tt+=dt;tickPoints(dt);const s=ST(S.L);
  for(const e of E)eAI(e,dt,safe);
  for(let i=E.length-1;i>=0;i--){const e=E[i];if(e.gone){E.splice(i,1);continue}if(e.hp<=0){E.splice(i,1);snd(130,.15,'sawtooth',.04);const c=ET[e.t];
   for(let j=0;j<10;j++)F.push({x:e.x,y:.8,z:e.z,vx:rnd(-4,4),vy:rnd(1,5),vz:rnd(-4,4),l:.5,m:.5,c:'#8dff4a',r:.2});
-  for(let j=0,n=1+(Math.random()*2.4|0)+(S.sector>2?1:0)+(e.t==2?3:0)+(e.t==3?1:0);j<n;j++)Dr.push({x:e.x,y:.4,z:e.z,vx:rnd(-3,3),vz:rnd(-3,3)})}}
+  for(let j=0,n=1+(Math.random()*2.4|0)+(S.sector>2?1:0)+(e.t==2?3:0)+(e.t==3?1:0);j<n;j++)NSR.Loot.add(Dr,{x:e.x,y:.4,z:e.z,vx:rnd(-3,3),vz:rnd(-3,3)})}}
  for(let i=EP.length-1;i>=0;i--){const b=EP[i],n=Math.max(1,Math.ceil(Math.hypot(b.vx,b.vy,b.vz)*dt/.4)),h=dt/n;let dead=(b.l-=dt)<=0;
   for(let k=0;k<n&&!dead;k++){b.x+=b.vx*h;b.y+=b.vy*h;b.z+=b.vz*h;if(rs(b.x,b.y,b.z)){dead=true;break}
    if(!safe&&Math.abs(b.x-p.x)<.6&&Math.abs(b.z-p.z)<.6&&b.y>p.h&&b.y<p.h+hg){hurt(b.dm,{x:b.x-b.vx,z:b.z-b.vz});snd(90,.12,'sawtooth',.05);dead=true}}
@@ -860,8 +877,8 @@ function draw(renderDt=1/60){const visualPose=paused?p:coopSession?{...coopRende
  camCalc(visualPose);fpv=fps||(adsE&&!!WP[wi].sc);const s=ST(S.L);drawBossVisuals();drawRoomLasers();
  if(fullRef){for(let i=0;i<GW*GH;i++)setBar(i,s);fullRef=false}else{for(const i of dirty)setBar(i,s);const r=s.gei/TS+2;for(let z=Math.max(0,Math.floor(p.z/TS-r));z<=Math.min(GH-1,Math.floor(p.z/TS+r));z++)for(let x=Math.max(0,Math.floor(p.x/TS-r));x<=Math.min(GW-1,Math.floor(p.x/TS+r));x++)setBar(z*GW+x,s)}
  dirty.length=0;bars.instanceMatrix.needsUpdate=true;bars.instanceColor.needsUpdate=true;
- setI(iEP,EP,(b,d)=>{d.position.set(b.x,b.y,b.z);d.scale.setScalar(b.sz||.22)});
- {const n=Math.min(Dr.length,200);for(let i=0;i<n;i++){const b=Dr[i];dummy.position.set(b.x,.45+Math.sin(tt*5+b.x)*.1,b.z);dummy.rotation.set(0,tt*3,0);dummy.scale.setScalar(b.k=='part'?1.5:b.k=='cred'?1.2:1);dummy.updateMatrix();iDr.setMatrixAt(i,dummy.matrix);iDr.setColorAt(i,col.set(b.k=='part'?0x6ee7ff:b.k=='cred'?0xffd23c:0xf5c542))}iDr.count=n;iDr.instanceMatrix.needsUpdate=true;if(iDr.instanceColor)iDr.instanceColor.needsUpdate=true}
+ iEP=growInstances(iEP,EP.length);setI(iEP,EP,(b,d)=>{d.position.set(b.x,b.y,b.z);d.scale.setScalar(b.sz||.22)});
+ {iDr=growInstances(iDr,Dr.length);const n=Dr.length;for(let i=0;i<n;i++){const b=Dr[i];dummy.position.set(b.x,.45+Math.sin(tt*5+b.x)*.1,b.z);dummy.rotation.set(0,tt*3,0);dummy.scale.setScalar(b.k=='part'?1.5:b.k=='cred'?1.2:1);dummy.updateMatrix();iDr.setMatrixAt(i,dummy.matrix);iDr.setColorAt(i,col.set(b.k=='part'?0x6ee7ff:b.k=='cred'?0xffd23c:0xf5c542))}iDr.count=n;iDr.instanceMatrix.needsUpdate=true;if(iDr.instanceColor)iDr.instanceColor.needsUpdate=true}
  setI(iP,P,(b,d)=>{d.position.set(b.x,b.y,b.z);d.scale.setScalar(.1)});
  const nf=Math.min(F.length,400);for(let i=0;i<nf;i++){const f=F[i],k=f.l/f.m;dummy.position.set(f.x,f.y,f.z);dummy.rotation.set(0,0,0);dummy.scale.setScalar(f.r*k+.02);dummy.updateMatrix();iF.setMatrixAt(i,dummy.matrix);iF.setColorAt(i,col.set(f.c))}
  iF.count=nf;iF.instanceMatrix.needsUpdate=true;iF.instanceColor.needsUpdate=true;
@@ -919,11 +936,11 @@ addEventListener('blur',()=>{ml=0;hf=0;ads=false;keys={};escapeDown=false;escape
 addEventListener('mousemove',e=>{if(locked&&document.pointerLockElement==cv&&!paused){if(e.buttons!==undefined){ml=e.buttons&1?1:0;if(!CFG.adsT)ads=!!(e.buttons&2)}const k=.0022*CFG.sens*(ads?CFG.adsm:1);p.yaw-=e.movementX*k;p.pit=cl(p.pit-(CFG.inv?-1:1)*e.movementY*k,-1.45,1.45)}});
 // re-rendering replaces the buttons; put keyboard focus back on the one that was used
 const refocus=attr=>{if(!attr)return;const node=$(`#sp [${attr.name}="${attr.value}"]`);(node&&!node.disabled&&!node.closest('[hidden]')?node:$('#sp .menu-nav [aria-pressed=true]'))?.focus({preventScroll:true})};
-$('#sp').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const attr=[...b.attributes].find(a=>/^data-(pick|eq|un|md|u)$/.test(a.name));if(shopClick(b)){refocus(attr);return}if(b.dataset.u){buy(b.dataset.u,b.dataset.w);refocus(attr)}else if(b.id=='dp')deploy();else if(b.id=='st2')openSet();else if(b.id=='rs'){if(coopSession){toast('Leave co-op before resetting a solo save.');return}if(b.dataset.s){try{localStorage.removeItem(KEY)}catch(_){}location.reload()}else{b.dataset.s=1;b.textContent='Really reset?'}}else closeShop()});
+$('#sp').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const attr=[...b.attributes].find(a=>/^data-(pick|eq|un|md|u)$/.test(a.name));if(shopClick(b)){refocus(attr);return}if(b.dataset.u){buy(b.dataset.u,b.dataset.w);refocus(attr)}else if(b.id=='dp')deploy();else if(b.id=='st2')openSet();else if(b.id=='rs'){if(coopSession){toast('Leave co-op before resetting a solo save.');return}if(b.dataset.s){try{soloCheckpoints.reset();location.reload()}catch(error){toast('Could not reset save: '+error.message)}}else{b.dataset.s=1;b.textContent='Really reset?'}}else closeShop()});
 function rs2(){rend.setSize(innerWidth,innerHeight,false);cam3.aspect=innerWidth/innerHeight}addEventListener('resize',rs2);rs2();
 function startSolo(){
  if(gameStarted&&!coopSession){syncPause();return}
- coopSession=null;const loaded=load();S=loaded||fresh();vmSet(WP[wi]);genMap(S.sector);
+ coopSession=null;let loaded;try{loaded=load()}catch(error){showSaveRecovery(error);return}S=loaded?structuredClone(loaded):fresh();vmSet(WP[wi]);genMap(S.sector);
  if(loaded){D=Float32Array.from(loaded.d);S.total=loaded.total;S.rem=D.reduce((total,value)=>total+value,0);fullRef=true}
  placeP();camCalc();buildBar();checkProgress();const offline=Math.min(28800,(Date.now()-S.t)/1000);if(offline>5)refine(offline);
  gameStarted=true;dockShelter();syncPause();

@@ -105,3 +105,21 @@ These are scoped proposals, not completed gameplay changes. Existing newer boss 
 - #47 — Measure progression income and upgrade costs before economy tuning; complements performance/playtest issue #22.
 - #48 — Prototype explicit boss entry, one room-cleanup consequence and a traversal reward; evaluate against current automatic entry.
 - #49 — Define assist/contribution progression and prioritize solo/co-op feedback parity; complements shared simulation migration #20.
+## Rendering lifetime audit follow-up
+
+- #44 — Dispose world-owned render resources and removed vault doors: In progress; 160 tests and Chromium four-client smoke passed, including stable geometry counts across ordinary/boss rebuilds. Shared geometry/material/texture assets are retained explicitly. Awaiting review and merge.
+## Loot and visibility audit follow-up
+
+- #43 — Value-preserving loot stacks, legacy checkpoint recovery and complete projectile/drop rendering: In progress; 162 tests and Chromium four-client regression passed. Awaiting review/merge. Nearby ordinary drops merge; at capacity they merge into the nearest compatible stack, while seven rare markers remain independent.
+## Combat audit follow-up
+
+- #41 — Co-op fractional fire cadence and solo late-site mastery targets: In progress; cadence/idle/menu/reload and sites 2–100 spawn regressions covered. Awaiting review/merge and human balance feedback on the explicit enemy mix.
+## Ceiling lookup audit follow-up
+
+- #39 — Cached ceiling heights for collision/ray queries: In progress; all map versions and sites match reference lookups. Local four-player benchmark median improved from 0.31–0.35 ms to 0.15–0.20 ms per tick. Awaiting review/merge; run `node scripts/benchmark-ceilings.cjs` to reproduce (not a GPU/FPS benchmark).
+## Signaling audit follow-up
+
+- #37 — Queue-safe room expiry/leave and atomic join admission: In progress; regression tests cover full queues and unaffected rooms. Awaiting review and merge.
+## October code audit fixes
+
+- #35 ? Solo checkpoint retention/recovery and boss accounting: In progress. Verify rejected-save preservation, quota failures, and boss save/reload before merge.

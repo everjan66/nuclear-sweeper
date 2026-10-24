@@ -141,7 +141,51 @@ async def smoke(args, server=None):
         await solo.reload()
         await solo.locator("#coop-solo").click()
         assert await solo.evaluate("S.cred") == 123
+        # Startup must not mutate saved boss totals or replace a rejected slot.
+        original = await solo.evaluate("localStorage.getItem(KEY)")
+        await solo.evaluate("""() => {
+          S.boss=NSR.Boss.create(S.sector);S.boss.phase=2;S.boss.hp=S.boss.mh*2/3;
+          genMap(S.sector);const w=bossWorld();NSR.Boss.seedDust(w);syncBossWorld(w);save();
+          globalThis.savedBossTotal=S.total;
+        }""")
+        total = await solo.evaluate("savedBossTotal")
+        await solo.reload()
+        await solo.locator("#coop-solo").click()
+        assert await solo.evaluate("S.total") == total
+        assert await solo.evaluate("pct()>=0 && pct()<=100")
+        await solo.evaluate("localStorage.setItem(KEY,'{broken')")
+        await solo.reload()
+        await solo.locator("#coop-solo").click()
+        await solo.locator("#save-recovery").wait_for(state="visible")
+        assert await solo.evaluate("localStorage.getItem(KEY)") == "{broken"
+        assert await solo.evaluate("gameStarted") is False
+        await solo.get_by_role("button", name="Restore previous checkpoint").click()
+        await solo.locator("#coop-solo").click()
+        assert await solo.evaluate("localStorage.getItem(KEY+'_rejected')") == "{broken"
+        await solo.evaluate("text=>localStorage.setItem(KEY,text)", original)
+        await solo.reload()
+        await solo.locator("#coop-solo").click()
+        capacity = await solo.evaluate("""() => {
+          EP=Array.from({length:300},()=>({x:p.x+4,y:1,z:p.z,vx:0,vy:0,vz:0,l:3,dm:1}));
+          Dr=Array.from({length:256},(_,i)=>({x:p.x+i%3,z:p.z+4,y:.4,k:'scrap',a:1,vx:0,vz:0}));
+          draw();const result={projectiles:iEP.count,loot:iDr.count};EP=[];Dr=[];return result;
+        }""")
+        assert capacity == {"projectiles": 300, "loot": 256}, capacity
+        resources = await solo.evaluate("""() => {
+          let sharedDisposals=0;sph.addEventListener('dispose',()=>sharedDisposals++);ceilM.addEventListener('dispose',()=>sharedDisposals++);
+          const samples=[];for(let i=0;i<8;i++){build3D();draw();samples.push(rend.info.memory.geometries);}
+          const before=rend.info.memory.geometries,doors=DOORM.length;let disposedDoors=0;for(const door of DOORM)door.geometry.addEventListener('dispose',()=>disposedDoors++);openVault(false);draw();
+          const after=rend.info.memory.geometries;build3D();draw();
+          return {samples,before,after,doors,disposedDoors,sharedDisposals};
+        }""")
+        assert max(resources["samples"]) == min(resources["samples"]), resources
+        assert resources["disposedDoors"] == resources["doors"] and resources["after"] <= resources["before"], resources
+        assert resources["sharedDisposals"] == 0, resources
         await sweeper_check(solo)
+        boss_resources = await solo.evaluate("""() => {
+          const samples=[];for(let i=0;i<5;i++){build3D();draw();samples.push(rend.info.memory.geometries);}return samples;
+        }""")
+        assert max(boss_resources) == min(boss_resources), boss_resources
         await solo.goto(args.url + "/nuclear-sweeper-dev.html")
         dev = solo.frame_locator("iframe")
         await dev.locator("#coop-solo").click()
