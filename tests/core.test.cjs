@@ -86,3 +86,19 @@ test('a ranged enemy at the target position keeps finite movement and projectile
  Sim.step(world,{});for(const entity of [...world.E,...world.EP])for(const key of ['x','z'])assert.ok(Number.isFinite(entity[key]));
  for(const projectile of world.EP)for(const key of ['y','vx','vy','vz'])assert.ok(Number.isFinite(projectile[key]));
 });
+
+test('automatic cadence preserves fractional ticks without idle, menu or reload debt',()=>{
+ for(const fr of [0,10,30]){
+  const {world,host}=fixture();openFloor(world);host.pose.x=host.pose.z=40;host.wi=2;host.L.w2=1;host.wl[2].fr=fr;host.ammo[2]=10000;world.spawnT=1e9;
+  const rate=Definitions.WP[2].r*(1+.06*fr),initial=host.ammo[2];
+  for(let tick=0;tick<640;tick++)Sim.step(world,{host:{fire:true}});
+  assert.ok(Math.abs(initial-host.ammo[2]-rate*10)<=1,`rate ${rate}: ${initial-host.ammo[2]}`);
+  for(const input of [{},{fire:true,menu:true}]){for(let tick=0;tick<100;tick++)Sim.step(world,{host:input});const ammo=host.ammo[2];Sim.step(world,{host:{fire:true}});assert.ok(ammo-host.ammo[2]<=1);}
+  host.rel=.5;for(let tick=0;tick<31;tick++)Sim.step(world,{host:{fire:true}});assert.ok(host.wcd>=0);
+ }
+});
+test('semi automatic weapons fire once per press',()=>{
+ const {world,host}=fixture();openFloor(world);host.pose.x=host.pose.z=40;world.spawnT=1e9;host.ammo[0]=100;
+ for(let tick=0;tick<100;tick++)Sim.step(world,{host:{fire:true}});assert.equal(host.ammo[0],99);
+ Sim.step(world,{host:{}});Sim.step(world,{host:{fire:true}});assert.equal(host.ammo[0],98);
+});

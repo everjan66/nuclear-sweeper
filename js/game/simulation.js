@@ -155,11 +155,12 @@ function updatePlayer(world,player,input,dt){
  if(!inShelter(world,player))player.ready=false;
  if(Number.isInteger(input.weapon)&&input.weapon>=0&&input.weapon<WP.length&&input.weapon!==player.wi&&(input.weapon===0||player.L['w'+input.weapon]>0)){player.wi=input.weapon;player.rel=0;player.wcd=.25;}
  const weapon=WP[player.wi],magazine=Math.ceil(weapon.mag*(1+.12*player.wl[player.wi].multi));
- player.wcd=Math.max(0,player.wcd-dt);pose.rp*=Math.exp(-(input.fire?1.5:7)*dt);player.streak.left=Math.max(0,player.streak.left-dt);
+ const continuousFire=weapon.auto&&input.fire&&player.fireHeld&&!input.menu&&player.rel<=0&&player.ammo[player.wi]>0;
+ player.wcd=Math.max(continuousFire?-.1:0,player.wcd-dt);pose.rp*=Math.exp(-(input.fire?1.5:7)*dt);player.streak.left=Math.max(0,player.streak.left-dt);
  if(player.rel>0){player.rel-=dt;if(player.rel<=0&&(activeBoss(world)||player.reserves[player.wi]>0)){if(!activeBoss(world))player.reserves[player.wi]--;player.ammo[player.wi]=magazine;}}
  else if(!input.menu){
   if((input.reload||player.ammo[player.wi]<=0)&&player.ammo[player.wi]<magazine&&(activeBoss(world)||player.reserves[player.wi]>0))player.rel=player.relMax=weapon.rl/(1+.06*player.wl[player.wi].fr);
-  else if(input.fire&&player.wcd<=0&&player.ammo[player.wi]>0&&(weapon.auto||!player.fireHeld))shoot(world,player,input);
+  else for(let shots=0;shots<4&&input.fire&&player.wcd<=0&&player.ammo[player.wi]>0&&(weapon.auto||!player.fireHeld);shots++){shoot(world,player,input);if(!weapon.auto)break;}
  }
  player.fireHeld=!!input.fire&&!input.menu;
  if(pose.st!==2&&pose.st!==5){

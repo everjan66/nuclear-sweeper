@@ -141,6 +141,30 @@ async def smoke(args, server=None):
         await solo.reload()
         await solo.locator("#coop-solo").click()
         assert await solo.evaluate("S.cred") == 123
+        # Startup must not mutate saved boss totals or replace a rejected slot.
+        original = await solo.evaluate("localStorage.getItem(KEY)")
+        await solo.evaluate("""() => {
+          S.boss=NSR.Boss.create(S.sector);S.boss.phase=2;S.boss.hp=S.boss.mh*2/3;
+          genMap(S.sector);const w=bossWorld();NSR.Boss.seedDust(w);syncBossWorld(w);save();
+          globalThis.savedBossTotal=S.total;
+        }""")
+        total = await solo.evaluate("savedBossTotal")
+        await solo.reload()
+        await solo.locator("#coop-solo").click()
+        assert await solo.evaluate("S.total") == total
+        assert await solo.evaluate("pct()>=0 && pct()<=100")
+        await solo.evaluate("localStorage.setItem(KEY,'{broken')")
+        await solo.reload()
+        await solo.locator("#coop-solo").click()
+        await solo.locator("#save-recovery").wait_for(state="visible")
+        assert await solo.evaluate("localStorage.getItem(KEY)") == "{broken"
+        assert await solo.evaluate("gameStarted") is False
+        await solo.get_by_role("button", name="Restore previous checkpoint").click()
+        await solo.locator("#coop-solo").click()
+        assert await solo.evaluate("localStorage.getItem(KEY+'_rejected')") == "{broken"
+        await solo.evaluate("text=>localStorage.setItem(KEY,text)", original)
+        await solo.reload()
+        await solo.locator("#coop-solo").click()
         capacity = await solo.evaluate("""() => {
           EP=Array.from({length:300},()=>({x:p.x+4,y:1,z:p.z,vx:0,vy:0,vz:0,l:3,dm:1}));
           Dr=Array.from({length:256},(_,i)=>({x:p.x+i%3,z:p.z+4,y:.4,k:'scrap',a:1,vx:0,vz:0}));

@@ -72,10 +72,21 @@ const r=rng(1000+sec*77);DOORT=[];ZIP=[];POOLR=null;ISL=null;TERM=null;M=new Uin
  S.total=tot;S.rem=tot;SH={x:(R[0].cx+.5)*TS,z:(R[0].cz+.5)*TS};CORE={x:c5.cx*TS,z:c5.cz*TS};
  if(S.vOpen){for(const i of DOORT)M[i]=0}return {M:Array.from(M),D:Array.from(D),R,CO,SH,CORE,DEP,DEPT,POOLR,ISL,TERM,ZIP,DOORT,total:S.total,rem:S.rem,sector:sec,roomDesign:S.roomDesign};}
 
-function ceiling(world,x,z){const room=(world.R||[]).find(room=>room.large&&x>=room.x0*TS&&x<(room.x1+1)*TS&&z>=room.z0*TS&&z<(room.z1+1)*TS);return room?room.ceiling:WH;}
+const ceilingCache=new WeakMap();
+function scanCeiling(rooms,x,z){const room=rooms.find(room=>room.large&&x>=room.x0*TS&&x<(room.x1+1)*TS&&z>=room.z0*TS&&z<(room.z1+1)*TS);return room?room.ceiling:WH;}
+// Room arrays are immutable during play. Replacement invalidates automatically;
+// editors changing room bounds/heights in place must call invalidateCeilings.
+function invalidateCeilings(world){if(world.R)ceilingCache.delete(world.R);}
+function ceiling(world,x,z){const rooms=world.R;if(!rooms)return WH;
+ if(!Number.isFinite(x)||!Number.isFinite(z)||x<0||z<0||x>=GW*TS||z>=GH*TS)return scanCeiling(rooms,x,z);
+ let cells=ceilingCache.get(rooms);if(!cells){cells=new Float64Array(GW*GH);
+  for(let row=0;row<GH;row++)for(let col=0;col<GW;col++)cells[row*GW+col]=scanCeiling(rooms,(col+.5)*TS,(row+.5)*TS);
+  ceilingCache.set(rooms,cells);}
+ return cells[(z/TS|0)*GW+(x/TS|0)];}
+
 function laserState(laser,time){const phase=((time+laser.phase)%6+6)%6;return phase>=1&&phase<3.8?'active':phase>=.4&&phase<1?'warning':'off';}
 function laserDamage(world,pose,time){let touching=false;for(const room of world.R||[])for(const laser of room.lasers||[]){if(laserState(laser,time)!=='active'||pose.h>=laser.y+.12||pose.h+(pose.low?1.22:1.8)<=laser.y-.12)continue;
  const along=cl((pose.x-laser.x0)/(laser.x1-laser.x0),0,1),x=lerp(laser.x0,laser.x1,along);if(Math.hypot(pose.x-x,pose.z-laser.z)<.48)touching=true}return touching?18:0;}
-NSR.Map={generate,ceiling,laserState,laserDamage};
+NSR.Map={generate,ceiling,invalidateCeilings,laserState,laserDamage};
 if(typeof module!=='undefined')module.exports=NSR.Map;
 })(globalThis);

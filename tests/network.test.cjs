@@ -29,3 +29,37 @@ test('signaling enforces invitations, four slots, versions, peer isolation and s
  const queue=await fetch(base+'/api/poll?room='+host.room+'&member='+host.memberId,{headers:{Authorization:'Bearer '+host.memberToken}});assert.equal((await queue.json()).filter(message=>message.type==='peer-joined').length,3);
  assert.equal((await fetch(base+'/.env')).status,404);assert.equal((await post('leave',{},host)).status,200);assert.equal((await post('ice',{},guests[0])).status,410);
 });
+
+test('queue pressure cannot interrupt leave, expiry or leak rejected join slots',async context=>{
+ let clock=0,sweep;
+ const server=createServer({now:()=>clock,scheduleMaintenance:callback=>{sweep=callback;return {unref(){}};}});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));context.after(()=>{server.closeAllConnections();server.close();});
+ const base='http://127.0.0.1:'+server.address().port;
+ async function post(route,value={},member){const response=await fetch(base+'/api/'+route,{method:'POST',headers:{'Content-Type':'application/json',...(member?{Authorization:'Bearer '+member.memberToken}:{})},body:JSON.stringify({...value,...(member?{room:member.room,member:member.memberId}:{})})});return {status:response.status,data:await response.json()};}
+ const create=async()=>(await post('create',{version:Protocol.VERSION})).data;
+ const join=host=>post('join',{room:host.room,token:host.token,version:Protocol.VERSION});
+ const signal=(from,to)=>post('signal',{to:to.memberId,data:{type:'candidate'}},from);
+ const poll=async member=>(await fetch(base+'/api/poll?room='+member.room+'&member='+member.memberId,{headers:{Authorization:'Bearer '+member.memberToken}})).json();
+ const host=await create(),guest=(await join(host)).data;
+ for(let i=0;i<63;i++)assert.equal((await signal(guest,host)).status,200);
+ assert.equal((await signal(guest,host)).status,429);
+ for(let i=0;i<4;i++)assert.equal((await join(host)).status,429);
+ assert.equal((await post('leave',{},guest)).status,200);
+ assert.ok((await poll(host)).some(message=>message.type==='peer-left'));
+ const guests=[];for(let i=0;i<3;i++){const joined=await join(host);assert.equal(joined.status,200);guests.push(joined.data);}
+ for(const member of guests)for(let i=0;i<64;i++)assert.equal((await signal(host,member)).status,200);
+ assert.equal((await post('leave',{},host)).status,200);
+ assert.equal((await post('ice',{},guests[0])).status,410);
+ const expired=await create(),expiringGuest=(await join(expired)).data;
+ for(let i=0;i<64;i++)await signal(expired,expiringGuest);
+ clock=61000;
+ const healthy=await create();
+ assert.doesNotThrow(()=>sweep());
+ assert.equal((await post('ice',{},expired)).status,410);
+ assert.equal((await post('ice',{},healthy)).status,200);
+ // A stale guest also leaves cleanly when the refreshed host has a full queue.
+ const stale=(await join(healthy)).data;for(let i=0;i<63;i++)await signal(stale,healthy);
+ clock+=61000;await post('ice',{},healthy);assert.doesNotThrow(()=>sweep());
+ assert.equal((await post('ice',{},stale)).status,410);
+ assert.ok((await poll(healthy)).some(message=>message.type==='peer-left'));
+});
