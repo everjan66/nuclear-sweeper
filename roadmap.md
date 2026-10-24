@@ -96,7 +96,7 @@ link a release summary so contributors can understand prior decisions.
 
 ## Simulation timing audit follow-up
 
-- #45 — Bounded elapsed-time catch-up independent of rendering: In progress; 173 integrated tests passed across solo/host/guest callback rates, pause/resume, input edges and long stalls. Implementation in PR #51; final browser revalidation pending merge. At most 250 ms (16 fixed ticks) is consumed per callback; excess stall time is deliberately discarded.
+- #45 — Bounded elapsed-time catch-up independent of rendering: In progress; 173 integrated tests passed across solo/host/guest callback rates, pause/resume, input edges and long stalls. Implementation in PR #51; fresh Chromium four-client browser revalidation passed. At most 250 ms (16 fixed ticks) is consumed per callback; excess stall time is deliberately discarded.
 
 ## Gameplay design follow-ups from the audit
 
@@ -107,7 +107,7 @@ These are scoped proposals, not completed gameplay changes. Existing newer boss 
 - #49 — Define assist/contribution progression and prioritize solo/co-op feedback parity; complements shared simulation migration #20.
 ## Rendering lifetime audit follow-up
 
-- #44 — Dispose world-owned render resources and removed vault doors: Done (merged in PR #50); 160 tests and Chromium four-client smoke passed, including stable geometry counts across ordinary/boss rebuilds. Shared geometry/material/texture assets are retained explicitly. 
+- #44 — Dispose world-owned render resources and removed vault doors: Done (merged in PR #50); 160 tests and Chromium four-client smoke passed, including stable geometry counts across ordinary/boss rebuilds. Shared geometry/material/texture assets are retained explicitly.
 ## Loot and visibility audit follow-up
 
 - #43 — Value-preserving loot stacks, legacy checkpoint recovery and complete projectile/drop rendering: Done (merged in PR #46); 162 tests and Chromium four-client regression passed.  Nearby ordinary drops merge; at capacity they merge into the nearest compatible stack, while seven rare markers remain independent.
@@ -119,7 +119,7 @@ These are scoped proposals, not completed gameplay changes. Existing newer boss 
 - #39 — Cached ceiling heights for collision/ray queries: Done (merged in PR #40); all map versions and sites match reference lookups. Local four-player benchmark median improved from 0.31–0.35 ms to 0.15–0.20 ms per tick.  run `node scripts/benchmark-ceilings.cjs` to reproduce (not a GPU/FPS benchmark).
 ## Signaling audit follow-up
 
-- #37 — Queue-safe room expiry/leave and atomic join admission: Done (merged in PR #38); regression tests cover full queues and unaffected rooms. 
+- #37 — Queue-safe room expiry/leave and atomic join admission: Done (merged in PR #38); regression tests cover full queues and unaffected rooms.
 ## October code audit fixes
 
 - #35 - Solo checkpoint retention/recovery and boss accounting: Done (merged in PR #36). Rejected-save preservation, quota failures, and boss save/reload verified.
