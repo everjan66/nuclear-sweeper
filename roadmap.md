@@ -94,6 +94,9 @@ Propose new work in an issue instead of silently expanding an active task.
 Keep completed items until the milestone closes, then summarize them here or
 link a release summary so contributors can understand prior decisions.
 
+## Signaling audit follow-up
+
+- #37 — Queue-safe room expiry/leave and atomic join admission: In progress; regression tests cover full queues and unaffected rooms. Awaiting review and merge.
 ## October code audit fixes
 
 - #35 ? Solo checkpoint retention/recovery and boss accounting: In progress. Verify rejected-save preservation, quota failures, and boss save/reload before merge.
