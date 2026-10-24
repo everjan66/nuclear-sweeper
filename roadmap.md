@@ -94,6 +94,9 @@ Propose new work in an issue instead of silently expanding an active task.
 Keep completed items until the milestone closes, then summarize them here or
 link a release summary so contributors can understand prior decisions.
 
+## Combat audit follow-up
+
+- #41 — Co-op fractional fire cadence and solo late-site mastery targets: In progress; cadence/idle/menu/reload and sites 2–100 spawn regressions covered. Awaiting review/merge and human balance feedback on the explicit enemy mix.
 ## Ceiling lookup audit follow-up
 
 - #39 — Cached ceiling heights for collision/ray queries: In progress; all map versions and sites match reference lookups. Local four-player benchmark median improved from 0.31–0.35 ms to 0.15–0.20 ms per tick. Awaiting review/merge; run `node scripts/benchmark-ceilings.cjs` to reproduce (not a GPU/FPS benchmark).
