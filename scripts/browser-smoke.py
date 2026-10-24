@@ -165,6 +165,12 @@ async def smoke(args, server=None):
         await solo.evaluate("text=>localStorage.setItem(KEY,text)", original)
         await solo.reload()
         await solo.locator("#coop-solo").click()
+        capacity = await solo.evaluate("""() => {
+          EP=Array.from({length:300},()=>({x:p.x+4,y:1,z:p.z,vx:0,vy:0,vz:0,l:3,dm:1}));
+          Dr=Array.from({length:256},(_,i)=>({x:p.x+i%3,z:p.z+4,y:.4,k:'scrap',a:1,vx:0,vz:0}));
+          draw();const result={projectiles:iEP.count,loot:iDr.count};EP=[];Dr=[];return result;
+        }""")
+        assert capacity == {"projectiles": 300, "loot": 256}, capacity
         await sweeper_check(solo)
         await solo.goto(args.url + "/nuclear-sweeper-dev.html")
         dev = solo.frame_locator("iframe")

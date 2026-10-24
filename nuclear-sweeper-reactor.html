@@ -210,6 +210,7 @@ button.u:not(:disabled):hover .buybar{background:#b6e65a}
 <script src="js/core/movement.js"></script>
 <script src="js/game/boss.js"></script>
 <script src="js/game/sweeper-visuals.js"></script>
+<script src="js/game/loot.js"></script>
 <script src="js/game/simulation.js"></script>
 <script src="js/net/protocol.js"></script>
 <script src="js/net/transport.js"></script>
@@ -434,9 +435,10 @@ const ceilM=new THREE.MeshBasicMaterial({color:0x0b0e08});
 {const g=new THREE.Mesh(new THREE.PlaneGeometry(GW*TS,GH*TS),new THREE.MeshLambertMaterial({map:tex}));g.rotation.x=-Math.PI/2;g.position.set(GW*TS/2,0,GH*TS/2);sc.add(g);
 }
 function mkI(geo,mat,max){const m=new THREE.InstancedMesh(geo,mat,max);m.frustumCulled=false;m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);sc.add(m);return m}
-const sph=new THREE.SphereGeometry(1,8,6),bars=mkI(new THREE.BoxGeometry(TS-.25,1,TS-.25).translate(0,.5,0),new THREE.MeshBasicMaterial(),GW*GH),
- iEP=mkI(sph,new THREE.MeshBasicMaterial({color:0xff8a3c}),60),iDr=mkI(new THREE.BoxGeometry(.35,.35,.35),new THREE.MeshBasicMaterial(),200),iP=mkI(sph,new THREE.MeshBasicMaterial({color:0xc6ff3a}),300),iF=mkI(sph,new THREE.MeshBasicMaterial(),400);
+const sph=new THREE.SphereGeometry(1,8,6),bars=mkI(new THREE.BoxGeometry(TS-.25,1,TS-.25).translate(0,.5,0),new THREE.MeshBasicMaterial(),GW*GH);
+let iEP=mkI(sph,new THREE.MeshBasicMaterial({color:0xff8a3c}),128),iDr=mkI(new THREE.BoxGeometry(.35,.35,.35),new THREE.MeshBasicMaterial(),NSR.Loot.LIMIT),iP=mkI(sph,new THREE.MeshBasicMaterial({color:0xc6ff3a}),300),iF=mkI(sph,new THREE.MeshBasicMaterial(),400);
 bars.setColorAt(0,col.set(0));iF.setColorAt(0,col.set(0));iDr.setColorAt(0,col.set(0));
+function growInstances(mesh,count){if(count<=mesh.instanceMatrix.count)return mesh;const grown=mkI(mesh.geometry,mesh.material,Math.max(count,mesh.instanceMatrix.count*2));sc.remove(mesh);mesh.dispose();return grown}
 function setI(im,a,fn){const n=Math.min(a.length,im.instanceMatrix.count);for(let i=0;i<n;i++){dummy.rotation.set(0,0,0);fn(a[i],dummy);dummy.updateMatrix();im.setMatrixAt(i,dummy.matrix)}im.count=n;im.instanceMatrix.needsUpdate=true}
 const trG=new THREE.BufferGeometry(),trA=new Float32Array(48*6);trG.setAttribute('position',new THREE.BufferAttribute(trA,3));
 const trL=new THREE.LineSegments(trG,new THREE.LineBasicMaterial({color:0xffe08a,fog:false}));trL.frustumCulled=false;sc.add(trL);
@@ -831,7 +833,7 @@ function upd(dt){tt+=dt;tickPoints(dt);const s=ST(S.L);
  for(const e of E)eAI(e,dt,safe);
  for(let i=E.length-1;i>=0;i--){const e=E[i];if(e.gone){E.splice(i,1);continue}if(e.hp<=0){E.splice(i,1);snd(130,.15,'sawtooth',.04);const c=ET[e.t];
   for(let j=0;j<10;j++)F.push({x:e.x,y:.8,z:e.z,vx:rnd(-4,4),vy:rnd(1,5),vz:rnd(-4,4),l:.5,m:.5,c:'#8dff4a',r:.2});
-  for(let j=0,n=1+(Math.random()*2.4|0)+(S.sector>2?1:0)+(e.t==2?3:0)+(e.t==3?1:0);j<n;j++)Dr.push({x:e.x,y:.4,z:e.z,vx:rnd(-3,3),vz:rnd(-3,3)})}}
+  for(let j=0,n=1+(Math.random()*2.4|0)+(S.sector>2?1:0)+(e.t==2?3:0)+(e.t==3?1:0);j<n;j++)NSR.Loot.add(Dr,{x:e.x,y:.4,z:e.z,vx:rnd(-3,3),vz:rnd(-3,3)})}}
  for(let i=EP.length-1;i>=0;i--){const b=EP[i],n=Math.max(1,Math.ceil(Math.hypot(b.vx,b.vy,b.vz)*dt/.4)),h=dt/n;let dead=(b.l-=dt)<=0;
   for(let k=0;k<n&&!dead;k++){b.x+=b.vx*h;b.y+=b.vy*h;b.z+=b.vz*h;if(rs(b.x,b.y,b.z)){dead=true;break}
    if(!safe&&Math.abs(b.x-p.x)<.6&&Math.abs(b.z-p.z)<.6&&b.y>p.h&&b.y<p.h+hg){hurt(b.dm,{x:b.x-b.vx,z:b.z-b.vz});snd(90,.12,'sawtooth',.05);dead=true}}
@@ -874,8 +876,8 @@ function draw(renderDt=1/60){const visualPose=paused?p:coopSession?{...coopRende
  camCalc(visualPose);fpv=fps||(adsE&&!!WP[wi].sc);const s=ST(S.L);drawBossVisuals();drawRoomLasers();
  if(fullRef){for(let i=0;i<GW*GH;i++)setBar(i,s);fullRef=false}else{for(const i of dirty)setBar(i,s);const r=s.gei/TS+2;for(let z=Math.max(0,Math.floor(p.z/TS-r));z<=Math.min(GH-1,Math.floor(p.z/TS+r));z++)for(let x=Math.max(0,Math.floor(p.x/TS-r));x<=Math.min(GW-1,Math.floor(p.x/TS+r));x++)setBar(z*GW+x,s)}
  dirty.length=0;bars.instanceMatrix.needsUpdate=true;bars.instanceColor.needsUpdate=true;
- setI(iEP,EP,(b,d)=>{d.position.set(b.x,b.y,b.z);d.scale.setScalar(b.sz||.22)});
- {const n=Math.min(Dr.length,200);for(let i=0;i<n;i++){const b=Dr[i];dummy.position.set(b.x,.45+Math.sin(tt*5+b.x)*.1,b.z);dummy.rotation.set(0,tt*3,0);dummy.scale.setScalar(b.k=='part'?1.5:b.k=='cred'?1.2:1);dummy.updateMatrix();iDr.setMatrixAt(i,dummy.matrix);iDr.setColorAt(i,col.set(b.k=='part'?0x6ee7ff:b.k=='cred'?0xffd23c:0xf5c542))}iDr.count=n;iDr.instanceMatrix.needsUpdate=true;if(iDr.instanceColor)iDr.instanceColor.needsUpdate=true}
+ iEP=growInstances(iEP,EP.length);setI(iEP,EP,(b,d)=>{d.position.set(b.x,b.y,b.z);d.scale.setScalar(b.sz||.22)});
+ {iDr=growInstances(iDr,Dr.length);const n=Dr.length;for(let i=0;i<n;i++){const b=Dr[i];dummy.position.set(b.x,.45+Math.sin(tt*5+b.x)*.1,b.z);dummy.rotation.set(0,tt*3,0);dummy.scale.setScalar(b.k=='part'?1.5:b.k=='cred'?1.2:1);dummy.updateMatrix();iDr.setMatrixAt(i,dummy.matrix);iDr.setColorAt(i,col.set(b.k=='part'?0x6ee7ff:b.k=='cred'?0xffd23c:0xf5c542))}iDr.count=n;iDr.instanceMatrix.needsUpdate=true;if(iDr.instanceColor)iDr.instanceColor.needsUpdate=true}
  setI(iP,P,(b,d)=>{d.position.set(b.x,b.y,b.z);d.scale.setScalar(.1)});
  const nf=Math.min(F.length,400);for(let i=0;i<nf;i++){const f=F[i],k=f.l/f.m;dummy.position.set(f.x,f.y,f.z);dummy.rotation.set(0,0,0);dummy.scale.setScalar(f.r*k+.02);dummy.updateMatrix();iF.setMatrixAt(i,dummy.matrix);iF.setColorAt(i,col.set(f.c))}
  iF.count=nf;iF.instanceMatrix.needsUpdate=true;iF.instanceColor.needsUpdate=true;
