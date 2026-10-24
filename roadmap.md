@@ -94,6 +94,9 @@ Propose new work in an issue instead of silently expanding an active task.
 Keep completed items until the milestone closes, then summarize them here or
 link a release summary so contributors can understand prior decisions.
 
+## Rendering lifetime audit follow-up
+
+- #44 — Dispose world-owned render resources and removed vault doors: In progress; 160 tests and Chromium four-client smoke passed, including stable geometry counts across ordinary/boss rebuilds. Shared geometry/material/texture assets are retained explicitly. Awaiting review and merge.
 ## Loot and visibility audit follow-up
 
 - #43 — Value-preserving loot stacks, legacy checkpoint recovery and complete projectile/drop rendering: In progress; 162 tests and Chromium four-client regression passed. Awaiting review/merge. Nearby ordinary drops merge; at capacity they merge into the nearest compatible stack, while seven rare markers remain independent.
