@@ -5,7 +5,7 @@ function environment({latency=0,loss=0,jitter=0,seed=19}={}){
  const endpoints=new Map(),packets=[],ordered=new Map(),traffic={bytes:0,messages:0,dropped:0,byType:{}};
  const random=()=>{randomState=(Math.imul(randomState,1664525)+1013904223)>>>0;return randomState/4294967296;};
  const context=vm.createContext({console,crypto:crypto.webcrypto,performance:{now:()=>time},URL,URLSearchParams,btoa,atob});
- for(const file of ['core/definitions','core/map','core/movement','game/boss','game/simulation','net/protocol','storage/coop','net/session'])vm.runInContext(fs.readFileSync(path.join(__dirname,'../../js',file+'.js'),'utf8'),context);
+ for(const file of ['core/definitions','core/map','core/movement','game/boss','game/loot','game/simulation','net/protocol','storage/coop','net/session'])vm.runInContext(fs.readFileSync(path.join(__dirname,'../../js',file+'.js'),'utf8'),context);
  const decode=vm.runInContext('JSON.parse',context);
  context.NSR.Transport={create({onEvent}){
   const endpoint={id:null,onEvent,bytesSent:0};

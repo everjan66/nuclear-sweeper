@@ -6,6 +6,7 @@ const Maps=NSR.Map||(typeof require==='function'&&require('../core/map.js'));
 const Movement=NSR.Movement||(typeof require==='function'&&require('../core/movement.js'));
 const bossApi=()=>NSR.Boss||(typeof require==='function'&&require('./boss.js'));
 const {TS,GW,GH,MOVE,ST,WP,ET,U,ATT,MOD,WCLASS,UNLOCK,cl,cost,mkL}=Defs;
+const Loot=NSR.Loot||(typeof require==='function'&&require('./loot.js'));
 const caches=new WeakMap();
 const clone=value=>JSON.parse(JSON.stringify(value));
 const distance=(first,second)=>Math.hypot(first.x-second.x,first.z-second.z);
@@ -99,7 +100,7 @@ function recordKill(world,player,enemy,weapon,headshot){
  streak.points+=points;streak.bonus+=bonus;streak.left=5;player.score.run+=points;player.score.total+=points;player.score.best=Math.max(player.score.best,player.score.run);player.score.chain=Math.max(player.score.chain,streak.kills);
  for(let type=1;type<UNLOCK.length;type++){const kills=player.prog.weapons.reduce((total,progress,index)=>total+(WCLASS[index]===type-1?progress.kills:0),0);if(kills>=UNLOCK[type])WP.forEach((_,index)=>{if(WCLASS[index]===type)player.L['w'+index]=1;});}
  const drops=1+(random(world)*2.4|0)+(world.sector>2?1:0)+(enemy.t===2?3:enemy.t===3?1:0);
- for(let index=0;index<drops;index++)world.Dr.push({id:nextId(world,'l'),x:enemy.x,z:enemy.z,y:.4,vx:(random(world)-.5)*6,vz:(random(world)-.5)*6,k:'scrap',a:1});
+ for(let index=0;index<drops;index++)Loot.add(world.Dr,{id:nextId(world,'l'),x:enemy.x,z:enemy.z,y:.4,vx:(random(world)-.5)*6,vz:(random(world)-.5)*6,k:'scrap',a:1});
  event(world,'kill',{playerId:player.id,weapon,headshot,enemyId:enemy.id});
 }
 function cast(world,origin,direction,max,ignored=new Set()){
@@ -154,11 +155,12 @@ function updatePlayer(world,player,input,dt){
  if(!inShelter(world,player))player.ready=false;
  if(Number.isInteger(input.weapon)&&input.weapon>=0&&input.weapon<WP.length&&input.weapon!==player.wi&&(input.weapon===0||player.L['w'+input.weapon]>0)){player.wi=input.weapon;player.rel=0;player.wcd=.25;}
  const weapon=WP[player.wi],magazine=Math.ceil(weapon.mag*(1+.12*player.wl[player.wi].multi));
- player.wcd=Math.max(0,player.wcd-dt);pose.rp*=Math.exp(-(input.fire?1.5:7)*dt);player.streak.left=Math.max(0,player.streak.left-dt);
+ const continuousFire=weapon.auto&&input.fire&&player.fireHeld&&!input.menu&&player.rel<=0&&player.ammo[player.wi]>0;
+ player.wcd=Math.max(continuousFire?-.1:0,player.wcd-dt);pose.rp*=Math.exp(-(input.fire?1.5:7)*dt);player.streak.left=Math.max(0,player.streak.left-dt);
  if(player.rel>0){player.rel-=dt;if(player.rel<=0&&(activeBoss(world)||player.reserves[player.wi]>0)){if(!activeBoss(world))player.reserves[player.wi]--;player.ammo[player.wi]=magazine;}}
  else if(!input.menu){
   if((input.reload||player.ammo[player.wi]<=0)&&player.ammo[player.wi]<magazine&&(activeBoss(world)||player.reserves[player.wi]>0))player.rel=player.relMax=weapon.rl/(1+.06*player.wl[player.wi].fr);
-  else if(input.fire&&player.wcd<=0&&player.ammo[player.wi]>0&&(weapon.auto||!player.fireHeld))shoot(world,player,input);
+  else for(let shots=0;shots<4&&input.fire&&player.wcd<=0&&player.ammo[player.wi]>0&&(weapon.auto||!player.fireHeld);shots++){shoot(world,player,input);if(!weapon.auto)break;}
  }
  player.fireHeld=!!input.fire&&!input.menu;
  if(pose.st!==2&&pose.st!==5){
@@ -343,13 +345,15 @@ function restore(raw){
   for(const weapon of player.prog.weapons)while(weapon.types.length<ET.length)weapon.types.push(0);
  }
  if(!Object.hasOwn(world.players,raw.hostId))throw new Error('Missing host character.');world.hostId=raw.hostId;
- for(const [key,limit]of [['E',64],['Dr',1000],['EP',128]]){
+ for(const [key,limit]of [['E',64],['Dr',30000],['EP',128]]){
   if(!Array.isArray(raw[key])||raw[key].length>limit||raw[key].some(entity=>!entity||typeof entity.id!=='string'||entity.id.length>80||!finite(entity.x,-100,300)||!finite(entity.z,-100,300)))throw new Error('Invalid checkpoint entities.');
   if(new Set(raw[key].map(entity=>entity.id)).size!==raw[key].length)throw new Error('Duplicate checkpoint entities.');world[key]=clone(raw[key]);
  }
  if(world.E.some(enemy=>!Number.isInteger(enemy.t)||enemy.t<0||enemy.t>=ET.length||!['hp','mh','cd','fc','ph'].every(key=>finite(enemy[key],-1e12,1e6))||(enemy.h!==undefined&&!finite(enemy.h,0,Defs.WH-1.8*ET[enemy.t].sc))))throw new Error('Invalid enemy.');
  if(world.EP.some(projectile=>!['y','vx','vy','vz','l','dm'].every(key=>finite(projectile[key],-1000,1e6))))throw new Error('Invalid projectile.');
- if(world.Dr.some(loot=>!['scrap','cred','part'].includes(loot.k)||!finite(loot.a,0,1e9)||!finite(loot.vx,-1000,1000)||!finite(loot.vz,-1000,1000)))throw new Error('Invalid loot.');
+ if(world.Dr.some(loot=>!['scrap','cred','part'].includes(loot.k)||!finite(loot.a,0,1e12)||!finite(loot.vx,-1000,1000)||!finite(loot.vz,-1000,1000)))throw new Error('Invalid loot.');
+ const rewardKeys=new Set();for(const loot of world.Dr)if(loot.m){const key=loot.m+':'+loot.bit;if(!['i','v'].includes(loot.m)||![1,2,4,8,16].includes(loot.bit)||(loot.m==='i'&&loot.bit>2)||rewardKeys.has(key))throw new Error('Invalid reward marker.');rewardKeys.add(key);}
+ world.Dr=Loot.compact(world.Dr);
  if(!finite(raw.spawnT,0,3.5))throw new Error('Invalid spawn timer.');world.spawnT=raw.spawnT;
  if(boss&&!finite(raw.total,1,1e12))throw new Error('Invalid boss cleanup total.');
  world.total=boss?raw.total:generated.total;world.rem=world.D.reduce((total,value)=>total+value,0);world.events=[];world.dirty=[];return world;
