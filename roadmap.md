@@ -123,3 +123,7 @@ These are scoped proposals, not completed gameplay changes. Existing newer boss 
 ## October code audit fixes
 
 - #35 - Solo checkpoint retention/recovery and boss accounting: Done (merged in PR #36). Rejected-save preservation, quota failures, and boss save/reload verified.
+
+## Solo render performance follow-up
+
+- #52 - In progress: update dust instance transforms only for changed cells, update detector colors when range membership changes, and upload bounded ranges. RTX 2060 / Ryzen 5 2600 Full HD measurements and a repeatable render-submission harness are in docs/validation and scripts/benchmark-dust-render.js. This reduces CPU work; sustained 70 FPS drops have not yet been reproduced in the isolated fixture.
