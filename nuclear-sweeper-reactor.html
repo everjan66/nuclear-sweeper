@@ -205,6 +205,7 @@ button.u:not(:disabled):hover .buybar{background:#b6e65a}
 <canvas id="gl"></canvas><div id="fps-counter" hidden></div><div id="damage-directions" aria-hidden="true"></div><div id="vig"></div><div id="cx"></div><div id="scope"><svg viewBox="0 0 200 200"><g fill="#ff2a2a" stroke="#ff2a2a"><path d="M100 100l-11 13h5l6-7 6 7h5z" stroke="none"/><path d="M100 113V168" stroke-width="2"/><path d="M95 126h10M96 139h8M96 152h8M95 165h10" stroke-width="1.5"/></g></svg></div><div id="hm">✕</div><div id="hud"></div><div id="hint"><dl><dt>Click</dt><dd>capture the mouse</dd><dt>LMB · RMB</dt><dd>fire · aim</dd><dt>R</dt><dd>reload</dd><dt>1-7</dt><dd>weapons</dd><dt>Space</dt><dd>jump · vault · wallrun</dd><dt>Shift · C</dt><dd>slide · roll</dd><dt>E</dt><dd>shelter (Esc / Enter / E / Space leaves it)</dd><dt>Esc</dt><dd><b>settings and key bindings</b></dd><dt>M</dt><dd>music</dd></dl>Red marks a parkour route.</div><div id="shop"><div id="sp"></div></div><div id="bar"><div id="bl"></div><div id="wb"></div><div id="br"></div></div><div id="set"><div id="sw"></div></div><div id="log"></div><div id="tst"></div><div id="lvlup" role="status" aria-live="polite"></div>
 <div id="resume"><button class="go" id="resumeButton">CLICK TO RESUME</button><p id="resumeHint" class="j">Mouse capture is required to resume. Esc opens settings.</p></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="js/ui/dust-view.js"></script>
 <script src="js/ui/resources.js"></script>
 <script src="js/core/definitions.js"></script>
 <script src="js/core/map.js"></script>
@@ -439,6 +440,7 @@ function mkI(geo,mat,max){const m=new THREE.InstancedMesh(geo,mat,max);m.frustum
 const sph=new THREE.SphereGeometry(1,8,6),bars=mkI(new THREE.BoxGeometry(TS-.25,1,TS-.25).translate(0,.5,0),new THREE.MeshBasicMaterial(),GW*GH);
 let iEP=mkI(sph,new THREE.MeshBasicMaterial({color:0xff8a3c}),128),iDr=mkI(new THREE.BoxGeometry(.35,.35,.35),new THREE.MeshBasicMaterial(),NSR.Loot.LIMIT),iP=mkI(sph,new THREE.MeshBasicMaterial({color:0xc6ff3a}),300),iF=mkI(sph,new THREE.MeshBasicMaterial(),400);
 bars.setColorAt(0,col.set(0));iF.setColorAt(0,col.set(0));iDr.setColorAt(0,col.set(0));
+const dustView=NSR.DustView.create({width:GW,height:GH,tileSize:TS,matrix:bars.instanceMatrix,color:bars.instanceColor});
 function growInstances(mesh,count){if(count<=mesh.instanceMatrix.count)return mesh;const grown=mkI(mesh.geometry,mesh.material,Math.max(count,mesh.instanceMatrix.count*2));sc.remove(mesh);mesh.dispose();return grown}
 function setI(im,a,fn){const n=Math.min(a.length,im.instanceMatrix.count);for(let i=0;i<n;i++){dummy.rotation.set(0,0,0);fn(a[i],dummy);dummy.updateMatrix();im.setMatrixAt(i,dummy.matrix)}im.count=n;im.instanceMatrix.needsUpdate=true}
 const trG=new THREE.BufferGeometry(),trA=new Float32Array(48*6);trG.setAttribute('position',new THREE.BufferAttribute(trA,3));
@@ -851,8 +853,6 @@ function upd(dt){tt+=dt;tickPoints(dt);const s=ST(S.L);
  if(!S.boss){const b=getSec(S.sector).b;if(S.story<b.length&&cp>=b[S.story][0]){const x=b[S.story++];say(x[1],x[2])}}
  hpFlash-=dt;hmT-=dt;mzT-=dt}
 // ---------- render ----------
-function setBar(i,s){const v=D[i],x=i%GW,z=i/GW|0,cx=(x+.5)*TS,cz=(z+.5)*TS,k=v<.02?0:1;dummy.position.set(cx,M[i]==6?3.2:0,cz);dummy.rotation.set(0,0,0);dummy.scale.set(k,k*(.06+v*.5),k);dummy.updateMatrix();bars.setMatrixAt(i,dummy.matrix);
- {const t=TH(),a=t.dl,b=t.dh,f=Math.hypot(cx-p.x,cz-p.z)<s.gei?1:.5;col.setRGB(lerp(a[0],b[0],v)*f,lerp(a[1],b[1],v)*f,lerp(a[2],b[2],v)*f)}bars.setColorAt(i,col)}
 function buildBossVisuals(){const boss=S.boss,group=new THREE.Group(),armor=new THREE.MeshLambertMaterial({color:0x493d34}),glow=new THREE.MeshBasicMaterial({color:0xffc268});group.position.set(boss.x,0,boss.z);
  const body=new THREE.Mesh(new THREE.IcosahedronGeometry(2.5,1),armor);body.position.y=2.8;body.scale.set(1,1.1,1);group.add(body);
  const core=new THREE.Mesh(new THREE.IcosahedronGeometry(.85,1),glow);core.position.set(0,2.9,-2.3);group.add(core);
@@ -875,8 +875,7 @@ function drawBossVisuals(){const boss=S.boss,visual=W3?.userData.boss,panel=$('#
  let count=0;for(let index=0;index<D.length&&count<64;index++)if(D[index]>0){dummy.position.set((index%GW+.5)*TS,.7,((index/GW|0)+.5)*TS);dummy.rotation.set(0,tt,0);dummy.scale.set(1,1+Math.sin(tt*3+index)*.2,1);dummy.updateMatrix();visual.markers.setMatrixAt(count++,dummy.matrix)}visual.markers.count=count;visual.markers.instanceMatrix.needsUpdate=true}
 function draw(renderDt=1/60){const visualPose=paused?p:coopSession?{...coopRenderPose,yaw:p.yaw,pit:p.pit}:NSR.Movement.renderPose(previousPose,p,moveAcc/MOVE.tick);
  camCalc(visualPose);fpv=fps||(adsE&&!!WP[wi].sc);const s=ST(S.L);drawBossVisuals();drawRoomLasers();
- if(fullRef){for(let i=0;i<GW*GH;i++)setBar(i,s);fullRef=false}else{for(const i of dirty)setBar(i,s);const r=s.gei/TS+2;for(let z=Math.max(0,Math.floor(p.z/TS-r));z<=Math.min(GH-1,Math.floor(p.z/TS+r));z++)for(let x=Math.max(0,Math.floor(p.x/TS-r));x<=Math.min(GW-1,Math.floor(p.x/TS+r));x++)setBar(z*GW+x,s)}
- dirty.length=0;bars.instanceMatrix.needsUpdate=true;bars.instanceColor.needsUpdate=true;
+ const dustTheme=TH();dustView.update({dust:D,map:M,x:p.x,z:p.z,radius:s.gei,low:dustTheme.dl,high:dustTheme.dh,dirty,full:fullRef});fullRef=false;dirty.length=0;
  iEP=growInstances(iEP,EP.length);setI(iEP,EP,(b,d)=>{d.position.set(b.x,b.y,b.z);d.scale.setScalar(b.sz||.22)});
  {iDr=growInstances(iDr,Dr.length);const n=Dr.length;for(let i=0;i<n;i++){const b=Dr[i];dummy.position.set(b.x,.45+Math.sin(tt*5+b.x)*.1,b.z);dummy.rotation.set(0,tt*3,0);dummy.scale.setScalar(b.k=='part'?1.5:b.k=='cred'?1.2:1);dummy.updateMatrix();iDr.setMatrixAt(i,dummy.matrix);iDr.setColorAt(i,col.set(b.k=='part'?0x6ee7ff:b.k=='cred'?0xffd23c:0xf5c542))}iDr.count=n;iDr.instanceMatrix.needsUpdate=true;if(iDr.instanceColor)iDr.instanceColor.needsUpdate=true}
  setI(iP,P,(b,d)=>{d.position.set(b.x,b.y,b.z);d.scale.setScalar(.1)});

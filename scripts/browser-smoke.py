@@ -181,6 +181,16 @@ async def smoke(args, server=None):
         assert max(resources["samples"]) == min(resources["samples"]), resources
         assert resources["disposedDoors"] == resources["doors"] and resources["after"] <= resources["before"], resources
         assert resources["sharedDisposals"] == 0, resources
+        dust_buffers = await solo.evaluate("""() => {
+          fullRef=true;draw();const matrix=bars.instanceMatrix,color=bars.instanceColor;
+          const versions=[matrix.version,color.version];draw();const stationary=[matrix.version,color.version];
+          const cell=D.findIndex(value=>value>.1);D[cell]*=.5;dirty.push(cell);draw();
+          const changed=[matrix.version,color.version];draw();
+          return {versions,stationary,changed,settled:[matrix.version,color.version]};
+        }""")
+        assert dust_buffers["versions"] == dust_buffers["stationary"], dust_buffers
+        assert all(a < b for a, b in zip(dust_buffers["stationary"], dust_buffers["changed"])), dust_buffers
+        assert dust_buffers["changed"] == dust_buffers["settled"], dust_buffers
         await sweeper_check(solo)
         boss_resources = await solo.evaluate("""() => {
           const samples=[];for(let i=0;i<5;i++){build3D();draw();samples.push(rend.info.memory.geometries);}return samples;
